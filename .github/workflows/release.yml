@@ -75,22 +75,46 @@ jobs:
       - name: Check the signing secrets are present
         id: secrets
         env:
-          CERT: ${{ secrets.APPLE_CERTIFICATE }}
-          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          # Failing here is the point. An unsigned or un-notarized build installed
-          # through Homebrew is quarantined and refuses to open with a "damaged"
-          # error, which reads as a broken application rather than a missing
-          # secret — so this refuses to publish one at all.
+          # All seven, not the three the signing step happens to read first.
+          # Checking a subset is worse than not checking: the unchecked ones fail
+          # much later and further away — an empty APPLE_TEAM_ID gets past signing
+          # and dies inside notarization, where the error is about the submission
+          # rather than about a secret nobody filled in.
+          #
+          # An empty secret is treated as missing, because a secret can exist with
+          # an empty value and that is indistinguishable from absent to everything
+          # downstream.
           missing=
-          [ -n "$CERT" ]     || missing="$missing APPLE_CERTIFICATE"
-          [ -n "$IDENTITY" ] || missing="$missing APPLE_SIGNING_IDENTITY"
-          [ -n "$APPLE_ID" ] || missing="$missing APPLE_ID"
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD \
+                      APPLE_SIGNING_IDENTITY KEYCHAIN_PASSWORD \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            eval "value=\${$name}"
+            [ -n "$value" ] || missing="$missing $name"
+          done
           if [ -n "$missing" ]; then
-            echo "::error::missing secrets:$missing — see docs/RELEASING.md"
+            echo "::error::empty or missing secrets:$missing — see docs/RELEASING.md"
             exit 1
           fi
+
+          # Cheap shape checks on the two that are easy to get subtly wrong, and
+          # which otherwise fail deep inside codesign or notarytool.
+          case "$APPLE_SIGNING_IDENTITY" in
+            "Developer ID Application: "*"("*")") ;;
+            *) echo "::error::APPLE_SIGNING_IDENTITY should look like 'Developer ID Application: Name (TEAMID)'; an Apple Development certificate signs locally but notarization rejects it"; exit 1 ;;
+          esac
+          case "$APPLE_TEAM_ID" in
+            ??????????) ;;
+            *) echo "::error::APPLE_TEAM_ID should be the 10-character team ID, the parenthesised part of the signing identity"; exit 1 ;;
+          esac
+          echo "All seven secrets present."
 
       - name: Import the signing certificate
         env:
