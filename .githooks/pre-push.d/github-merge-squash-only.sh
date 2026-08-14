@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # guard: github-merge-squash-only
-# Ensure the GitHub repo allows only squash + rebase merges (no merge commits),
-# so PRs always land linear. Owner-only, fail-open — NEVER blocks the commit.
+# Ensure the GitHub repo allows only squash merges (no merge commits, no rebase),
+# so PRs always land linear. Owner-only, fail-open — NEVER blocks the push.
+#
+# A push hook rather than a commit hook, because this touches GitHub and a commit
+# does not. Reconciling on every commit spent an API round-trip to change nothing,
+# warned on every offline commit, and still could not help: the setting only
+# matters once a pull request exists, which is after a push. Push is both the
+# last moment it can be checked and the first moment it means anything.
 set -u
 dir=$(cd "$(dirname "$0")/.." && pwd)   # .githooks/
 # shellcheck source=../lib/common.sh
@@ -19,10 +25,10 @@ gg_user_owns "$owner" || exit 0
 # `gh pr merge --squash` failed.
 #
 # Rebase is off, not merely unused. This guard used to ENFORCE rebase=true, so a
-# repo set to squash-only was silently switched back on the next commit. One commit
+# repo set to squash-only was silently switched back on the next push. One push
 # per pull request is the point: a branch's work-in-progress history is noise once
 # it lands, and the squash message is written deliberately rather than composed by
-# GitHub from whatever the commits happened to say.
+# GitHub from whatever the repository happened to say.
 set -- $(gh api "repos/$slug" \
   --jq '"\(.allow_merge_commit) \(.allow_squash_merge) \(.allow_rebase_merge)"' 2>/dev/null)
 mc=${1:-} sq=${2:-} rb=${3:-}

@@ -96,7 +96,7 @@ fi
 # to {context}, sorted). Each value is emitted on its OWN line, NOT through
 # `@tsv` — `@tsv` adds a second escaping pass on top of `tojson`, so a job name
 # containing `"` or `\` would read back double-escaped and never equal the
-# `jq -c`-encoded `desired`, re-applying protection on every commit. `tojson`
+# `jq -c`-encoded `desired`, re-applying protection on every push. `tojson`
 # output is single-line, so line-reading each field is safe. Empty when unprotected.
 { IFS= read -r has_reviews; IFS= read -r has_admins; IFS= read -r current; IFS= read -r review_count; } < <(
   gh api "repos/$slug/branches/$branch/protection" --jq \
@@ -165,7 +165,7 @@ elif [ "$declared" != '[]' ]; then
     # Nothing declared is eligible — a typo, or an aggregate job that has not yet
     # run green on main. Keep whatever is required today rather than stripping the
     # gate down to nothing on the strength of a name that may not exist. It flips
-    # to the declared set on the first commit after that check passes on main.
+    # to the declared set on the first push after that check passes on main.
     echo "github-guard: no declared check is eligible yet — keeping current required checks" >&2
     want="$current"
   fi
