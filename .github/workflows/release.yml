@@ -1,0 +1,253 @@
+# Builds, signs, notarizes and publishes a release when a semver tag is pushed.
+#
+# The output is one asset: Snapshotter_<version>_universal.dmg, a universal
+# (arm64 + amd64) bundle, signed with Developer ID under the hardened runtime,
+# notarized by Apple and stapled so it opens without Gatekeeper complaining.
+#
+# Homebrew is deliberately NOT published from here. The antimatter-studios/
+# homebrew-tap repository PULLS a tagged version, computing the sha256 of the
+# asset it actually downloads, so this repository never needs a token that can
+# write to another one. The tap's contract is the asset name above and nothing
+# else; changing it silently breaks `brew install` rather than this workflow.
+#
+# The whole thing is a no-op without the signing secrets, and says so rather than
+# publishing something macOS will refuse to open. See docs/RELEASING.md.
+
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write # creates the release and uploads its assets
+
+jobs:
+  release:
+    # A macOS runner is not a preference: codesign, notarytool, lipo, hdiutil and
+    # the WebKit toolchain only exist here.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          # The release notes come from CHANGELOG.md at the tagged commit, and the
+          # changelog guard reads history, so a shallow clone would break both.
+          fetch-depth: 0
+
+      - name: Establish the version
+        id: version
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          case "$tag" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::$tag is not a vX.Y.Z tag"; exit 1 ;;
+          esac
+          echo "tag=$tag"              >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}"      >> "$GITHUB_OUTPUT"
+          echo "Building $tag"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install the build tools
+        run: |
+          brew install go-task
+          # Pinned to the version in go.mod, so the CLI that generates bindings
+          # and icons is the same one the library was built against.
+          wails_version=$(awk '/github.com\/wailsapp\/wails\/v3 / {print $2}' go.mod)
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@${wails_version}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Check the signing secrets are present
+        id: secrets
+        env:
+          CERT: ${{ secrets.APPLE_CERTIFICATE }}
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+        run: |
+          # Failing here is the point. An unsigned or un-notarized build installed
+          # through Homebrew is quarantined and refuses to open with a "damaged"
+          # error, which reads as a broken application rather than a missing
+          # secret — so this refuses to publish one at all.
+          missing=
+          [ -n "$CERT" ]     || missing="$missing APPLE_CERTIFICATE"
+          [ -n "$IDENTITY" ] || missing="$missing APPLE_SIGNING_IDENTITY"
+          [ -n "$APPLE_ID" ] || missing="$missing APPLE_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::missing secrets:$missing — see docs/RELEASING.md"
+            exit 1
+          fi
+
+      - name: Import the signing certificate
+        env:
+          CERT: ${{ secrets.APPLE_CERTIFICATE }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # A throwaway keychain, unlocked for this job only. The runner is
+          # ephemeral, but a temporary keychain keeps the certificate out of the
+          # login keychain's default search list either way.
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+
+          printf '%s' "$CERT" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          # Without this, codesign blocks on a GUI prompt for keychain access and
+          # the job hangs until it times out.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$keychain" > /dev/null
+
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$keychain"
+
+      - name: Build the universal bundle
+        run: |
+          set -euo pipefail
+          task darwin:package:universal
+          # lipo proves both slices are really present. A silently arm64-only
+          # build installs fine and then refuses to launch on Intel.
+          lipo -archs bin/snapshotter
+          test "$(lipo -archs bin/snapshotter)" = "x86_64 arm64" \
+            || test "$(lipo -archs bin/snapshotter)" = "arm64 x86_64"
+
+      - name: Sign for distribution
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          # Re-signed rather than relying on the packaging step: distribution needs
+          # the hardened runtime (notarization refuses without it) and a secure
+          # timestamp (without one the signature expires with the certificate).
+          # The local build deliberately does neither.
+          codesign --force --deep --timestamp --options runtime \
+            --entitlements build/darwin/entitlements.plist \
+            --sign "$IDENTITY" bin/snapshotter.app
+
+          codesign --verify --strict --deep --verbose=2 bin/snapshotter.app
+          # Prove the two things that silently break Gatekeeper later.
+          codesign -d --verbose=4 bin/snapshotter.app 2>&1 | grep -q "flags=.*runtime" \
+            || { echo "::error::hardened runtime flag is not set"; exit 1; }
+          codesign -dvv bin/snapshotter.app 2>&1 | grep -q "Timestamp=" \
+            || { echo "::error::signature has no secure timestamp"; exit 1; }
+
+      - name: Build the disk image
+        id: dmg
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Renamed for distribution only. The bundle is built as snapshotter.app
+          # because the binary and the launchd labels are lowercase, but what a
+          # user drags into /Applications should read as a name.
+          staging="$RUNNER_TEMP/dmg"
+          mkdir -p "$staging"
+          cp -R bin/snapshotter.app "$staging/Snapshotter.app"
+          ln -s /Applications "$staging/Applications"
+
+          dmg="Snapshotter_${VERSION}_universal.dmg"
+          hdiutil create -volname "Snapshotter" -srcfolder "$staging" \
+            -ov -format UDZO "$dmg"
+
+          # The disk image is signed too: Gatekeeper checks the container the user
+          # actually downloaded, not only the application inside it.
+          codesign --force --timestamp --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" "$dmg"
+          echo "dmg=$dmg" >> "$GITHUB_OUTPUT"
+
+      - name: Notarize and staple
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DMG: ${{ steps.dmg.outputs.dmg }}
+        run: |
+          set -euo pipefail
+          # --wait blocks until Apple answers, and a rejection fails the job. The
+          # log is printed on failure because notarytool's summary alone rarely
+          # says which binary was at fault.
+          if ! xcrun notarytool submit "$DMG" \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" \
+                --wait --timeout 30m \
+                --output-format json > "$RUNNER_TEMP/notary.json"; then
+            id=$(jq -r '.id // empty' "$RUNNER_TEMP/notary.json" 2>/dev/null || true)
+            [ -n "$id" ] && xcrun notarytool log "$id" \
+              --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" || true
+            echo "::error::notarization failed"
+            exit 1
+          fi
+
+          # Stapling writes the ticket into the image so it opens on a machine with
+          # no network, which is exactly the machine someone restores files on.
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+
+      - name: Verify as a user's Mac will
+        env:
+          DMG: ${{ steps.dmg.outputs.dmg }}
+        run: |
+          set -euo pipefail
+          # spctl is the check Gatekeeper itself performs. Doing it here means a
+          # broken release fails the build rather than a stranger's download.
+          spctl --assess --type open --context context:primary-signature -vv "$DMG"
+          mkdir -p "$RUNNER_TEMP/verify"
+          hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$RUNNER_TEMP/verify"
+          spctl --assess --type execute -vv "$RUNNER_TEMP/verify/Snapshotter.app"
+          xcrun stapler validate "$RUNNER_TEMP/verify/Snapshotter.app"
+          hdiutil detach "$RUNNER_TEMP/verify"
+
+      - name: Checksum
+        env:
+          DMG: ${{ steps.dmg.outputs.dmg }}
+        run: shasum -a 256 "$DMG" | tee SHA256SUMS
+
+      - name: Release notes
+        id: notes
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # The changelog is the single source of truth for what a release
+          # contains — the same script the pre-push guard uses to refuse a tag
+          # whose version is undocumented.
+          if ! .githooks/pre-push.d/git-changelog.sh notes "$TAG" > "$RUNNER_TEMP/notes.md"; then
+            echo "::error::CHANGELOG.md has no section for $TAG"
+            exit 1
+          fi
+          echo "path=$RUNNER_TEMP/notes.md" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          DMG: ${{ steps.dmg.outputs.dmg }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --title "Snapshotter $TAG" \
+            --notes-file "${{ steps.notes.outputs.path }}" \
+            "$DMG" SHA256SUMS
+          echo "Published $TAG"
+          echo "Now sync the tap: run tap-sync in antimatter-studios/homebrew-tap"

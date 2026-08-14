@@ -12,9 +12,30 @@ it does not](assets/screenshots/home.png)
 | [![A mounted snapshot's contents beside the live disk](assets/screenshots/browse.png)](assets/screenshots/browse.png) | [![How often snapshots are taken and what is kept](assets/screenshots/options.png)](assets/screenshots/options.png) |
 
 > **Status: pre-1.0.** Every path has now been run against a real system, mounting
-> included. Two things still stand between this and a release: it is not notarized,
-> so installing it elsewhere means clearing Gatekeeper by hand, and mounting needs
-> Full Disk Access that only the user can grant. See [Known limits](#known-limits).
+> included. What stands between this and 1.0 is listed in
+> [Known limits](#known-limits).
+
+## Install
+
+```sh
+brew install antimatter-studios/tap/snapshotter
+```
+
+That installs the application **and** puts `snapshotter` on your `PATH` — one
+binary serves both, so `snapshotter status` works immediately.
+
+Then grant it Full Disk Access, which mounting a snapshot cannot work without:
+
+> System Settings → Privacy & Security → Full Disk Access → add Snapshotter
+
+Root alone is not sufficient. macOS checks that permission against the
+application making the call, so until it is granted every attempt to open a
+snapshot is refused with `Operation not permitted`. Opening one also asks for an
+administrator password, once per batch.
+
+Releases are signed with Developer ID, notarized and stapled, so nothing has to be
+right-clicked past Gatekeeper. How that is produced is in
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## Why it exists
 

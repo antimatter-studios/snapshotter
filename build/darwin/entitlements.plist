@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for the hardened runtime, which notarization requires.
+
+  Deliberately short. Two things are NOT here and their absence is the point:
+
+  * No app sandbox. A sandboxed process cannot read another volume's files or
+    mount a filesystem, which is the entire function of this application. Adding
+    com.apple.security.app-sandbox would leave it able to do nothing at all.
+
+  * No com.apple.security.automation.apple-events. The privileged mount runs by
+    exec'ing /usr/bin/osascript as a subprocess, so this process never sends an
+    Apple event itself. If that ever moves in-process — NSAppleScript instead of
+    exec — this entitlement becomes necessary and its absence will present as the
+    prompt silently never appearing.
+
+  Full Disk Access is not an entitlement and cannot be requested here. It is a TCC
+  grant the user gives in System Settings, checked against the identity of the
+  binary making the call, which is why the privileged half re-execs this
+  application rather than elevating /sbin/mount_apfs.
+-->
+<plist version="1.0">
+<dict>
+	<!--
+	  JavaScriptCore compiles JavaScript at run time, and the hardened runtime
+	  forbids that by default. WKWebView usually runs its content out of process
+	  with its own entitlements, so this may prove unnecessary — but the failure
+	  mode without it is a window that loads and then does nothing, which is far
+	  more expensive to diagnose than one permissive flag on a non-sandboxed
+	  application already trusted with the whole disk.
+	-->
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+</dict>
+</plist>
