@@ -66,7 +66,7 @@ export class CompareRequest {
 
 /**
  * CompareSnapshotsRequest asks what changed between two snapshots.
- *
+ * 
  * Older and Newer state the roles the caller intends. They are not taken on
  * trust — see CompareSnapshots — but naming them rather than numbering them
  * means a caller cannot pass two snapshots without having thought about which
@@ -325,7 +325,7 @@ export enum Level {
 
     /**
      * LevelInfo is something the panel should say that is not a degradation.
-     *
+     * 
      * It exists for one reason: a scenario has to announce itself in the findings,
      * and if that announcement escalated the verdict then the clean "nothing to
      * say" state could never be reached under a scenario — which is one of the
@@ -485,7 +485,7 @@ export class Overview {
 /**
  * PolicyOption is one retention policy on offer, with what it would actually do
  * at the interval currently chosen.
- *
+ * 
  * The numbers are the point. "Hourly for a day, daily for a week" tells nobody
  * whether they end up with more or fewer restore points than they have now,
  * which is the only question anyone actually has about retention.
@@ -824,7 +824,7 @@ export class SearchResult {
 /**
  * SnapshotComparison is the difference between two snapshots, with the two ends
  * named so that no row can be read backwards.
- *
+ * 
  * diffs.Change names its fields for a snapshot-against-live comparison, and here
  * they mean: AbsSnapshot, SnapSize and SnapModTime describe Older, while AbsLive,
  * LiveSize and LiveModTime describe Newer. Status follows from that —

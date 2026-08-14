@@ -37,7 +37,7 @@ export function Compare(req: $models.CompareRequest): $CancellablePromise<diffs$
 
 /**
  * CompareSnapshots reports what changed between two snapshots under LivePath.
- *
+ * 
  * Which snapshot is the older one is decided by the snapshots' own timestamps,
  * not by the order the arguments arrived in. A change between two snapshots has
  * no inherent direction, and getting it backwards inverts every row silently: a
@@ -45,7 +45,7 @@ export function Compare(req: $models.CompareRequest): $CancellablePromise<diffs$
  * failure than any refusal, so argument order is treated as an intention to be
  * checked rather than as a fact. The check is free and authoritative, because
  * tmutil puts the instant a snapshot was taken in its name.
- *
+ * 
  * Two snapshots cannot tie. The stamp is a whole second of local time and it *is*
  * the snapshot's identity, so equal timestamps mean one snapshot named twice,
  * which is refused below.

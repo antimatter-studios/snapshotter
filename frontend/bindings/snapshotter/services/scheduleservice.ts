@@ -16,7 +16,7 @@ import * as $models from "./models.js";
 
 /**
  * Install writes and loads the schedule with a flat retention window.
- *
+ * 
  * It stays as it was, taking the two numbers and nothing else, because the
  * one-click fix in the Health panel calls it and installing a schedule must not
  * require an opinion about tiering first.
