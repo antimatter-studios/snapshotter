@@ -255,10 +255,16 @@ jobs:
           # spctl is the check Gatekeeper itself performs. Doing it here means a
           # broken release fails the build rather than a stranger's download.
           spctl --assess --type open --context context:primary-signature -vv "$DMG"
+
+          # And the application inside it, which is what actually gets launched.
           mkdir -p "$RUNNER_TEMP/verify"
           hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$RUNNER_TEMP/verify"
           spctl --assess --type execute -vv "$RUNNER_TEMP/verify/Snapshotter.app"
-          xcrun stapler validate "$RUNNER_TEMP/verify/Snapshotter.app"
+          # Deliberately NOT `stapler validate` on the inner application. Stapling a
+          # disk image writes the ticket into the image, not into the bundle inside
+          # it, so the bundle correctly reports "does not have a ticket stapled to
+          # it" while Gatekeeper still accepts it — it reads the image's ticket.
+          # Asserting otherwise failed a release whose artifact was perfectly good.
           hdiutil detach "$RUNNER_TEMP/verify"
 
       - name: Checksum
