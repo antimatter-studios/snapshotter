@@ -7,6 +7,22 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.1.1 — 2026-08-14
+
+**Packaging only; the application is unchanged from v0.1.0.**
+
+The application bundle now carries its own notarization ticket rather than relying
+on the disk image's. Homebrew does not install the image — it copies the bundle out
+of it, and that copy had no ticket of its own, so Gatekeeper had to ask Apple
+whether it had been notarized. With a network that succeeds silently; without one it
+can refuse, which is the machine this application exists to rescue.
+
+Fixing it meant reordering the release rather than adding a flag, because a ticket
+is stapled to one specific thing: the bundle is submitted and stapled first, the
+image is built around the already-stapled copy, and the image is then submitted and
+stapled in its own right — Gatekeeper assesses the downloaded file as well as what
+is inside it.
+
 ## v0.1.0 — 2026-08-14
 
 First release. Signed with Developer ID, notarized, and installable with

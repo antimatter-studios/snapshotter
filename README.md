@@ -313,6 +313,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.1.1
+
+Packaging only. The application bundle now carries its own notarization ticket, so
+the copy Homebrew installs opens on a machine with no network.
+
 ### v0.1.0
 
 First release. Browse, compare and restore APFS local snapshots on a Mac with no
