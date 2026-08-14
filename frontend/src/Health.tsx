@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLiveRefresh } from "./live";
 import {
   Status,
   Snapshots,
@@ -48,6 +49,9 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // The verdict on this machine changes without anyone pressing anything here.
+  useLiveRefresh(refresh);
 
   if (error) return <p className="banner error">{error}</p>;
   if (!health) return <p className="empty">Checking…</p>;

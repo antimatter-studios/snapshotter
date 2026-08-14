@@ -3,7 +3,7 @@
 
 /**
  * StatusService answers one question: is this Mac actually protected right now.
- *
+ * 
  * Every input already existed, scattered across the other services — the
  * snapshot list, the schedule, Time Machine's state, the free space. Scattered
  * is the problem: a user cannot assemble "I am covered" out of four screens, and
@@ -40,7 +40,7 @@ export function MountHelp(): $CancellablePromise<string> {
 
 /**
  * OpenPrivacySettings reveals the Full Disk Access pane.
- *
+ * 
  * It exists because the mount failure it answers is otherwise a dead end: the
  * error names a permission, and the place to grant it is four levels into
  * System Settings.

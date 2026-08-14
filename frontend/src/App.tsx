@@ -7,6 +7,7 @@ import { Schedule } from "./Schedule";
 import { Health } from "./Health";
 import { Search } from "./Search";
 import { ThemeToggle } from "./ThemeToggle";
+import { useLiveRefresh } from "./live";
 // The same file the application icon and the favicon are built from, reached out
 // of the project's assets/ rather than copied into public/, so the mark has one
 // home. Vite resolves and emits it at build time.
@@ -75,6 +76,9 @@ export default function App() {
   useEffect(() => {
     if (mountRefused && !mountHelp) Status.MountHelp().then(setMountHelp).catch(() => {});
   }, [mountRefused, mountHelp]);
+
+  // The sidebar counts snapshots this window did not necessarily take.
+  useLiveRefresh(refresh);
 
   const snapshots = overview?.snapshots ?? [];
   const current = snapshots.find((s) => s.name === selected) ?? null;

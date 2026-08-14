@@ -16,7 +16,7 @@ import * as $models from "./models.js";
 
 /**
  * Home is the starting point for browsing.
- *
+ * 
  * While mounts are simulated it is the seed directory, because that is the only
  * place a faked snapshot differs from the live disk. Opening on the home folder
  * instead would show a wall of identical rows and look like the comparison was
