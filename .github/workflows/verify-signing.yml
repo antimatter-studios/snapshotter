@@ -1,0 +1,173 @@
+# Proves the seven signing secrets are actually usable, without building,
+# publishing or submitting anything.
+#
+# Run it manually before tagging. The release workflow's own checks confirm the
+# secrets are present and shaped plausibly, which is not the same as correct: a
+# .p12 exported without its private key, an Apple Development certificate in place
+# of a Developer ID one, an account password where an app-specific one is needed,
+# or a team ID belonging to a different team all pass a presence check and then
+# fail — some of them twenty minutes into a release, inside notarization, with an
+# error that talks about the submission rather than the secret.
+#
+# Everything here is read-only. notarytool history authenticates and lists past
+# submissions; it uploads nothing and creates nothing.
+
+name: Verify signing secrets
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read # reads nothing else; it must not be able to publish
+
+jobs:
+  verify:
+    runs-on: macos-15
+    steps:
+      # Needed only for build/darwin/entitlements.plist, which the final step
+      # signs against so that the test signature is the real one.
+      - uses: actions/checkout@v4
+
+      - name: Present and non-empty
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Empty counts as missing: a secret can hold an empty string, and
+          # nothing downstream can tell that apart from absent.
+          missing=
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD \
+                      APPLE_SIGNING_IDENTITY KEYCHAIN_PASSWORD \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            eval "value=\${$name}"
+            [ -n "$value" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::empty or missing:$missing — see docs/RELEASING.md"
+            exit 1
+          fi
+          echo "All seven present."
+
+      - name: The certificate imports, and carries its private key
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/verify.keychain-db"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+
+          if ! printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12" 2>/dev/null; then
+            echo "::error::APPLE_CERTIFICATE is not valid base64. Produce it with: base64 -i Certificates.p12"
+            exit 1
+          fi
+
+          if ! security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+                 -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security 2>"$RUNNER_TEMP/import.err"; then
+            echo "::error::the .p12 would not import — usually a wrong APPLE_CERTIFICATE_PASSWORD"
+            sed 's/^/  /' "$RUNNER_TEMP/import.err"
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$keychain" > /dev/null
+
+          # Importing does not make a keychain searchable. Without this, codesign
+          # looks up the identity by name, does not find it, and reports "no
+          # identity found" — the same message a genuinely wrong identity gives, so
+          # a missing search path would masquerade as a bad secret.
+          security list-keychains -d user -s "$keychain" \
+            $(security list-keychains -d user | tr -d '"')
+
+          # find-identity lists only identities: a certificate WITH a usable private
+          # key. A .p12 exported without the key imports happily and shows up as
+          # nothing here, which is the single most common mistake — and the one that
+          # otherwise surfaces as "no identity found" at codesign, reading as a
+          # wrong identity name.
+          if ! security find-identity -v -p codesigning "$keychain" | grep -q "Developer ID Application"; then
+            echo "::error::imported, but no Developer ID Application *identity* — the .p12 has no private key, or holds a different certificate type. Export the certificate AND the key beneath it."
+            security find-identity -v "$keychain" | sed 's/^/  /'
+            exit 1
+          fi
+          security find-identity -v -p codesigning "$keychain" | sed 's/^/  /'
+          echo "keychain=$keychain" >> "$GITHUB_ENV"
+
+      - name: The identity and team id match the certificate
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          available=$(security find-identity -v -p codesigning "$keychain")
+
+          # Compared against what is really in the keychain rather than against a
+          # pattern. A near-miss — a middle name, a stale team, one character of the
+          # id — passes any shape check and then fails at codesign.
+          if ! printf '%s' "$available" | grep -qF "$APPLE_SIGNING_IDENTITY"; then
+            echo "::error::APPLE_SIGNING_IDENTITY does not match any identity in the certificate. It must be copied exactly, including the parenthesised team id."
+            echo "  configured: $APPLE_SIGNING_IDENTITY"
+            echo "  available:"; printf '%s\n' "$available" | sed 's/^/    /'
+            exit 1
+          fi
+
+          # The team id in the identity string is the certificate's OU. If the
+          # secret disagrees, notarization is the thing that finds out.
+          from_identity=$(printf '%s' "$APPLE_SIGNING_IDENTITY" | sed -n 's/.*(\(.*\))$/\1/p')
+          if [ "$from_identity" != "$APPLE_TEAM_ID" ]; then
+            echo "::error::APPLE_TEAM_ID ($APPLE_TEAM_ID) is not the team in the signing identity ($from_identity)"
+            exit 1
+          fi
+          echo "Identity matches the certificate, and the team id agrees with it."
+
+      - name: Apple accepts the notarization credentials
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # Authenticates and lists previous submissions. It uploads nothing, so
+          # this is the cheapest possible proof that a real release would be
+          # accepted rather than rejected after a full build.
+          if ! xcrun notarytool history \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" > "$RUNNER_TEMP/history.txt" 2>&1; then
+            echo "::error::Apple rejected the notarization credentials"
+            sed 's/^/  /' "$RUNNER_TEMP/history.txt"
+            echo "Most likely causes, in order:"
+            echo "  * APPLE_PASSWORD is the Apple ID password rather than an app-specific one"
+            echo "  * APPLE_TEAM_ID belongs to a different team than the Apple ID can act for"
+            echo "  * the Apple ID is not enrolled in the Developer Program"
+            exit 1
+          fi
+          echo "Apple accepted them."
+          head -20 "$RUNNER_TEMP/history.txt" | sed 's/^/  /'
+
+      - name: Signing actually works
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          # The last thing that can still fail after everything above passes: the
+          # key is present but unusable, or the partition list was not set and
+          # codesign blocks on a GUI prompt. Signing a throwaway binary proves the
+          # whole chain end to end for a fraction of a build.
+          printf 'int main(void){return 0;}' > "$RUNNER_TEMP/t.c"
+          cc -o "$RUNNER_TEMP/t" "$RUNNER_TEMP/t.c"
+          codesign --force --timestamp --options runtime \
+            --entitlements build/darwin/entitlements.plist \
+            --sign "$APPLE_SIGNING_IDENTITY" "$RUNNER_TEMP/t"
+          codesign --verify --strict --verbose=2 "$RUNNER_TEMP/t"
+          codesign -dvv "$RUNNER_TEMP/t" 2>&1 | grep -E "Authority|Timestamp" | sed 's/^/  /'
+          echo "Signed, timestamped and verified with the real identity."
+
+      - name: Summary
+        run: echo "All seven secrets are present, correct and usable. Tagging will not fail on them."
