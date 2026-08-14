@@ -1,0 +1,58 @@
+/* Compare — the controls and the direction strip for a comparison between two
+   snapshots. Everything else on this screen reuses the shared table, chip and
+   toolbar rules in styles.css.
+
+   No colour is written here. The palette is tokenised because the application has
+   a light and a dark theme, and a literal would survive one of them. */
+
+/* The "against" picker sits with the depth checkbox in the toolbar, so it reads
+   as another property of the comparison rather than as navigation. */
+.compare-against {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* The direction strip is the whole point of the snapshot-to-snapshot view: a
+   change between two past instants has no inherent before, so the two ends and
+   the direction between them are stated on screen rather than left to be
+   inferred from a column heading. */
+.direction {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* The two ends carry the reading colour, so the greyed connecting words fall
+   back and the pair is what the eye lands on. */
+.direction .side {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.direction .arrow {
+  color: var(--accent);
+}
+
+/* Spelling out what "removed" and "added" mean in this direction. It earns its
+   line because the alternative is a status badge whose meaning depends on which
+   two snapshots happen to be selected. */
+.direction .reading {
+  flex-basis: 100%;
+  line-height: 1.5;
+}
+
+/* Shown when the two arrived newest-first and the roles were corrected. Saying so
+   is cheaper than leaving somebody to wonder why the picker and the strip
+   disagree. */
+.direction .corrected {
+  color: var(--changed);
+}

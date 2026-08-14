@@ -1,0 +1,975 @@
+/* Snapshotter — a dark, dense, macOS-flavoured interface.
+   Colour carries the verdict on every row, so the palette is deliberately
+   narrow: one hue per status, everything else grey. */
+
+/* Dark is the base palette: this is a utility that lives among Terminal windows
+   and Finder, and the tables read better on a dark ground. Light is a complete
+   override rather than a filter, because inverting a tuned dark palette gives
+   muddy greys and unreadable status colours.
+
+   Every colour in this file is a token. A palette that is only half-tokenised
+   swaps into something worse than either theme. */
+:root {
+  --bg: #121418;
+  --panel: #191c22;
+  --panel-2: #1f232b;
+  --line: #2b303a;
+  --line-soft: #20242c;
+  --hover: #272c36;
+  --selected: #253044;
+  --text: #e6e9ef;
+  --muted: #98a0ae;
+  --accent: #4c8dff;
+  --on-accent: #ffffff;
+
+  --deleted: #ff6b6b;
+  --changed: #ffb454;
+  --new: #4cc38a;
+  --typed: #c58aff;
+
+  --warn-bg: #3a2c17;
+  --warn-fg: #ffd39b;
+  --error-bg: #3a1d1d;
+  --error-fg: #ffb3b3;
+  --ok-bg: #17301f;
+  --ok-fg: #a8e6c1;
+  --typed-bg: #2d2340;
+
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  font-size: 13px;
+  color-scheme: dark;
+}
+
+/* The light palette, defined once and applied from two places: an explicit
+   choice, and the system preference when no choice has been made. */
+:root[data-theme="light"] {
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --panel-2: #eef1f5;
+  --line: #d6dbe3;
+  --line-soft: #e6eaf0;
+  --hover: #e4e8ee;
+  --selected: #d8e4fb;
+  --text: #1a1d23;
+  --muted: #5d6673;
+  --accent: #2563eb;
+  --on-accent: #ffffff;
+
+  /* Darkened from the dark-mode hues: the originals are tuned for a dark ground
+     and fail contrast on white, which matters because colour carries the verdict
+     on every row. */
+  --deleted: #c62f2f;
+  --changed: #a35a00;
+  --new: #14794a;
+  --typed: #6d28d9;
+
+  --warn-bg: #fdf2dc;
+  --warn-fg: #6b4a05;
+  --error-bg: #fdeaea;
+  --error-fg: #8c1f1f;
+  --ok-bg: #e6f6ec;
+  --ok-fg: #14572f;
+  --typed-bg: #f1e9fd;
+
+  color-scheme: light;
+}
+
+/* No explicit choice: follow the system, unless dark was explicitly chosen. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --panel-2: #eef1f5;
+  --line: #d6dbe3;
+  --line-soft: #e6eaf0;
+  --hover: #e4e8ee;
+  --selected: #d8e4fb;
+  --text: #1a1d23;
+  --muted: #5d6673;
+  --accent: #2563eb;
+  --on-accent: #ffffff;
+
+  /* Darkened from the dark-mode hues: the originals are tuned for a dark ground
+     and fail contrast on white, which matters because colour carries the verdict
+     on every row. */
+  --deleted: #c62f2f;
+  --changed: #a35a00;
+  --new: #14794a;
+  --typed: #6d28d9;
+
+  --warn-bg: #fdf2dc;
+  --warn-fg: #6b4a05;
+  --error-bg: #fdeaea;
+  --error-fg: #8c1f1f;
+  --ok-bg: #e6f6ec;
+  --ok-fg: #14572f;
+  --typed-bg: #f1e9fd;
+
+  color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+button.link,
+button.crumb {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  text-align: left;
+}
+
+button.link:hover,
+button.crumb:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  background: none;
+}
+
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+/* Layout ------------------------------------------------------------------ */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  /* Leaves room for the traffic lights over the hidden title bar. They occupy
+     the top 32px of the window and sit directly above the mark rather than
+     beside it, so the gap below them is the same 18px this header uses at its
+     sides. 34px used to be enough only because a line of text is lighter than a
+     40px icon crowded up against them. */
+  padding: 50px 18px 12px;
+  border-bottom: 1px solid var(--line);
+  /* Two properties for one behaviour, and both are needed.
+     -webkit-app-region is WebKit's own, and it is what actually drags the window.
+     --wails-draggable is the one the Wails runtime looks for, and without it the
+     runtime never sees this as a title bar — so a double-click here did nothing,
+     because the event that would zoom the window is only sent for regions marked
+     its way. The runtime hands the double-click to the native side, which honours
+     the system's "double-click a window's title bar to" setting, so zoom versus
+     minimise stays the user's choice rather than ours. */
+  -webkit-app-region: drag;
+  --wails-draggable: drag;
+}
+
+header button,
+header .disk {
+  -webkit-app-region: no-drag;
+  --wails-draggable: no-drag;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mark {
+  /* 22.5% of the width, which is the corner radius the artwork itself uses, so
+     the ring hugs the squircle instead of cutting across it. */
+  border-radius: 9px;
+  /* The icon carries its own near-black plate, which all but disappears against
+     the dark theme. The ring is what keeps it looking like a deliberate object
+     on both. */
+  box-shadow: 0 0 0 1px var(--line);
+  /* The header is a drag region. Without this the icon is a draggable image and
+     pulling on it tears out a copy instead of moving the window. */
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Name cells in the listings: the icon and the name are one unit, so a long name
+   wrapping must not push the icon out of line with the first row of text. */
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.file-icon {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+/* Folders take the accent, as they do in the Finder: in a list that is mostly
+   files, the thing you can descend into is what the eye is hunting for.
+
+   Sized to the same slot as a document rather than to itself. The document artwork
+   is 40x48, so at 21px wide it stands 25px tall; a folder left at its own 15px sat
+   in the same column looking like it came from a different set. The 16x16 viewBox
+   scales to fit and centres, so the glyph is not stretched to fill the box. */
+.file-icon.folder {
+  color: var(--accent);
+  width: 21px;
+  height: 25px;
+}
+
+/* react-file-icon draws a document that is taller than it is wide and scales to
+   its container, so the width is set and the height follows the artwork rather
+   than being squashed into a square. */
+/* Wide enough for the extension label to be readable, which is the whole point
+   of this set — at 13px the label was a smudge and every kind looked the same.
+   The rows are ~40px tall, so this costs no vertical space. */
+.file-icon.doc {
+  display: block;
+  width: 21px;
+  line-height: 0;
+}
+
+.file-icon.doc svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.subtitle,
+.disk {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+aside {
+  width: 232px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px 10px;
+  /* The sidebar itself does not scroll — the snapshot list inside it does. If the
+     whole column scrolled, a machine with months of snapshots would push Home and
+     the footer actions off the bottom, and they are the two things that must stay
+     reachable however long the list gets. */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aside-home {
+  text-align: left;
+  width: 100%;
+}
+
+.aside-home.active {
+  background: var(--selected);
+  border-color: var(--accent);
+}
+
+.aside-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.aside-head h2 {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.aside-head .count,
+.aside-empty {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.aside-empty {
+  line-height: 1.5;
+}
+
+main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Snapshot list ----------------------------------------------------------- */
+
+.snapshot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* The one scrolling region in the sidebar. min-height:0 is what actually allows
+     it to shrink: a flex item defaults to min-height:auto, which refuses to go
+     below its content and would push the footer out of the column instead of
+     scrolling. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.snapshot-list li {
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+}
+
+.snapshot-list li:hover {
+  background: var(--panel-2);
+}
+
+.snapshot-list li.selected {
+  background: var(--selected);
+}
+
+.when {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+  flex-shrink: 0;
+}
+
+.snapshot-list li.mounted .dot {
+  background: var(--new);
+}
+
+.age {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: 14px;
+}
+
+.row-actions {
+  position: absolute;
+  right: 6px;
+  top: 8px;
+  display: none;
+}
+
+.snapshot-list li:hover .row-actions {
+  display: block;
+}
+
+button.wide {
+  width: 100%;
+}
+
+/* Banners ----------------------------------------------------------------- */
+
+.banner {
+  margin: 0;
+  padding: 8px 18px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.banner.warning,
+.warning {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.banner.error,
+p.error {
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.banner.ok {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+  cursor: pointer;
+}
+
+p.error,
+p.note,
+p.progress,
+p.warning,
+.empty-note {
+  margin: 10px 18px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+p.note {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+p.note.ok {
+  color: var(--ok-fg);
+}
+
+p.progress {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tabs and toolbars ------------------------------------------------------- */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 6px 10px;
+  color: var(--muted);
+}
+
+.tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.sep {
+  color: var(--muted);
+  margin: 0 3px;
+}
+
+.label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+/* Tables ------------------------------------------------------------------ */
+
+.browser,
+.compare {
+  overflow-y: auto;
+  flex: 1;
+}
+
+table.rows {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  user-select: text;
+}
+
+table.rows th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+}
+
+table.rows td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+}
+
+table.rows tr:hover td {
+  background: var(--panel);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+td.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+td.actions button {
+  visibility: hidden;
+  margin-left: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+tr:hover td.actions button {
+  visibility: visible;
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.badge.onlyInSnapshot {
+  background: var(--error-bg);
+  color: var(--deleted);
+}
+
+.badge.modified {
+  background: var(--warn-bg);
+  color: var(--changed);
+}
+
+.badge.onlyOnDisk {
+  background: var(--ok-bg);
+  color: var(--new);
+}
+
+.badge.typeChanged {
+  background: var(--typed-bg);
+  color: var(--typed);
+}
+
+/* Summary chips ----------------------------------------------------------- */
+
+.summary {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 18px;
+}
+
+.chip {
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chip.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.chip .count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  margin-left: 3px;
+}
+
+.unreadable {
+  margin: 0 18px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.unreadable ul {
+  max-height: 160px;
+  overflow-y: auto;
+  padding-left: 18px;
+  user-select: text;
+}
+
+/* Empty states and settings ----------------------------------------------- */
+
+.empty {
+  margin: auto;
+  max-width: 420px;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.empty p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+
+.empty-note {
+  color: var(--muted);
+}
+
+.schedule {
+  overflow-y: auto;
+  padding: 18px;
+  /* Deliberately unconstrained. This panel used to stop at 620px, which kept the
+     prose readable but left half the window empty and made the policy rows and
+     the log narrower than they need to be. The measure is capped on the prose
+     itself instead — that is the only part that suffers from a long line. */
+}
+
+/* A comfortable reading measure, independent of how wide the window is. */
+.schedule .explain {
+  max-width: 70ch;
+}
+
+.schedule section {
+  margin-bottom: 28px;
+}
+
+.schedule h2 {
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+
+.explain {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+
+.fields {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+pre.log {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  max-height: 260px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  user-select: text;
+  white-space: pre-wrap;
+}
+
+/* Health — the "am I protected right now" panel.
+   Severity is carried by a coloured mark and by wording, never by colour
+   alone, so the verdict survives a screenshot in greyscale. */
+.health {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.verdict {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.verdict h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.verdict p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.verdict-mark {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.verdict.ok .verdict-mark { background: var(--new); }
+.verdict.warn .verdict-mark { background: var(--changed); }
+.verdict.bad .verdict-mark { background: var(--deleted); }
+
+.verdict.ok { border-color: color-mix(in srgb, var(--new) 40%, var(--line)); }
+.verdict.warn { border-color: color-mix(in srgb, var(--changed) 40%, var(--line)); }
+.verdict.bad { border-color: color-mix(in srgb, var(--deleted) 45%, var(--line)); }
+
+.finding {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.finding.warn { border-left-color: var(--changed); }
+.finding.bad { border-left-color: var(--deleted); }
+
+.finding h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.finding p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.finding p:last-child { margin-bottom: 0; }
+
+/* The numbers behind the verdict, for anyone who does not take it on trust. */
+.facts {
+  display: grid;
+  /* Separators are drawn on the cells, not by letting a gap reveal the
+     container colour. The gap technique leaves any unfilled cell looking like a
+     rendering fault, and the count of facts is not fixed — pinning the column
+     count instead just moves the problem to the next fact added. */
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0;
+  margin: 4px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.facts > div {
+  padding: 12px 14px;
+  background: var(--panel);
+  /* Clipped by the container's overflow on the outer edges, so this reads as
+     internal separators only. */
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.facts dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.facts dd {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* The mount-refusal banner carries an action, so it needs room the one-line
+   banners do not. */
+.banner.error button {
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .facts { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* The scheduled task's log, shown only when a finding offers it. Monospaced and
+   scrolling, because it is raw output and pretending otherwise helps nobody. */
+.log {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Search — organised by name rather than by place. */
+.search-input {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 10px;
+  min-width: 340px;
+}
+
+.search-input.narrow {
+  min-width: 200px;
+}
+
+.search-input::placeholder {
+  color: var(--muted);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Theme toggle — square, icon-only, sits with the disk figure in the header. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.theme-toggle:hover:not(:disabled) {
+  color: var(--text);
+}
+
+/* Sidebar footer — the controls that act on the machine rather than on the
+   selected snapshot, held at the bottom so the snapshot list keeps the space it
+   needs as it grows. */
+.aside-footer {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aside-footer button.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* Informational findings: worth saying, not something wrong. Neutral rather than
+   amber, so the eye still goes to the findings that need acting on. */
+.finding.info {
+  border-left-color: var(--accent);
+}
+
+.verdict.info .verdict-mark {
+  background: var(--accent);
+}

@@ -1,0 +1,243 @@
+version: '3'
+
+includes:
+  common: ../Taskfile.yml
+
+vars:
+  # Who `task package` signs the bundle as. Discovered from the keychain, not
+  # configured, and that is the point.
+  #
+  # An ad-hoc signature is identified by a hash of the build, so every rebuild is a
+  # different application as far as macOS is concerned, and the Full Disk Access
+  # grant this application cannot mount a snapshot without is silently void the
+  # moment you repackage. It presents as the mount code breaking rather than as a
+  # permission expiring, which costs an hour to diagnose the first time.
+  #
+  # A real certificate fixes it, because the requirement macOS records then names the
+  # bundle identifier and the certificate instead of the build. So rather than ask
+  # anyone to remember an environment variable — forget it once and you are back to
+  # a silently void grant — the identity is looked up at build time. A machine with a
+  # Developer ID gets a durable signature with no setup; a machine without one falls
+  # back to ad-hoc and says so.
+  #
+  # SNAPSHOTTER_SIGN_IDENTITY overrides the lookup, for release builds that must use
+  # a specific certificate. It is not needed for ordinary development.
+  CODESIGN_IDENTITY:
+    sh: |
+      if [ -n "${SNAPSHOTTER_SIGN_IDENTITY:-}" ]; then
+        printf '%s' "$SNAPSHOTTER_SIGN_IDENTITY"
+      else
+        # First Developer ID Application identity in the keychain. Names can contain
+        # spaces and parentheses, so the quoted field is taken whole rather than
+        # split on whitespace.
+        found=$(security find-identity -v -p codesigning 2>/dev/null |
+          awk -F'"' '/Developer ID Application/ { print $2; exit }')
+        printf '%s' "${found:--}"
+      fi
+
+  # Signing configuration for distribution - edit these values for your project
+  # SIGN_IDENTITY: "Developer ID Application: Your Company (TEAMID)"
+  # KEYCHAIN_PROFILE: "my-notarize-profile"
+  # ENTITLEMENTS: "build/darwin/entitlements.plist"
+
+  # Docker image for cross-compilation (used when building on non-macOS)
+  CROSS_IMAGE: wails-cross
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: '{{if eq OS "darwin"}}build:native{{else}}build:docker{{end}}'
+        vars:
+          ARCH: '{{.ARCH}}'
+          DEV: '{{.DEV}}'
+          OUTPUT: '{{.OUTPUT}}'
+          EXTRA_TAGS: '{{.EXTRA_TAGS}}'
+          OBFUSCATED: '{{.OBFUSCATED}}'
+          GARBLE_ARGS: '{{.GARBLE_ARGS}}'
+    vars:
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
+      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
+
+  build:native:
+    summary: Builds the application natively on macOS
+    internal: true
+    deps:
+      - task: common:go:mod:tidy
+      - task: common:build:frontend
+        vars:
+          BUILD_FLAGS:
+            ref: .BUILD_FLAGS
+          OBFUSCATED:
+            ref: .OBFUSCATED
+          DEV:
+            ref: .DEV
+      - task: common:generate:icons
+    preconditions:
+      - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
+        msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
+    cmds:
+      - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"'
+    vars:
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
+      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
+    env:
+      GOOS: darwin
+      CGO_ENABLED: 1
+      GOARCH: '{{.ARCH | default ARCH}}'
+      CGO_CFLAGS: "-mmacosx-version-min=12.0"
+      CGO_LDFLAGS: "-mmacosx-version-min=12.0"
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
+
+  build:docker:
+    summary: Cross-compiles for macOS using Docker (for Linux/Windows hosts)
+    internal: true
+    deps:
+      - task: common:build:frontend
+        vars:
+          OBFUSCATED:
+            ref: .OBFUSCATED
+      - task: common:generate:icons
+    preconditions:
+      - sh: docker info > /dev/null 2>&1
+        msg: "Docker is required for cross-compilation. Please install Docker."
+      - sh: docker image inspect {{.CROSS_IMAGE}} > /dev/null 2>&1
+        msg: |
+          Docker image '{{.CROSS_IMAGE}}' not found.
+          Build it first: wails3 task setup:docker
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/app" {{.DOCKER_MOUNTS}} -e APP_NAME="{{.APP_NAME}}" {{if .EXTRA_TAGS}}-e EXTRA_TAGS="{{.EXTRA_TAGS}}"{{end}} {{if eq .OBFUSCATED "true"}}-e OBFUSCATED=true{{end}} {{if .GARBLE_ARGS}}-e GARBLE_ARGS="{{.GARBLE_ARGS}}"{{end}} {{.CROSS_IMAGE}} darwin {{.DOCKER_ARCH}}
+      - cmd: docker run --rm -v "{{.ROOT_DIR}}:/app" alpine chown -R $(id -u):$(id -g) /app/bin
+        platforms: [linux, darwin]
+      - mkdir -p {{.BIN_DIR}}
+      - mv "bin/{{.APP_NAME}}-darwin-{{.DOCKER_ARCH}}" "{{.OUTPUT}}"
+    vars:
+      DOCKER_ARCH: '{{if eq .ARCH "arm64"}}arm64{{else if eq .ARCH "amd64"}}amd64{{else}}arm64{{end}}'
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
+      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
+      # Generate Docker volume mounts: Go module cache + go.mod replace directives
+      # Uses wails3 tool docker-mounts for cross-platform compatibility (Windows/Linux/macOS)
+      DOCKER_MOUNTS:
+        sh: 'wails3 tool docker-mounts'
+
+  build:universal:
+    summary: Builds darwin universal binary (arm64 + amd64)
+    deps:
+      - task: build
+        vars:
+          ARCH: amd64
+          OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-amd64"
+      - task: build
+        vars:
+          ARCH: arm64
+          OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+    cmds:
+      - task: '{{if eq OS "darwin"}}build:universal:lipo:native{{else}}build:universal:lipo:go{{end}}'
+
+  build:universal:lipo:native:
+    summary: Creates universal binary using native lipo (macOS)
+    internal: true
+    cmds:
+      - lipo -create -output "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+      - rm "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+
+  build:universal:lipo:go:
+    summary: Creates universal binary using wails3 tool lipo (Linux/Windows)
+    internal: true
+    cmds:
+      - wails3 tool lipo -output "{{.BIN_DIR}}/{{.APP_NAME}}" -input "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" -input "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+      - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+
+  package:
+    summary: Packages the application into a `.app` bundle
+    deps:
+      - task: build
+    cmds:
+      - task: create:app:bundle
+
+  package:universal:
+    summary: Packages darwin universal binary (arm64 + amd64)
+    deps:
+      - task: build:universal
+    cmds:
+      - task: create:app:bundle
+
+
+  create:app:bundle:
+    summary: Creates an `.app` bundle
+    cmds:
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+      - |
+        if [ -f build/darwin/Assets.car ]; then
+          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+        fi
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
+      - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      - task: '{{if eq OS "darwin"}}codesign:local{{else}}codesign:skip{{end}}'
+
+  codesign:local:
+    summary: Signs the app bundle for local use (macOS only)
+    internal: true
+    cmds:
+      - codesign --force --deep --sign "{{.CODESIGN_IDENTITY}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      # Said out loud, because the consequence is a permission quietly expiring
+      # rather than an error: with an ad-hoc signature the next package invalidates
+      # Full Disk Access, and mounting stops working for a reason nothing reports.
+      - '{{if eq .CODESIGN_IDENTITY "-"}}echo "  note: ad-hoc signed. Full Disk Access will need re-granting after every package. Set SNAPSHOTTER_SIGN_IDENTITY to avoid that."{{else}}echo "  signed as {{.CODESIGN_IDENTITY}}"{{end}}'
+
+  codesign:skip:
+    summary: Skips codesigning when cross-compiling
+    internal: true
+    cmds:
+      - 'echo "Skipping codesign (not available on {{OS}}). Sign the .app on macOS before distribution."'
+
+  run:
+    cmds:
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+      - |
+        if [ -f build/darwin/Assets.car ]; then
+          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+        fi
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
+      - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      # The dev bundle is signed the same way as the packaged one, because it needs
+      # the same Full Disk Access grant to mount anything and a different identity
+      # would mean a second grant to keep alive.
+      - codesign --force --deep --sign "{{.CODESIGN_IDENTITY}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
+      - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
+
+  sign:
+    summary: Signs the application bundle with Developer ID
+    desc: |
+      Signs the .app bundle for distribution.
+      Configure SIGN_IDENTITY in the vars section at the top of this file.
+    deps:
+      - task: package
+    cmds:
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}}
+    preconditions:
+      - sh: '[ -n "{{.SIGN_IDENTITY}}" ]'
+        msg: "SIGN_IDENTITY is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"
+
+  sign:notarize:
+    summary: Signs and notarizes the application bundle
+    desc: |
+      Signs the .app bundle and submits it for notarization.
+      Configure SIGN_IDENTITY and KEYCHAIN_PROFILE in the vars section at the top of this file.
+
+      Setup (one-time):
+        wails3 signing credentials --apple-id "you@email.com" --team-id "TEAMID" --password "app-specific-password" --profile "my-profile"
+    deps:
+      - task: package
+    cmds:
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}} --notarize --keychain-profile {{.KEYCHAIN_PROFILE}}
+    preconditions:
+      - sh: '[ -n "{{.SIGN_IDENTITY}}" ]'
+        msg: "SIGN_IDENTITY is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"
+      - sh: '[ -n "{{.KEYCHAIN_PROFILE}}" ]'
+        msg: "KEYCHAIN_PROFILE is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"

@@ -1,0 +1,65 @@
+version: '3'
+
+vars:
+  APP_NAME: "snapshotter"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+
+# Snapshotter reads APFS local snapshots through tmutil and mount_apfs, so it
+# only exists on macOS. The other platforms' build files were removed rather
+# than left to rot.
+includes:
+  common: ./build/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{OS}}:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{OS}}:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  server:
+    summary: Builds the frontend and runs the application as a headless HTTP server
+    desc: |
+      Server mode is how this interface gets driven by code. There is no native
+      window: the real frontend is served over HTTP with the real bindings behind
+      it, so a browser or a test can press things. Accessibility presses do not
+      reach into a WKWebView, which is why the ordinary window cannot be driven at
+      all.
+
+        task server
+        task server SERVER_ADDR=localhost:9100
+        task server SCENARIO=overdue
+        task server SCENARIO_FILE=scenarios/mine.json
+
+      Both scenario variables default to whatever is already in the environment,
+      so `SNAPSHOTTER_SCENARIO=empty task server` works too. See
+      docs/AUTOMATION.md.
+    deps:
+      - task: common:build:server
+    cmds:
+      - '{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}'
+    vars:
+      SERVER_ADDR: '{{.SERVER_ADDR | default .SNAPSHOTTER_SERVER_ADDR | default "localhost:8080"}}'
+      SCENARIO: '{{.SCENARIO | default .SNAPSHOTTER_SCENARIO}}'
+      SCENARIO_FILE: '{{.SCENARIO_FILE | default .SNAPSHOTTER_SCENARIO_FILE}}'
+    env:
+      SNAPSHOTTER_SERVER_ADDR: '{{.SERVER_ADDR}}'
+      SNAPSHOTTER_SCENARIO: '{{.SCENARIO}}'
+      SNAPSHOTTER_SCENARIO_FILE: '{{.SCENARIO_FILE}}'

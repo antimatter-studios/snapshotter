@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Snapshotter">
+  <defs>
+    <linearGradient id="m-sweep" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#54cf95"></stop><stop offset=".55" stop-color="#4c8dff"></stop><stop offset="1" stop-color="#7fb0ff"></stop>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="25" fill="none" stroke="url(#m-sweep)" stroke-width="5" stroke-linecap="round" stroke-dasharray="122 35" transform="rotate(-58 32 32)"></circle>
+  <circle cx="32" cy="32" r="15.5" fill="none" stroke="#b57cff" stroke-width="5" stroke-linecap="round" stroke-dasharray="72 26" transform="rotate(122 32 32)"></circle>
+  <circle cx="32" cy="32" r="4.5" fill="#ffb454"></circle>
+</svg>

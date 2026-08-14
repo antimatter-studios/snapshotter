@@ -1,0 +1,11 @@
+.task
+bin
+frontend/dist
+frontend/node_modules
+.DS_Store
+build/icons/icon.ico
+.secrets
+
+# VS Code's Local History extension, which keeps timestamped copies of edited
+# files. Harmless locally, noise in a repository, and it grows without bound.
+.history/

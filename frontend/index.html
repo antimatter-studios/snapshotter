@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Reached out of ../assets rather than copied into public/ so the mark has
+         one home. Vite rewrites both hrefs and emits the files it actually uses.
+         The window itself shows no favicon; this is for the dev server in a
+         browser, which is where the frontend is usually looked at. -->
+    <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg" />
+    <link rel="alternate icon" href="../assets/icons/favicon.ico" sizes="16x16 32x32" />
+    <title>Snapshotter</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

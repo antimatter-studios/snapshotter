@@ -1,0 +1,82 @@
+/* The retention chooser. Everything else on this screen is styled by
+   styles.css; only the policy list is new enough to need its own rules.
+
+   Every colour here is a token from styles.css. The palette is fully
+   tokenised in both themes, and a literal colour would look deliberate in
+   one and broken in the other. */
+
+.policies {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+/* A row is one whole target: the radio, the name, the bands and the numbers.
+   The numbers are the reason to choose one policy over another, so they must be
+   inside the thing you click rather than beside it. */
+.policy {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.policy:hover {
+  background: var(--hover);
+}
+
+.policy.chosen {
+  border-color: var(--accent);
+  background: var(--selected);
+}
+
+.policy input[type="radio"] {
+  /* Aligned with the first line of text rather than the top of the box. */
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.policy-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.policy-name {
+  font-weight: 600;
+}
+
+.policy-why,
+.policy-bands {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* The bands are the policy stated exactly, for anyone who does not take the
+   summary on trust. */
+.policy-bands {
+  font-variant-numeric: tabular-nums;
+}
+
+.policy-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.policy-numbers strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
