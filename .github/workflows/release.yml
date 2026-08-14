@@ -194,7 +194,51 @@ jobs:
           codesign -dvv bin/snapshotter.app 2>&1 | grep -q "Timestamp=" \
             || { echo "::error::signature has no secure timestamp"; exit 1; }
 
-      - name: Build the disk image
+      - name: Notarize the application, and staple the ticket into it
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # The application is notarized and stapled BEFORE the image is built
+          # around it, and that ordering is the whole point.
+          #
+          # A ticket is stapled to one specific thing. Stapling only the disk image
+          # leaves the bundle inside it without one — and a cask does not install
+          # the image, it copies the application out of it. That copy has no ticket,
+          # so Gatekeeper has to ask Apple on first launch. With a network it
+          # succeeds and nobody notices; with no network it can refuse outright,
+          # which is precisely the machine this application exists to rescue.
+          #
+          # A bundle cannot be submitted directly, so it travels as a zip. ditto
+          # --keepParent is required: without it the archive holds the bundle's
+          # contents rather than the bundle, and notarization has nothing to look at.
+          ditto -c -k --keepParent bin/snapshotter.app "$RUNNER_TEMP/app.zip"
+
+          if ! xcrun notarytool submit "$RUNNER_TEMP/app.zip" \
+                --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" --wait --timeout 30m \
+                --output-format json > "$RUNNER_TEMP/notary-app.json"; then
+            id=$(jq -r '.id // empty' "$RUNNER_TEMP/notary-app.json" 2>/dev/null || true)
+            [ -n "$id" ] && xcrun notarytool log "$id" \
+              --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" || true
+            echo "::error::notarization of the application failed"
+            exit 1
+          fi
+
+          # Now that Apple has a ticket for this bundle's cdhash, it can be written
+          # into the bundle itself.
+          xcrun stapler staple bin/snapshotter.app
+          xcrun stapler validate bin/snapshotter.app
+
+          # Stapling modifies the bundle, so prove the signature survived it rather
+          # than assuming. A broken seal here would only surface on a user's Mac.
+          codesign --verify --strict --deep --verbose=2 bin/snapshotter.app
+          echo "Application notarized, stapled, and still correctly signed."
+
+      - name: Build the disk image around the stapled application
         id: dmg
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -208,16 +252,20 @@ jobs:
           cp -R bin/snapshotter.app "$staging/Snapshotter.app"
           ln -s /Applications "$staging/Applications"
 
+          # The copy has to carry the ticket with it, or the reordering above bought
+          # nothing.
+          xcrun stapler validate "$staging/Snapshotter.app"
+
           dmg="Snapshotter_${VERSION}_universal.dmg"
           hdiutil create -volname "Snapshotter" -srcfolder "$staging" \
             -ov -format UDZO "$dmg"
 
-          # The disk image is signed too: Gatekeeper checks the container the user
+          # The image is signed too: Gatekeeper checks the container the user
           # actually downloaded, not only the application inside it.
           codesign --force --timestamp --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" "$dmg"
           echo "dmg=$dmg" >> "$GITHUB_OUTPUT"
 
-      - name: Notarize and staple
+      - name: Notarize and staple the disk image
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -225,25 +273,22 @@ jobs:
           DMG: ${{ steps.dmg.outputs.dmg }}
         run: |
           set -euo pipefail
-          # --wait blocks until Apple answers, and a rejection fails the job. The
-          # log is printed on failure because notarytool's summary alone rarely
-          # says which binary was at fault.
+          # A second submission, for the image itself. The application inside it is
+          # already notarized and stapled; this is so that the file someone
+          # downloads is accepted on its own terms, and so the image carries a
+          # ticket for offline opening as well.
           if ! xcrun notarytool submit "$DMG" \
-                --apple-id "$APPLE_ID" \
-                --password "$APPLE_PASSWORD" \
-                --team-id "$APPLE_TEAM_ID" \
-                --wait --timeout 30m \
-                --output-format json > "$RUNNER_TEMP/notary.json"; then
-            id=$(jq -r '.id // empty' "$RUNNER_TEMP/notary.json" 2>/dev/null || true)
+                --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" --wait --timeout 30m \
+                --output-format json > "$RUNNER_TEMP/notary-dmg.json"; then
+            id=$(jq -r '.id // empty' "$RUNNER_TEMP/notary-dmg.json" 2>/dev/null || true)
             [ -n "$id" ] && xcrun notarytool log "$id" \
               --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
               --team-id "$APPLE_TEAM_ID" || true
-            echo "::error::notarization failed"
+            echo "::error::notarization of the disk image failed"
             exit 1
           fi
 
-          # Stapling writes the ticket into the image so it opens on a machine with
-          # no network, which is exactly the machine someone restores files on.
           xcrun stapler staple "$DMG"
           xcrun stapler validate "$DMG"
 
@@ -260,11 +305,13 @@ jobs:
           mkdir -p "$RUNNER_TEMP/verify"
           hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$RUNNER_TEMP/verify"
           spctl --assess --type execute -vv "$RUNNER_TEMP/verify/Snapshotter.app"
-          # Deliberately NOT `stapler validate` on the inner application. Stapling a
-          # disk image writes the ticket into the image, not into the bundle inside
-          # it, so the bundle correctly reports "does not have a ticket stapled to
-          # it" while Gatekeeper still accepts it — it reads the image's ticket.
-          # Asserting otherwise failed a release whose artifact was perfectly good.
+          # Now a meaningful assertion, where before it was a wrong one. When only
+          # the image was stapled this failed correctly — the bundle had no ticket of
+          # its own — and removing the check was the right fix at the time. The
+          # application is stapled before the image is built now, so the bundle
+          # inside must carry a ticket, and its absence would mean the reordering
+          # silently stopped working.
+          xcrun stapler validate "$RUNNER_TEMP/verify/Snapshotter.app"
           hdiutil detach "$RUNNER_TEMP/verify"
 
       - name: Checksum

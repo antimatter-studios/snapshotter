@@ -17,8 +17,9 @@ git tag v0.2.0 && git push origin v0.2.0
         │
         ├─ universal build (lipo: arm64 + amd64, both verified present)
         ├─ codesign  --options runtime --timestamp --entitlements …
-        ├─ hdiutil   Snapshotter_0.2.0_universal.dmg   (signed too)
-        ├─ notarytool submit --wait   →   stapler staple
+        ├─ notarize the APP   → stapler staple Snapshotter.app
+        ├─ hdiutil   Snapshotter_0.2.0_universal.dmg   (built around the stapled app)
+        ├─ notarize the IMAGE → stapler staple the .dmg
         ├─ spctl --assess             (the check Gatekeeper itself runs)
         └─ gh release create          + SHA256SUMS
         │
@@ -105,6 +106,27 @@ Store the generated `xxxx-xxxx-xxxx-xxxx` value.
 `CHANGELOG.md` must have a section for the version. The release notes are read
 from it, and the `git-changelog` pre-push guard refuses a tag whose version is
 undocumented — so this is enforced twice, on purpose.
+
+## Why both the application and the image are stapled
+
+Two notarization submissions, and the order matters.
+
+A ticket is stapled to one specific thing. Stapling only the disk image leaves the
+bundle inside it without one — and a cask does not install the image, it copies the
+application out of it. That copy would have no ticket, so Gatekeeper would have to
+ask Apple on first launch: fine with a network, and refusable without one. That is
+precisely the machine this application exists to rescue, so the application is
+notarized and stapled first, and the image is built around the stapled copy.
+
+The image is then notarized and stapled in its own right, because Gatekeeper also
+assesses the file that was downloaded, not only what is inside it.
+
+Five checkpoints assert this rather than assuming it: the staple on the application,
+the staple surviving into the copy that goes into the image, the staple on the image,
+and `spctl` plus `stapler validate` against both after the image is mounted. The
+last of those was briefly wrong — it asserted a ticket on the inner bundle while only
+the image was being stapled, and failed a release whose artifact was perfectly good.
+It is correct now because the thing it asserts is finally true.
 
 ## Notarization is not optional
 
