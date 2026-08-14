@@ -144,6 +144,26 @@ jobs:
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning "$keychain"
 
+      - name: Apple accepts the notarization credentials
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # Before the build, not after it. notarytool history authenticates and
+          # uploads nothing, so bad credentials cost a minute here instead of
+          # failing at the notarization step with a full build already spent — and
+          # with an error about the submission rather than about the secret.
+          if ! xcrun notarytool history \
+                --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" > "$RUNNER_TEMP/history.txt" 2>&1; then
+            echo "::error::Apple rejected the notarization credentials — run the 'Verify signing secrets' workflow for the specific cause"
+            sed 's/^/  /' "$RUNNER_TEMP/history.txt"
+            exit 1
+          fi
+          echo "Notarization credentials accepted."
+
       - name: Build the universal bundle
         run: |
           set -euo pipefail
