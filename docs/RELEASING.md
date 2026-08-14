@@ -33,31 +33,72 @@ here could reach.
 
 ## Required secrets
 
-All are repository secrets. The workflow fails on the first step if the signing
-ones are absent, rather than publishing something macOS will refuse to open.
+Seven repository secrets. They exist but are **empty** until filled in, and an
+empty one fails the workflow's first step deliberately: publishing an unsigned or
+un-notarized build is worse than not publishing, because a cask installs it,
+quarantines it, and macOS then reports it as "damaged".
 
-| Secret | What it is |
-| --- | --- |
-| `APPLE_CERTIFICATE` | Developer ID Application certificate **and private key**, exported as `.p12`, base64-encoded |
-| `APPLE_CERTIFICATE_PASSWORD` | the password set when exporting that `.p12` |
-| `APPLE_SIGNING_IDENTITY` | the identity's full name, e.g. `Developer ID Application: Name (TEAMID)` |
-| `KEYCHAIN_PASSWORD` | any throwaway string; unlocks the temporary keychain the job creates |
-| `APPLE_ID` | the Apple ID that owns the developer account |
-| `APPLE_PASSWORD` | an **app-specific password**, not the Apple ID password — appleid.apple.com → Sign-In and Security → App-Specific Passwords |
-| `APPLE_TEAM_ID` | the 10-character team ID, the parenthesised part of the identity |
+Set them at **Settings → Secrets and variables → Actions**, or with `gh secret
+set NAME` (which prompts, so the value never lands in shell history).
 
-Exporting the certificate:
+### 1. `APPLE_TEAM_ID`
+
+The 10-character team ID — the parenthesised part of your signing identity.
 
 ```sh
-security find-identity -v -p codesigning          # confirm which one you have
-# Keychain Access → My Certificates → the Developer ID Application entry →
-# right-click → Export → .p12 → set a password
-base64 -i Certificates.p12 | pbcopy               # paste as APPLE_CERTIFICATE
+security find-identity -v -p codesigning
+#   1) ABC…  "Developer ID Application: Your Name (43UMKXZ8P4)"
+#                                                  ^^^^^^^^^^ this
 ```
 
-Export the **certificate with its private key** (expand the certificate row and
-select the pair). A certificate alone imports without error and then fails at
-`codesign` with "no identity found", which reads as a wrong identity name.
+### 2. `APPLE_SIGNING_IDENTITY`
+
+That identity's **full name**, exactly as printed above, including the
+parentheses:
+
+```
+Developer ID Application: Your Name (43UMKXZ8P4)
+```
+
+It must be a *Developer ID Application* certificate. An *Apple Development* one
+signs fine locally and is rejected by notarization.
+
+### 3. `APPLE_CERTIFICATE`
+
+The certificate **and its private key**, as a base64-encoded `.p12`.
+
+```sh
+# Keychain Access → My Certificates → expand the "Developer ID Application" row
+# → select the certificate AND the key beneath it → right-click → Export…
+# → format: Personal Information Exchange (.p12) → set a password
+base64 -i Certificates.p12 | pbcopy
+```
+
+Export the pair, not the certificate alone. A certificate on its own imports
+without complaint and then fails at `codesign` with "no identity found", which
+reads as a wrong identity name and sends you looking in the wrong place.
+
+### 4. `APPLE_CERTIFICATE_PASSWORD`
+
+The password you typed during that export. Nothing else uses it.
+
+### 5. `KEYCHAIN_PASSWORD`
+
+Any throwaway string — it only unlocks the temporary keychain the job creates and
+discards. `uuidgen` is a fine source.
+
+### 6. `APPLE_ID`
+
+The Apple ID that owns the developer account, as an email address.
+
+### 7. `APPLE_PASSWORD`
+
+An **app-specific password**, not your Apple ID password. Notarization refuses the
+account password outright.
+
+> appleid.apple.com → Sign-In and Security → App-Specific Passwords → generate
+
+Store the generated `xxxx-xxxx-xxxx-xxxx` value.
 
 ## Before tagging
 

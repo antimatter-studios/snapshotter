@@ -313,7 +313,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
-Nothing is released yet — see the Unreleased section.
+### v0.1.0
+
+First release. Browse, compare and restore APFS local snapshots on a Mac with no
+backup disk, with a schedule and a bulk-deletion tripwire to make sure there is
+something to restore from. Signed with Developer ID and notarized, so it installs
+with `brew install antimatter-studios/tap/snapshotter` and opens without arguing
+with Gatekeeper. Mounting still needs Full Disk Access, which only you can grant.
 
 ## Design decisions
 

@@ -1,10 +1,17 @@
 # Changelog
 
-All notable changes, per released version. Snapshotter is pre-1.0 and has not cut
-a release yet, so everything so far sits under Unreleased. The most recent
-releases will also be summarized in the README; the full history lives here.
+All notable changes, per released version. The most recent releases are also
+summarized in the README; the full history lives here.
 
 ## Unreleased
+
+Nothing yet.
+
+## v0.1.0 — 2026-08-14
+
+First release. Signed with Developer ID, notarized, and installable with
+`brew install antimatter-studios/tap/snapshotter`.
+
 
 **Browse, compare and restore APFS local snapshots without a backup disk:** the
 first working version. macOS only schedules local snapshots when Time Machine has
