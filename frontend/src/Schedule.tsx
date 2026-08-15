@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Schedule as ScheduleAPI, message, type ScheduleView } from "./api";
+import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView } from "./api";
 import "./Schedule.css";
 
 const INTERVALS = [
@@ -57,7 +57,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         // leave it showing nothing.
         if (status.policyId === FLAT) setRetention(status.retentionDays);
       }
-      setLog(await ScheduleAPI.Log(16384));
+      setLog(await ScheduleAPI.Log(serviceChosenTail));
     } catch (err) {
       setError(message(err));
     }
@@ -238,11 +238,22 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   );
 }
 
+// Whole weeks rather than calendar units. A reach is a rolling window, so
+// "52 weeks" is the honest year here and 365 would make the weeks and the years
+// disagree at the boundary — 52 weeks would round to "a year" while 364 days
+// still read as "52 weeks".
+const daysPerWeek = 7;
+const weeksPerYear = 52;
+const daysPerYear = daysPerWeek * weeksPerYear;
+
+// Below four weeks, weeks are a coarser answer than the days themselves.
+const daysBeforeWeeksAreClearer = 4 * daysPerWeek;
+
 /** Words a reach in the largest unit that stays honest; exact days sit in the title. */
 function reach(days: number): string {
   if (days < 1) return "under a day";
-  if (days < 28) return `${Math.round(days)} days`;
-  if (days < 364) return `${Math.round(days / 7)} weeks`;
-  const years = days / 364;
+  if (days < daysBeforeWeeksAreClearer) return `${Math.round(days)} days`;
+  if (days < daysPerYear) return `${Math.round(days / daysPerWeek)} weeks`;
+  const years = days / daysPerYear;
   return years < 1.5 ? "a year" : `${years.toFixed(1)} years`;
 }

@@ -5,6 +5,7 @@ import {
   Snapshots,
   Schedule,
   message,
+  serviceChosenTail,
   type Health as HealthState,
   type Finding,
 } from "./api";
@@ -147,7 +148,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
             <>
               <button
                 onClick={() =>
-                  Schedule.Log(64 * 1024)
+                  Schedule.Log(serviceChosenTail)
                     .then(setLog)
                     .catch((err) => setError(message(err)))
                 }

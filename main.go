@@ -261,26 +261,63 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 	return w.Run(ctx)
 }
 
-func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
-	scenarioName := ""
-	// Nil unless a scenario says otherwise; StatusService then asks the kernel.
-	var spaceFn func(string) (uint64, uint64, error)
-	if sim != nil {
-		// The plists a scenario claims are installed have to exist somewhere,
-		// and it must not be the real ~/Library/LaunchAgents: a plist written
-		// there would outlive the run and start taking real snapshots on a real
-		// timer. So the agent, log and mount directories all move into the
-		// scenario's own sandbox, while p.program stays the real binary — the
-		// plists naming it is what makes reading them back worth anything.
-		box, err := sim.Sandbox(context.Background())
-		if err != nil {
-			return err
-		}
-		p.agentDir, p.logPath, p.tripwireLogPath, p.mountRoot = box.AgentDir, box.LogPath, box.TripwireLogPath, box.MountRoot
-		scenarioName = sim.Spec.Name
-		spaceFn = sim.Spec.Space()
-		log.Printf("scenario %s: sandbox is %s", scenarioName, box.Dir)
+// Two values the native window and the web view have to agree on. There is no
+// mechanism that could make them share one definition — one is compiled into a
+// Go binary, the other is parsed by WebKit — so each side keeps its own copy and
+// main_style_test.go reads the stylesheet and fails if the two drift apart.
+const (
+	// titleBarHeight is the strip of window the traffic lights sit in. The header
+	// in styles.css pads its top by the same amount; less, and the buttons
+	// overlap the title.
+	titleBarHeight = 50
+
+	// windowBackgroundHex is what --bg is set to in styles.css. It is what the
+	// window shows in the moment between appearing and the web view painting, so
+	// a mismatch is a flash of the wrong colour on every launch.
+	windowBackgroundHex = "#121418"
+)
+
+// windowBackground is windowBackgroundHex as the components Wails wants.
+var windowBackground = struct{ r, g, b uint8 }{0x12, 0x14, 0x18}
+
+// setup is what a scenario decides before any service exists: where things are
+// written, what the window is called, and who answers for disk space.
+type setup struct {
+	paths paths
+	// scenario is empty on a real machine, and is the scenario's name otherwise.
+	// Every surface that has to say "this is invented" reads it.
+	scenario string
+	// space is nil unless a scenario has an opinion about disk space, in which
+	// case StatusService asks the kernel as usual.
+	space func(string) (uint64, uint64, error)
+}
+
+// setupFor redirects the paths a scenario must not write to for real.
+//
+// The plists a scenario claims are installed have to exist somewhere, and it
+// must not be the real ~/Library/LaunchAgents: a plist written there would
+// outlive the run and start taking real snapshots on a real timer. So the agent,
+// log and mount directories all move into the scenario's own sandbox, while
+// program stays the real binary — the plists naming it is what makes reading
+// them back worth anything.
+func setupFor(ctx context.Context, p paths, sim *scenario.Scenario) (setup, error) {
+	if sim == nil {
+		return setup{paths: p}, nil
 	}
+
+	box, err := sim.Sandbox(ctx)
+	if err != nil {
+		return setup{}, err
+	}
+	p.agentDir, p.logPath, p.tripwireLogPath, p.mountRoot = box.AgentDir, box.LogPath, box.TripwireLogPath, box.MountRoot
+	log.Printf("scenario %s: sandbox is %s", sim.Spec.Name, box.Dir)
+
+	return setup{paths: p, scenario: sim.Spec.Name, space: sim.Spec.Space()}, nil
+}
+
+// buildDeps assembles everything the services share.
+func buildDeps(s setup, runner apfs.Runner) services.Deps {
+	p := s.paths
 
 	// Mounting needs root and Full Disk Access, and is refused outright on a
 	// machine without both. The fake stands in so the browse and compare
@@ -294,7 +331,7 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		log.Printf("mounts are simulated: %s is set, seeding from %s", mountmgr.FakeEnabled, fake.Seed)
 	}
 
-	deps := services.Deps{
+	return services.Deps{
 		Runner: runner,
 		Mounts: mounts,
 		Agent: &schedule.Agent{
@@ -314,11 +351,19 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		Volume:   apfs.DataVolume,
 		Faking:   faking,
 		FakeSeed: fakeSeed,
-		Scenario: scenarioName,
-		// Nil unless the scenario has an opinion about disk space, in which case
-		// StatusService asks the kernel as usual.
-		Space: spaceFn,
+		Scenario: s.scenario,
+		Space:    s.space,
 	}
+}
+
+func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
+	s, err := setupFor(context.Background(), p, sim)
+	if err != nil {
+		return err
+	}
+	scenarioName := s.scenario
+
+	deps := buildDeps(s, runner)
 	status := services.NewStatusService(deps)
 
 	server, err := serverOptions()
@@ -371,10 +416,10 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		// needs root, and a password prompt on the way out is a poor trade for
 		// tidying something read-only and harmless.
 		Mac: application.MacWindow{
-			InvisibleTitleBarHeight: 50,
+			InvisibleTitleBarHeight: titleBarHeight,
 			TitleBar:                application.MacTitleBarHiddenInset,
 		},
-		BackgroundColour: application.NewRGB(18, 20, 24),
+		BackgroundColour: application.NewRGB(windowBackground.r, windowBackground.g, windowBackground.b),
 		URL:              "/",
 	})
 
@@ -384,7 +429,7 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 	// point at which it has.
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		installTray(app, status, win, scenarioName)
-		if faking {
+		if deps.Faking {
 			openEveryFakeMount(deps)
 		}
 	})

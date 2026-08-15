@@ -155,12 +155,19 @@ func optionOf(id, name, why string, policy schedule.Policy, interval time.Durati
 		Summary:   policy.Describe(),
 		Tiers:     tierViews(policy),
 		Retained:  schedule.Retained(policy, interval, now),
-		ReachDays: policy.Horizon().Hours() / 24,
+		ReachDays: inDays(policy.Horizon()),
 	}
 }
 
+// The interface talks in days and durations are hours, so the conversion runs in
+// both directions and in several views. It is written once each way.
+const hoursPerDay = 24
+
 // days turns the unit the interface offers into a duration.
-func days(n float64) time.Duration { return time.Duration(n * 24 * float64(time.Hour)) }
+func days(n float64) time.Duration { return time.Duration(n * hoursPerDay * float64(time.Hour)) }
+
+// inDays turns a duration back into the unit the interface offers.
+func inDays(d time.Duration) float64 { return d.Hours() / hoursPerDay }
 
 // Uninstall stops the schedule. Snapshots already taken are left alone.
 func (s *ScheduleService) Uninstall(ctx context.Context) (ScheduleView, error) {
@@ -175,6 +182,14 @@ func (s *ScheduleService) Uninstall(ctx context.Context) (ScheduleView, error) {
 func (s *ScheduleService) Log(maxBytes int64) (string, error) {
 	return tailFile(s.Agent.LogPath, maxBytes, "The scheduled task has not written anything yet.")
 }
+
+// defaultLogTailBytes is how much of a log is returned when the caller does not
+// say. Enough to hold weeks of a scheduled task's one line per run, and small
+// enough to hand to a web view as a single string.
+//
+// Callers ask for this by passing nothing rather than by naming a size of their
+// own, so every screen shows the same amount of the same log.
+const defaultLogTailBytes = 64 * 1024
 
 // tailFile returns the last maxBytes of a log, or empty if it says nothing yet.
 // Shared by the two agents so their behaviour cannot drift apart.
@@ -193,7 +208,7 @@ func tailFile(path string, maxBytes int64, absent string) (string, error) {
 		return "", err
 	}
 	if maxBytes <= 0 {
-		maxBytes = 64 * 1024
+		maxBytes = defaultLogTailBytes
 	}
 	offset := int64(0)
 	if info.Size() > maxBytes {
@@ -216,13 +231,13 @@ func viewOf(st schedule.Status) ScheduleView {
 		Installed:     st.Installed,
 		Loaded:        st.Loaded,
 		IntervalHours: st.Config.Interval.Hours(),
-		RetentionDays: st.Config.Retention.Hours() / 24,
+		RetentionDays: inDays(st.Config.Retention),
 		PlistPath:     st.PlistPath,
 		LogPath:       st.LogPath,
 		Conflicts:     st.Conflicts,
 		PolicyID:      schedule.IdentifyPolicy(policy),
 		PolicySummary: policy.Describe(),
-		ReachDays:     policy.Horizon().Hours() / 24,
+		ReachDays:     inDays(policy.Horizon()),
 		Tiers:         tierViews(policy),
 	}
 	v.MaxSnapshots = schedule.Retained(policy, st.Config.Interval, time.Now())

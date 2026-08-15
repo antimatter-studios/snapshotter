@@ -17,6 +17,15 @@ export type { Change, Result as DiffResult } from "../bindings/snapshotter/inter
 export type { Result as RestoreResult } from "../bindings/snapshotter/internal/restore/models.js";
 
 /**
+ * Asks a log call for as much as the service chooses to give.
+ *
+ * The size lives in Go, next to the code that reads the file, so the screens
+ * cannot end up showing different amounts of the same log — which is what
+ * happened when each named a size of its own.
+ */
+export const serviceChosenTail = 0;
+
+/**
  * Turns whatever a rejected binding call produced into a sentence.
  *
  * Errors arriving from Go are the user's main feedback channel here — an

@@ -10,6 +10,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/mountmgr"
+	"snapshotter/internal/text"
 	"snapshotter/internal/version"
 )
 
@@ -147,7 +148,7 @@ func (s *StatusService) Check(ctx context.Context) (Health, error) {
 		h.ScheduleInstalled = st.Installed
 		h.ScheduleRunning = st.Loaded
 		h.IntervalHours = st.Config.Interval.Hours()
-		h.RetentionDays = st.Config.Retention.Hours() / 24
+		h.RetentionDays = inDays(st.Config.Retention)
 		if st.Installed && h.Newest != nil {
 			due := h.Newest.Add(st.Config.Interval)
 			h.NextDue = &due
@@ -259,10 +260,9 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 
 	if hasTMDestination {
 		out = append(out, Finding{
-			Level: LevelWarn,
-			Title: "Time Machine will thin these snapshots",
-			Detail: "A backup destination is configured, and backupd thins local snapshots to " +
-				"roughly 24 hours on each cycle. Any longer retention shown here will not hold.",
+			Level:  LevelWarn,
+			Title:  "Time Machine will thin these snapshots",
+			Detail: timeMachineThinning,
 		})
 	}
 	for _, c := range conflicts {
@@ -341,42 +341,28 @@ func summarise(h Health) (Level, string) {
 				actionable++
 			}
 		}
-		return level, fmt.Sprintf("%s, %s of cover — %d thing%s to look at",
+		return level, fmt.Sprintf("%s, %s of cover — %s to look at",
 			snapshotCount(h.SnapshotCount), coverage(h.CoverageHours),
-			actionable, plural(actionable))
+			text.Plural(actionable, "thing"))
 	}
 }
 
-func snapshotCount(n int) string {
-	if n == 1 {
-		return "1 snapshot"
-	}
-	return fmt.Sprintf("%d snapshots", n)
-}
+func snapshotCount(n int) string { return text.Plural(n, "snapshot") }
 
 // coverage words the span in the largest unit that stays honest, because "0.3
 // days" reads as a rounding error and "7 hours" reads as a fact.
 func coverage(hours float64) string {
 	switch {
 	case hours >= 48:
-		days := int(math.Round(hours / 24))
-		return fmt.Sprintf("%d day%s", days, plural(days))
+		return text.Plural(int(math.Round(hours/hoursPerDay)), "day")
 	case hours >= 1:
 		// Rounded first, then pluralised against what will actually be printed:
 		// 1.4 hours prints as "1 hour", and pluralising the unrounded value would
 		// have called it "1 hours".
-		whole := int(math.Round(hours))
-		return fmt.Sprintf("%d hour%s", whole, plural(whole))
+		return text.Plural(int(math.Round(hours)), "hour")
 	default:
 		return "under an hour"
 	}
-}
-
-func plural(n int) string {
-	if n == 1 {
-		return ""
-	}
-	return "s"
 }
 
 // OpenPrivacySettings reveals the Full Disk Access pane.
