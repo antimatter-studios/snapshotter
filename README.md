@@ -332,6 +332,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.7.0
+
+A schedule whose program has been deleted is reported as broken rather than
+running — launchd keeps such a job loaded and fails it silently once an interval.
+The bulk-deletion tripwire is on by default for new installations. Development
+builds mark themselves `DEV` in the menu bar, and `config set` now refuses a
+theme that is not a theme.
+
 ### v0.6.0
 
 Whatever was configured is put back on launch. Upgrading through Homebrew unloads

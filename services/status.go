@@ -72,10 +72,16 @@ type Health struct {
 	// back a mistake can be undone, which is the number the user actually wants.
 	CoverageHours float64 `json:"coverageHours"`
 
-	ScheduleInstalled bool    `json:"scheduleInstalled"`
-	ScheduleRunning   bool    `json:"scheduleRunning"`
-	IntervalHours     float64 `json:"intervalHours"`
-	RetentionDays     float64 `json:"retentionDays"`
+	ScheduleInstalled bool `json:"scheduleInstalled"`
+	// ScheduleProgram is the binary the installed plist names, and
+	// ScheduleProgramMissing says it is gone. Kept separate from Installed
+	// because launchd reports a job whose program has vanished as installed and
+	// loaded, and it is neither working nor obviously broken.
+	ScheduleProgram        string  `json:"scheduleProgram"`
+	ScheduleProgramMissing bool    `json:"scheduleProgramMissing"`
+	ScheduleRunning        bool    `json:"scheduleRunning"`
+	IntervalHours          float64 `json:"intervalHours"`
+	RetentionDays          float64 `json:"retentionDays"`
 	// NextDue is when the schedule should next fire, estimated from the newest
 	// snapshot. launchd fires a missed interval on wake, so a past value means
 	// overdue rather than skipped.
@@ -118,6 +124,7 @@ const (
 	KindConflict  = "conflict"
 	KindSpace     = "space"
 	KindSimulated = "simulated"
+	KindStale     = "stale"
 )
 
 type Finding struct {
@@ -165,6 +172,8 @@ func (s *StatusService) Check(ctx context.Context) (Health, error) {
 	if err == nil {
 		h.ScheduleInstalled = st.Installed
 		h.ScheduleRunning = st.Loaded
+		h.ScheduleProgram = st.Program
+		h.ScheduleProgramMissing = st.ProgramMissing
 		h.IntervalHours = st.Config.Interval.Hours()
 		h.RetentionDays = inDays(st.Config.Retention)
 		if st.Installed && h.Newest != nil {
@@ -239,6 +248,22 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 			Title:  "The schedule is installed but not running",
 			Kind:   KindSchedule,
 			Detail: "launchd has the job on disk but has not loaded it, so no snapshot will be taken.",
+			Action: "install-schedule",
+		})
+	}
+
+	// Worse than not installed, because it does not look like anything is wrong:
+	// launchd holds the job, reports it loaded, and fails to start a binary that
+	// is not there — once an interval, silently, forever.
+	if h.ScheduleProgramMissing {
+		out = append(out, Finding{
+			Level: LevelBad,
+			Kind:  KindStale,
+			Title: "The schedule points at a copy of Snapshotter that is gone",
+			Detail: "launchd still has the job and still reports it as running, but the " +
+				"program it names (" + h.ScheduleProgram + ") no longer exists, so every " +
+				"run fails and no snapshot is taken. Installing the schedule again points " +
+				"it at this copy.",
 			Action: "install-schedule",
 		})
 	}

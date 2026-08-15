@@ -287,3 +287,56 @@ func TestFakeMountsAreAnnounced(t *testing.T) {
 		t.Errorf("want warn, got %s", f.Level)
 	}
 }
+
+// A schedule whose binary has been deleted is the quietest way this application
+// stops working: launchd keeps the job, reports it loaded, and fails to exec
+// once an interval, forever. Nothing else in Health distinguishes it from a
+// schedule that is working.
+func TestAScheduleNamingAMissingProgramIsReportedAsBroken(t *testing.T) {
+	h := Health{
+		SnapshotCount:          5,
+		ScheduleInstalled:      true,
+		ScheduleRunning:        true,
+		ScheduleProgram:        "/Applications/Snapshotter.app/Contents/MacOS/snapshotter",
+		ScheduleProgramMissing: true,
+	}
+
+	found := findingOfKind(findings(h, false, nil, time.Now()), KindStale)
+	if found == nil {
+		t.Fatal("a schedule pointing at a deleted binary was not reported at all")
+	}
+	if found.Level != LevelBad {
+		t.Errorf("level is %s; a schedule that cannot run is not a warning", found.Level)
+	}
+	// The path is the whole diagnosis — without it nobody can tell which copy.
+	if !strings.Contains(found.Detail, h.ScheduleProgram) {
+		t.Errorf("the detail does not name the missing program: %q", found.Detail)
+	}
+	if found.Action != "install-schedule" {
+		t.Errorf("no way to repair it: action is %q", found.Action)
+	}
+}
+
+// It must not fire on a healthy machine, or it is noise that gets ignored
+// precisely when it matters.
+func TestAWorkingScheduleIsNotReportedAsStale(t *testing.T) {
+	h := Health{
+		SnapshotCount:     5,
+		ScheduleInstalled: true,
+		ScheduleRunning:   true,
+		ScheduleProgram:   "/Applications/Snapshotter.app/Contents/MacOS/snapshotter",
+	}
+	if f := findingOfKind(findings(h, false, nil, time.Now()), KindStale); f != nil {
+		t.Errorf("a working schedule was reported as stale: %+v", f)
+	}
+}
+
+// findingOfKind returns the first finding of a kind, or nil.
+func findingOfKind(fs []Finding, kind string) *Finding {
+	for i := range fs {
+		if fs[i].Kind == kind {
+			return &fs[i]
+		}
+	}
+	return nil
+}

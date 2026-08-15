@@ -7,6 +7,44 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.7.0 — 2026-08-15
+
+**A schedule that cannot run now says so, and the tripwire is on by default.**
+
+### The quietest failure
+
+A launchd job whose program has been deleted stays loaded. launchd reports it as
+running, fails to start it once an interval, and says nothing — so everything
+reading the plist went on describing a schedule that was installed and working
+while no snapshot was being taken. Restoring what was configured fixed the case
+where the plist is *missing*; this is the case where the plist is *there* and
+points at nothing.
+
+The schedule now reads back the program its plist names and checks it exists. If
+it does not, that is a finding at the worst level, naming the path, with the
+button that repairs it by pointing the schedule at this copy.
+
+### The tripwire is on for new installations
+
+It is the half of the protection that catches what people actually lose files to
+— something deleting in bulk right now — and it costs nothing until it fires. A
+settings file that already exists keeps whatever it says, so this reaches new
+installations only; everyone else is told by a finding, with a button.
+
+The schedule is deliberately not treated the same way. It takes snapshots on a
+timer, which is a thing to opt into.
+
+### Smaller things
+
+- A build not stamped by the release pipeline marks itself `DEV` in the menu bar.
+  Two copies put two identical icons there, and the one in `/Applications` is the
+  one holding the Full Disk Access grant — so knowing which is which matters more
+  than it sounds.
+- `config set` checks meaning as well as type. `appearance.theme purple` is
+  refused, and the error names the three that work.
+- The finding glyphs are drawn smaller. A menu row is mostly text, and an icon
+  that fills its box competes with the words instead of labelling them.
+
 ## v0.6.0 — 2026-08-15
 
 **Whatever was configured is put back on launch.**

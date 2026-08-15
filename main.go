@@ -30,6 +30,7 @@ import (
 	"snapshotter/internal/notify"
 	"snapshotter/internal/scenario"
 	"snapshotter/internal/schedule"
+	"snapshotter/internal/version"
 	"snapshotter/internal/watch"
 	"snapshotter/services"
 
@@ -573,6 +574,13 @@ func installTray(app *application.App, status *services.StatusService, win appli
 	label, product := "", "Snapshotter"
 	if scenarioName != "" {
 		label, product = "SIM ", "Snapshotter — SCENARIO "+scenarioName
+	} else if !version.IsRelease() {
+		// A build that was not stamped by the release pipeline. Two copies of this
+		// application put two identical icons in the menu bar, and the only way to
+		// tell which one is being clicked is to have marked one of them — which
+		// matters because the copy in /Applications holds the Full Disk Access
+		// grant and a working build does not.
+		label, product = "DEV ", "Snapshotter — development build"
 	}
 
 	// Declared before it is assigned because the "take a snapshot" item redraws

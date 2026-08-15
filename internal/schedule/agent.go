@@ -91,6 +91,15 @@ type Status struct {
 	Config    Config `json:"config"`
 	PlistPath string `json:"plistPath"`
 	LogPath   string `json:"logPath"`
+	// Program is the binary the installed plist names, and ProgramMissing says it
+	// is no longer there.
+	//
+	// launchd does not mind. It keeps the job loaded and fails to exec it once an
+	// interval, forever, while everything reading the plist goes on reporting a
+	// schedule that is installed and running. That is the quietest way this
+	// application can stop working, so it is read back rather than assumed.
+	Program        string `json:"program"`
+	ProgramMissing bool   `json:"programMissing"`
 	// Conflicts names other LaunchAgents that also take local snapshots.
 	Conflicts []string `json:"conflicts"`
 }
@@ -125,6 +134,12 @@ func (a *Agent) Status(ctx context.Context) (Status, error) {
 	if err == nil {
 		st.Installed = true
 		st.Config = parseConfig(string(data))
+		if program, ok := elementAfterKey(string(data), "ProgramArguments", "string"); ok {
+			st.Program = program
+			if _, statErr := os.Stat(program); statErr != nil && os.IsNotExist(statErr) {
+				st.ProgramMissing = true
+			}
+		}
 	} else if !os.IsNotExist(err) {
 		return st, fmt.Errorf("schedule: reading %s: %w", a.plistPath(), err)
 	}

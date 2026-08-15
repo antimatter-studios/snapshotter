@@ -37,10 +37,16 @@ const (
 	KindConflict  = "conflict"
 	KindSpace     = "space"
 	KindSimulated = "simulated"
+	KindStale     = "stale"
 )
 
 // glyphPx is the drawn size: 16 points at 2×, which is what a menu item's image
 // is given on a Retina display.
+//
+// The shapes inside it are drawn well within that square. A menu row is mostly
+// text, and an icon that fills its box competes with the words rather than
+// labelling them — which is what the first attempt did, and why the cross was
+// asked for smaller before any of the others.
 const glyphPx = 32
 
 // Status draws the overall level as a single dot, for the headline row.
@@ -67,20 +73,20 @@ func Glyph(kind string, level Level) ([]byte, error) {
 	switch kind {
 	case KindSnapshots:
 		// A restore point: the thing there are none of.
-		disc(img, 16, 16, 7, c)
+		disc(img, 16, 16, 6, c)
 
 	case KindSchedule:
 		// A clock, because the finding is about a timer.
-		ring(img, 16, 16, 11, 2.4, c)
-		line(img, 16, 16, 16, 8, 2.2, c)  // hour hand, straight up
-		line(img, 16, 16, 21, 18, 2.2, c) // minute hand
+		ring(img, 16, 16, 9, 2.2, c)
+		line(img, 16, 16, 16, 9, 2.0, c)  // hour hand, straight up
+		line(img, 16, 16, 20, 18, 2.0, c) // minute hand
 
 	case KindOverdue:
 		// The same clock with its hands past the hour, so "late" is legible as a
 		// shape rather than only as a colour.
-		ring(img, 16, 16, 11, 2.4, c)
-		line(img, 16, 16, 16, 24, 2.2, c)
-		line(img, 16, 16, 23, 13, 2.2, c)
+		ring(img, 16, 16, 9, 2.2, c)
+		line(img, 16, 16, 16, 23, 2.0, c)
+		line(img, 16, 16, 22, 14, 2.0, c)
 
 	case KindTripwire:
 		// A cross: the watcher is off. An earlier attempt drew the thing itself —
@@ -97,28 +103,35 @@ func Glyph(kind string, level Level) ([]byte, error) {
 		line(img, 11, 11, 21, 21, 2.4, red)
 		line(img, 21, 11, 11, 21, 2.4, red)
 
+	case KindStale:
+		// A clock with a cross through it: the schedule exists and is broken,
+		// which is a different thing from missing and reads as one at a glance.
+		ring(img, 16, 16, 9, 2.2, c)
+		red := levelColour(LevelBad)
+		line(img, 10, 10, 22, 22, 2.6, red)
+
 	case KindThinning:
 		// Bars getting shorter to the right: history being thinned out.
-		bar(img, 5, 8, 4, 18, c)
-		bar(img, 14, 13, 4, 13, c)
-		bar(img, 23, 18, 4, 8, c)
+		bar(img, 8, 10, 3, 14, c)
+		bar(img, 14, 14, 3, 10, c)
+		bar(img, 20, 18, 3, 6, c)
 
 	case KindConflict:
 		// Two things overlapping, which is exactly the complaint.
-		ring(img, 12, 16, 8, 2.4, c)
-		ring(img, 20, 16, 8, 2.4, c)
+		ring(img, 13, 16, 6, 2.2, c)
+		ring(img, 19, 16, 6, 2.2, c)
 
 	case KindSpace:
 		// A gauge close to full.
-		ring(img, 16, 16, 11, 2.4, c)
-		wedge(img, 16, 16, 8, -math.Pi/2, math.Pi, c)
+		ring(img, 16, 16, 9, 2.2, c)
+		wedge(img, 16, 16, 6, -math.Pi/2, math.Pi, c)
 
 	case KindSimulated:
 		// A dashed outline: present, but not real.
-		dashedRing(img, 16, 16, 11, 2.4, c)
+		dashedRing(img, 16, 16, 9, 2.2, c)
 
 	default:
-		disc(img, 16, 16, 6, c)
+		disc(img, 16, 16, 5, c)
 	}
 
 	var buf bytes.Buffer

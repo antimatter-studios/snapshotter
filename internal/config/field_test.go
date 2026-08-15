@@ -143,3 +143,52 @@ func TestSetChangesTheConfigItWasGiven(t *testing.T) {
 		t.Errorf("the field was not changed: %+v", cfg.Appearance)
 	}
 }
+
+// A string field will hold "purple" perfectly well, and the application will
+// then have no palette. Type is not the only thing worth checking.
+func TestSetRefusesAValueThatIsNotAThemeAtAll(t *testing.T) {
+	cfg := Defaults()
+	before := cfg.Appearance.Theme
+
+	for _, bad := range []string{"purple", "Dark", "", "light dark"} {
+		if err := Set(&cfg, "appearance.theme", bad); err == nil {
+			t.Errorf("appearance.theme accepted %q", bad)
+		}
+	}
+	if cfg.Appearance.Theme != before {
+		t.Errorf("a refused theme still changed the value: %q", cfg.Appearance.Theme)
+	}
+
+	// The three the window offers must all still be accepted, or this has traded
+	// one bug for a worse one.
+	for _, good := range []string{"system", "light", "dark"} {
+		if err := Set(&cfg, "appearance.theme", good); err != nil {
+			t.Errorf("%s was refused: %v", good, err)
+		}
+	}
+}
+
+// The error has to say what IS allowed. "invalid value" sends someone to the
+// source, which is what the whole config command exists to avoid.
+func TestTheThemeErrorNamesTheValidValues(t *testing.T) {
+	cfg := Defaults()
+	err := Set(&cfg, "appearance.theme", "purple")
+	if err == nil {
+		t.Fatal("no error")
+	}
+	for _, want := range []string{"system", "light", "dark", "purple"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("%q missing from the error: %v", want, err)
+		}
+	}
+}
+
+func TestSetRefusesAnEmptyPolicy(t *testing.T) {
+	cfg := Defaults()
+	if err := Set(&cfg, "schedule.policy", "   "); err == nil {
+		t.Error("an empty policy was accepted")
+	}
+	if err := Set(&cfg, "schedule.policy", "flat"); err != nil {
+		t.Errorf("flat was refused: %v", err)
+	}
+}
