@@ -36,6 +36,34 @@ func Get(cfg Config, key string) (string, error) {
 	return format(field), nil
 }
 
+// Themes are the three the window offers. Listed here rather than imported so
+// this package stays free of the services that consume it; the window validates
+// the same three when it writes.
+var themes = map[string]bool{"system": true, "light": true, "dark": true}
+
+// valid checks the values a type cannot: a string field will hold "purple"
+// perfectly well, and the application will then have no palette.
+//
+// Only settings with a closed set of answers are listed. A path or a number has
+// no such set, and inventing one here would refuse a machine that is merely
+// unusual.
+func valid(key, value string) error {
+	switch key {
+	case "appearance.theme":
+		if !themes[value] {
+			return fmt.Errorf("config: %s is system, light or dark, not %q", key, value)
+		}
+	case "schedule.policy":
+		// Policies are named in internal/schedule and may be added there, so this
+		// checks the shape rather than a list that would go stale: an id is a word,
+		// and a tier list is what ParsePolicy accepts.
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("config: %s cannot be empty", key)
+		}
+	}
+	return nil
+}
+
 // Set changes one setting in place, refusing a value the field cannot hold.
 //
 // It takes a pointer because the whole point is to modify the caller's config
@@ -43,6 +71,9 @@ func Get(cfg Config, key string) (string, error) {
 func Set(cfg *Config, key, value string) error {
 	field, err := find(reflect.ValueOf(cfg).Elem(), key)
 	if err != nil {
+		return err
+	}
+	if err := valid(key, value); err != nil {
 		return err
 	}
 

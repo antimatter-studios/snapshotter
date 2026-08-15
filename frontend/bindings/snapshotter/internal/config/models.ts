@@ -174,6 +174,14 @@ export class Refresh {
  * Schedule is what to ask launchd for, not what launchd is currently doing.
  */
 export class Schedule {
+    /**
+     * Enabled says a schedule was ASKED for, which the numbers below cannot: a
+     * fresh settings file carries defaults that are indistinguishable from a
+     * deliberate choice of the same values. Without it, restoring "what was
+     * configured" on launch would install a schedule for someone who never
+     * wanted one.
+     */
+    "enabled": boolean;
     "interval_hours": number;
     "retention_days": number;
 
@@ -186,6 +194,9 @@ export class Schedule {
 
     /** Creates a new Schedule instance. */
     constructor($$source: Partial<Schedule> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
         if (!("interval_hours" in $$source)) {
             this["interval_hours"] = 0;
         }

@@ -13,7 +13,7 @@ import (
 func allKinds() []string {
 	return []string{
 		KindSnapshots, KindSchedule, KindOverdue, KindTripwire,
-		KindThinning, KindConflict, KindSpace, KindSimulated,
+		KindThinning, KindConflict, KindSpace, KindSimulated, KindStale,
 	}
 }
 

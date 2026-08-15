@@ -171,9 +171,6 @@ export class ConfigView {
     }
 }
 
-/**
- * Finding is one specific thing wrong, with what to do about it.
- */
 export class Finding {
     "level": Level;
     "title": string;
@@ -185,6 +182,14 @@ export class Finding {
      */
     "action"?: string;
 
+    /**
+     * Kind says what the finding is ABOUT, where Level says how bad it is. Two
+     * findings can share a level and have nothing else in common, so anything
+     * choosing an icon or an illustration keys off this rather than off Level —
+     * otherwise every warning looks identical.
+     */
+    "kind": string;
+
     /** Creates a new Finding instance. */
     constructor($$source: Partial<Finding> = {}) {
         if (!("level" in $$source)) {
@@ -195,6 +200,9 @@ export class Finding {
         }
         if (!("detail" in $$source)) {
             this["detail"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
         }
 
         Object.assign(this, $$source);
@@ -239,6 +247,15 @@ export class Health {
      */
     "coverageHours": number;
     "scheduleInstalled": boolean;
+
+    /**
+     * ScheduleProgram is the binary the installed plist names, and
+     * ScheduleProgramMissing says it is gone. Kept separate from Installed
+     * because launchd reports a job whose program has vanished as installed and
+     * loaded, and it is neither working nor obviously broken.
+     */
+    "scheduleProgram": string;
+    "scheduleProgramMissing": boolean;
     "scheduleRunning": boolean;
     "intervalHours": number;
     "retentionDays": number;
@@ -307,6 +324,12 @@ export class Health {
         }
         if (!("scheduleInstalled" in $$source)) {
             this["scheduleInstalled"] = false;
+        }
+        if (!("scheduleProgram" in $$source)) {
+            this["scheduleProgram"] = "";
+        }
+        if (!("scheduleProgramMissing" in $$source)) {
+            this["scheduleProgramMissing"] = false;
         }
         if (!("scheduleRunning" in $$source)) {
             this["scheduleRunning"] = false;
@@ -696,6 +719,34 @@ export class RestoreRequest {
     static createFrom($$source: any = {}): RestoreRequest {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new RestoreRequest($$parsedSource as Partial<RestoreRequest>);
+    }
+}
+
+/**
+ * Restored says what Restore put back, so the caller can tell someone.
+ */
+export class Restored {
+    "schedule": boolean;
+    "tripwire": boolean;
+
+    /** Creates a new Restored instance. */
+    constructor($$source: Partial<Restored> = {}) {
+        if (!("schedule" in $$source)) {
+            this["schedule"] = false;
+        }
+        if (!("tripwire" in $$source)) {
+            this["tripwire"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Restored instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Restored {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Restored($$parsedSource as Partial<Restored>);
     }
 }
 

@@ -379,7 +379,9 @@ func TestRestoreLeavesADeliberatelyRemovedScheduleAlone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("restore: %v", err)
 	}
-	if restored.Any() {
+	// Only the schedule is asserted on: the tripwire is on by default, so a
+	// scenario with no tripwire installed will legitimately gain one here.
+	if restored.Schedule {
 		t.Error("restore reinstated a schedule that was deliberately removed")
 	}
 	if after, _ := s.Schedule.Status(ctx); after.Installed {
@@ -402,11 +404,24 @@ func TestRestoreInstallsNothingOnAMachineThatNeverAskedForIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("restore: %v", err)
 	}
-	if restored.Any() {
+	if restored.Schedule {
 		t.Error("a schedule was installed from the defaults alone")
 	}
 	if after, _ := s.Schedule.Status(ctx); after.Installed {
 		t.Error("a schedule appeared on a machine that never asked for one")
+	}
+
+	// The tripwire is the deliberate exception, and this is where that decision
+	// is written down. It costs nothing until something starts deleting in bulk,
+	// and it is the half of the protection that catches what people actually lose
+	// files to — so a fresh installation gets it without having to know it exists.
+	// The schedule is not treated the same way: it takes snapshots on a timer,
+	// which is a thing to opt into.
+	if !restored.Tripwire {
+		t.Error("the tripwire was not installed from the defaults")
+	}
+	if after, _ := s.Schedule.TripwireStatus(ctx); !after.Installed {
+		t.Error("the tripwire is on by default but was not installed")
 	}
 }
 
@@ -419,6 +434,10 @@ func TestRestoreIsQuietWhenThereIsNothingToDo(t *testing.T) {
 	if _, err := s.Schedule.Install(ctx, 4, 7); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := s.Schedule.InstallTripwire(ctx); err != nil {
+		t.Fatal(err)
+	}
+
 	restored, err := s.Schedule.Restore(ctx)
 	if err != nil {
 		t.Fatalf("restore: %v", err)

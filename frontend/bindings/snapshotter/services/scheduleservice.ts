@@ -16,7 +16,7 @@ import * as $models from "./models.js";
 
 /**
  * Install writes and loads the schedule with a flat retention window.
- * 
+ *
  * It stays as it was, taking the two numbers and nothing else, because the
  * one-click fix in the Health panel calls it and installing a schedule must not
  * require an opinion about tiering first.
@@ -64,6 +64,28 @@ export function Log(maxBytes: number): $CancellablePromise<string> {
 export function Policies(intervalHours: number, retentionDays: number): $CancellablePromise<$models.PolicyOption[]> {
     return $Call.ByID(1023449749, intervalHours, retentionDays).then(($result: any) => {
         return $$createType3($result);
+    });
+}
+
+/**
+ * Restore reinstalls whatever the settings say was asked for and launchd no
+ * longer has.
+ *
+ * A launchd job is not durable in the way people assume. Upgrading through
+ * Homebrew removes it, because the cask's uninstall stanza unloads both agents
+ * before the new version is staged; so does anything else that tidies
+ * ~/Library/LaunchAgents. The failure is silent and it is the worst one this
+ * application has: the window still shows the interval that was chosen, the
+ * settings file still records it, and nothing is taking snapshots.
+ *
+ * So the settings file is treated as the intent and launchd as the current
+ * state, and this reconciles the second to the first. It only ever ADDS: a
+ * schedule that was deliberately removed sets Enabled to false, and is not put
+ * back.
+ */
+export function Restore(): $CancellablePromise<$models.Restored> {
+    return $Call.ByID(2235634351).then(($result: any) => {
+        return $$createType4($result);
     });
 }
 
@@ -116,3 +138,4 @@ const $$createType0 = $models.ScheduleView.createFrom;
 const $$createType1 = $models.TripwireView.createFrom;
 const $$createType2 = $models.PolicyOption.createFrom;
 const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.Restored.createFrom;

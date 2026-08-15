@@ -96,8 +96,13 @@ type Paths struct {
 // intra-day granularity.
 func Defaults() Config {
 	return Config{
-		Schedule:   Schedule{IntervalHours: 6, RetentionDays: 14, Policy: "flat"},
-		Tripwire:   Tripwire{Enabled: false},
+		Schedule: Schedule{IntervalHours: 6, RetentionDays: 14, Policy: "flat"},
+		// On by default. It is the half of the protection that catches the thing
+		// people actually lose files to — something deleting in bulk right now —
+		// and it costs nothing until it fires. An existing settings file keeps
+		// whatever it already says, so this only reaches new installations; the
+		// rest are told by a finding, with a button.
+		Tripwire:   Tripwire{Enabled: true},
 		Appearance: Appearance{Theme: "system"},
 		Window:     Window{Width: 1180, Height: 780},
 		Refresh:    Refresh{MenuBarSeconds: 60, WindowSeconds: 30},

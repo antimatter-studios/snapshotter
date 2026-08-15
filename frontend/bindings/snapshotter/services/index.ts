@@ -33,6 +33,7 @@ export {
     PolicyOption,
     Presence,
     RestoreRequest,
+    Restored,
     ScheduleView,
     SearchResult,
     SnapshotComparison,
