@@ -5,8 +5,15 @@ summarized in the README; the full history lives here.
 
 ## Unreleased
 
-`snapshotter config` says where the settings file is and what is in it, and
-`snapshotter config --write` creates it with the defaults. Until now nothing told
+`snapshotter config` says where the settings file is and what is in it,
+`snapshotter config --write` creates it with the defaults, and
+`config keys`, `config get <key>` and `config set <key> <value>` read and change
+any single setting by its name in the file — which makes the application
+scriptable, and lets a test put a machine into a known state without
+hand-writing YAML.
+
+The names are derived from the file's own structure rather than listed by hand,
+so a setting added later is addressable the moment it exists. Until now nothing told
 you the file existed, which made the one supported way to change anything the
 window does not offer effectively undiscoverable. It refuses to overwrite a file
 that is already there: settings outlive the version that wrote them, and a

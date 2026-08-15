@@ -34,7 +34,14 @@ is what needs that grant.
 
 Anything the window does not offer is set in `$HOME/.config/snapshotter/config.yaml`.
 `snapshotter config` says where that file is and what is in it; `snapshotter config
---write` creates it with the defaults to edit.
+--write` creates it with the defaults to edit. Single settings can be read and
+changed by name, which is the scriptable way in:
+
+```sh
+snapshotter config keys                              # everything that can be set
+snapshotter config get schedule.interval_hours       # 6
+snapshotter config set schedule.interval_hours 3
+```
 
 Then grant it Full Disk Access, which mounting a snapshot cannot work without:
 

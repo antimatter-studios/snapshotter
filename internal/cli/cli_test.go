@@ -439,3 +439,110 @@ func TestConfigRejectsAnOptionItDoesNotKnow(t *testing.T) {
 		t.Errorf("did not name the offending option: %q", errOut.String())
 	}
 }
+
+// get and set are the scripting surface: a machine can be put into a known state
+// and read back without a window and without hand-writing YAML.
+
+func TestConfigSetWritesAndGetReadsItBack(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	e, out, _ := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"config", "set", "schedule.interval_hours", "3"}); code != 0 {
+		t.Fatalf("set failed: %d", code)
+	}
+	if !strings.Contains(out.String(), "3") {
+		t.Errorf("set did not report what it stored: %q", out.String())
+	}
+
+	// A separate invocation, which is what a script does: the value has to have
+	// reached the file rather than a variable.
+	out.Reset()
+	if code := Run(context.Background(), e, []string{"config", "get", "schedule.interval_hours"}); code != 0 {
+		t.Fatalf("get failed: %d", code)
+	}
+	if strings.TrimSpace(out.String()) != "3" {
+		t.Errorf("want 3, got %q", out.String())
+	}
+}
+
+// Reading a setting on a machine with no settings file must answer with the
+// default rather than fail — that is the value the application would use.
+func TestConfigGetAnswersFromTheDefaultsWhenThereIsNoFile(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	e, out, _ := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"config", "get", "appearance.theme"}); code != 0 {
+		t.Fatalf("get failed with no file: %d", code)
+	}
+	want, err := config.Get(config.Defaults(), "appearance.theme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(out.String()) != want {
+		t.Errorf("want %q, got %q", want, out.String())
+	}
+}
+
+// Setting one value must not disturb the others, or a script that changes the
+// theme quietly resets the schedule.
+func TestConfigSetLeavesEveryOtherSettingAlone(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	e, _, _ := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"config", "set", "schedule.retention_days", "30"}); code != 0 {
+		t.Fatal("first set failed")
+	}
+	if code := Run(context.Background(), e, []string{"config", "set", "appearance.theme", "dark"}); code != 0 {
+		t.Fatal("second set failed")
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Schedule.RetentionDays != 30 {
+		t.Errorf("the first setting was lost: %v", cfg.Schedule.RetentionDays)
+	}
+	if cfg.Appearance.Theme != "dark" {
+		t.Errorf("the second setting did not take: %q", cfg.Appearance.Theme)
+	}
+	// Untouched fields keep their defaults rather than becoming zero.
+	if cfg.Window.Width != config.Defaults().Window.Width {
+		t.Errorf("an untouched setting was zeroed: %v", cfg.Window.Width)
+	}
+}
+
+func TestConfigKeysListsWhatCanBeSet(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	e, out, _ := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"config", "keys"}); code != 0 {
+		t.Fatalf("keys failed: %d", code)
+	}
+	for _, want := range config.Keys() {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("%s missing from the listing", want)
+		}
+	}
+}
+
+func TestConfigRejectsBadUsage(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	for _, args := range [][]string{
+		{"config", "get"},                             // no key
+		{"config", "set", "appearance.theme"},         // no value
+		{"config", "set", "window.width", "wide"},     // not a number
+		{"config", "get", "schedule.every_fortnight"}, // no such setting
+		{"config", "sideways"},                        // no such subcommand
+		{"config", "keys", "extra"},                   // keys takes nothing
+	} {
+		e, _, errOut := newEnv(&fakeRunner{})
+		if code := Run(context.Background(), e, args); code == 0 {
+			t.Errorf("%v was accepted", args)
+		}
+		if errOut.Len() == 0 {
+			t.Errorf("%v failed without saying why", args)
+		}
+	}
+}
