@@ -21,7 +21,8 @@ git tag v0.2.0 && git push origin v0.2.0
         ├─ hdiutil   Snapshotter_0.2.0_universal.dmg   (built around the stapled app)
         ├─ notarize the IMAGE → stapler staple the .dmg
         ├─ spctl --assess             (the check Gatekeeper itself runs)
-        └─ gh release create          + SHA256SUMS
+        ├─ CLI tarball: the bundle's own binary, re-signed standalone
+        └─ gh release create          .dmg + .tar.gz + SHA256SUMS
         │
         ▼
 antimatter-studios/homebrew-tap  →  run `tap-sync` (manual)
@@ -106,6 +107,31 @@ Store the generated `xxxx-xxxx-xxxx-xxxx` value.
 `CHANGELOG.md` must have a section for the version. The release notes are read
 from it, and the `git-changelog` pre-push guard refuses a tag whose version is
 undocumented — so this is enforced twice, on purpose.
+
+## Two artefacts, one binary
+
+A release publishes a disk image and a `.tar.gz`, and the tarball's binary is
+copied out of the image's bundle rather than built again — so the two can never be
+different binaries claiming the same version.
+
+It is re-signed on the way out, and that is not tidiness. An executable inside a
+bundle is signed *as part of* the bundle, its signature sealing the Info.plist
+beside it; copied out, it fails verification with "invalid Info.plist (plist or
+signature have been modified)" and macOS refuses to run it. Re-signing makes it a
+valid standalone executable.
+
+The split exists because the tap ships command-line tools as **formulae** and
+applications as **casks** — a cask that symlinks a binary onto PATH is refused by
+the tap's own CI. So:
+
+```sh
+brew install --cask antimatter-studios/tap/snapshotter      # the application
+brew install antimatter-studios/tap/snapshotter-cli         # `snapshotter` on PATH
+```
+
+The formula's `test` block asserts the installed binary reports the version
+Homebrew believes it installed, which is the thing most likely to be wrong: the
+version is stamped at build time rather than read from anywhere.
 
 ## Why both the application and the image are stapled
 

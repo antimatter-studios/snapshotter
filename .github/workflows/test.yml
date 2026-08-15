@@ -1,0 +1,104 @@
+name: Test
+
+# Every push and every pull request. This runs on macOS because the application
+# is macOS-only: the tests drive tmutil, diskutil and launchctl through a
+# scenario, and the packages under test import darwin-only APIs that will not
+# build anywhere else.
+#
+# Pull requests, and main itself. Not every branch push: a branch with a pull
+# request open would otherwise be tested twice for one push, and the macOS
+# runner these jobs need is billed at ten times the Linux rate.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch cancels the first: only the latest commit's
+# result is worth waiting for.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # main.go embeds frontend/dist, which is a build output and is not
+      # committed. Without it nothing in the module compiles — not even go vet.
+      # Building it for real rather than stubbing it means the tests run against
+      # the same assets the application ships.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # gofmt before anything else: a formatting difference makes every later
+      # diff harder to read, and it costs a second to catch.
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l . | grep -v '^frontend/' || true)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      # -race because the window, the menu bar refresh and the tripwire all read
+      # the same services from different goroutines. A data race that only shows
+      # up under load is precisely the bug this catches cheaply.
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      # Only when the tests actually produced a profile: a missing file here
+      # would report a second failure for the one the test step already reported.
+      - name: Coverage summary
+        if: always() && hashFiles('coverage.out') != ''
+        run: |
+          go tool cover -func=coverage.out | tail -1
+          go tool cover -func=coverage.out >> "$GITHUB_STEP_SUMMARY"
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      # The generated Wails bindings are committed, so the typecheck sees the
+      # real service signatures. This is what catches a Go type changing under a
+      # view that still reads the old field.
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Test
+        working-directory: frontend
+        run: npm test

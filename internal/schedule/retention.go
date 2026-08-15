@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/text"
 )
 
 // day is spelled out because a retention policy is discussed in days and weeks
@@ -328,21 +329,19 @@ func hoursUp(d time.Duration) int {
 func words(d time.Duration) string {
 	hours := int((d + time.Minute/2) / time.Hour)
 	switch {
-	case hours >= 28*24 && hours%(7*24) == 0:
-		return plural(hours/(7*24), "week")
-	case hours >= 24 && hours%24 == 0:
-		return plural(hours/24, "day")
+	case hours >= 4*hoursPerWeek && hours%hoursPerWeek == 0:
+		return text.Plural(hours/hoursPerWeek, "week")
+	case hours >= hoursPerDay && hours%hoursPerDay == 0:
+		return text.Plural(hours/hoursPerDay, "day")
 	default:
-		return plural(hours, "hour")
+		return text.Plural(hours, "hour")
 	}
 }
 
-func plural(n int, unit string) string {
-	if n == 1 {
-		return "1 " + unit
-	}
-	return strconv.Itoa(n) + " " + unit + "s"
-}
+const (
+	hoursPerDay  = 24
+	hoursPerWeek = 7 * hoursPerDay
+)
 
 // ParsePolicy reads the encoding String writes. It also accepts "0" for a
 // keep-everything band, because that is the obvious thing to write by hand.

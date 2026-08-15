@@ -18,11 +18,17 @@ it does not](assets/screenshots/home.png)
 ## Install
 
 ```sh
-brew install antimatter-studios/tap/snapshotter
+brew install --cask antimatter-studios/tap/snapshotter   # the application
+brew install antimatter-studios/tap/snapshotter-cli      # `snapshotter` on PATH
 ```
 
-That installs the application **and** puts `snapshotter` on your `PATH` — one
-binary serves both, so `snapshotter status` works immediately.
+Both ship the same binary — the command line tool is taken from inside the
+application's own bundle at release time — so `snapshotter version` and the
+window always agree. Install either or both.
+
+The command line alone is enough to take snapshots, list them and check whether
+this Mac is protected. Browsing or restoring from one needs the application,
+because that mounts a filesystem.
 
 Then grant it Full Disk Access, which mounting a snapshot cannot work without:
 

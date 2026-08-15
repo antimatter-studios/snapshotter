@@ -229,3 +229,105 @@ func TestRunTreatsEverythingAfterTheSeparatorAsTheCommand(t *testing.T) {
 		t.Errorf("ran %q %v", gotName, gotArgs)
 	}
 }
+
+// The command line is what the launchd agents and any script use, so its output
+// is an interface: something parses it, or a person reads it at the moment they
+// have lost a file.
+
+func TestStatusSaysWhatIsThereAndWhatIsNot(t *testing.T) {
+	r := &fakeRunner{snapshots: []string{
+		"com.apple.TimeMachine.2026-08-14-060000.local",
+		"com.apple.TimeMachine.2026-08-13-060000.local",
+	}}
+	e, out, _ := newEnv(r)
+
+	if code := Run(context.Background(), e, []string{"status"}); code != 0 {
+		t.Fatalf("status exited %d: %s", code, out)
+	}
+	text := out.String()
+	for _, want := range []string{"2 snapshot", "newest", "oldest"} {
+		if !strings.Contains(strings.ToLower(text), strings.ToLower(want)) {
+			t.Errorf("status did not mention %q:\n%s", want, text)
+		}
+	}
+}
+
+// The state this application exists to get someone out of has to be unmistakable
+// on the command line too, not only in the window.
+func TestStatusOnAnUnprotectedMachineSaysSoPlainly(t *testing.T) {
+	e, out, _ := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"status"}); code != 0 {
+		t.Fatalf("status exited %d", code)
+	}
+	if !strings.Contains(out.String(), "No snapshots") {
+		t.Errorf("an empty machine did not say so:\n%s", out)
+	}
+}
+
+func TestVersionPrintsSomethingAndNothingElse(t *testing.T) {
+	e, out, _ := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"version"}); code != 0 {
+		t.Fatalf("version exited %d", code)
+	}
+	got := strings.TrimSpace(out.String())
+	if got == "" {
+		t.Error("version printed nothing")
+	}
+	if strings.Contains(got, "\n") {
+		t.Errorf("version printed more than one line, which a script would have to parse: %q", got)
+	}
+}
+
+// version must not need a machine: it is the first thing someone runs to check
+// an installation works at all, and it should not depend on tmutil answering.
+func TestVersionWorksWithoutAWorkingRunner(t *testing.T) {
+	// A runner that knows nothing about any command: version must still answer.
+	e, out, _ := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"version"}); code != 0 {
+		t.Fatalf("version needed a working machine: %d", code)
+	}
+	if strings.TrimSpace(out.String()) == "" {
+		t.Error("version printed nothing")
+	}
+}
+
+// Ages and spans are the whole of the list and status output, and they are read
+// at a glance rather than parsed.
+func TestAgeIsWordedForAGlance(t *testing.T) {
+	for _, tc := range []struct {
+		d    time.Duration
+		want string
+	}{
+		{30 * time.Second, "just now"},
+		{5 * time.Minute, "5m ago"},
+		{90 * time.Minute, "1h ago"},
+		{47 * time.Hour, "47h ago"},
+	} {
+		if got := age(tc.d); got != tc.want {
+			t.Errorf("%v: want %q, got %q", tc.d, tc.want, got)
+		}
+	}
+	// Beyond two days it should stop counting hours, whatever wording it uses.
+	if got := age(72 * time.Hour); strings.Contains(got, "72h") {
+		t.Errorf("three days was still reported in hours: %q", got)
+	}
+}
+
+func TestCoverageIsWordedInTheLargestHonestUnit(t *testing.T) {
+	for _, tc := range []struct {
+		d    time.Duration
+		want string
+	}{
+		{30 * time.Minute, "under an hour"},
+		{5 * time.Hour, "5 hours"},
+		{47 * time.Hour, "47 hours"},
+		{48 * time.Hour, "2 days"},
+	} {
+		if got := coverage(tc.d); got != tc.want {
+			t.Errorf("%v: want %q, got %q", tc.d, tc.want, got)
+		}
+	}
+}

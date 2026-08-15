@@ -8,12 +8,22 @@ import * as Restore from "../bindings/snapshotter/services/restoreservice.js";
 import * as Schedule from "../bindings/snapshotter/services/scheduleservice.js";
 import * as Status from "../bindings/snapshotter/services/statusservice.js";
 import * as Search from "../bindings/snapshotter/services/searchservice.js";
+import * as Config from "../bindings/snapshotter/services/configservice.js";
 
-export { Snapshots, Browse, Diff, Restore, Schedule, Status, Search };
+export { Snapshots, Browse, Diff, Restore, Schedule, Status, Search, Config };
 
-export type { SnapshotView, Overview, MergedListing, ScheduleView, Presence, CompareRequest, RestoreRequest, Health, Finding, SearchResult } from "../bindings/snapshotter/services/models.js";
+export type { SnapshotView, Overview, MergedListing, ScheduleView, Presence, CompareRequest, RestoreRequest, Health, Finding, SearchResult, ConfigView } from "../bindings/snapshotter/services/models.js";
 export type { Change, Result as DiffResult } from "../bindings/snapshotter/internal/diffs/models.js";
 export type { Result as RestoreResult } from "../bindings/snapshotter/internal/restore/models.js";
+
+/**
+ * Asks a log call for as much as the service chooses to give.
+ *
+ * The size lives in Go, next to the code that reads the file, so the screens
+ * cannot end up showing different amounts of the same log — which is what
+ * happened when each named a size of its own.
+ */
+export const serviceChosenTail = 0;
 
 /**
  * Turns whatever a rejected binding call produced into a sentence.

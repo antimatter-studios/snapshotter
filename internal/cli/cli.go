@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/version"
 )
 
 // Env is everything a command talks to, so the commands can be tested without
@@ -82,6 +83,11 @@ func commands() map[string]command {
 			summary: "take a snapshot, then run a command",
 			usage:   "run -- <command> [args...]",
 			run:     runRun,
+		},
+		"version": {
+			summary: "print the version of this build",
+			usage:   "version",
+			run:     runVersion,
 		},
 	}
 }
@@ -192,6 +198,15 @@ func runStatus(ctx context.Context, e Env, _ []string) error {
 		fmt.Fprintln(e.Out, "\nTime Machine has a destination configured, so backupd thins these to")
 		fmt.Fprintln(e.Out, "roughly 24 hours. Any longer retention will not hold.")
 	}
+	return nil
+}
+
+// runVersion answers "which build is this", which is the first question asked of
+// any bug report and the last one a person should have to work out for
+// themselves. It touches nothing: no snapshots, no privileges, no network — so it
+// is also the cheapest way to confirm an installation is wired up at all.
+func runVersion(_ context.Context, e Env, _ []string) error {
+	fmt.Fprintln(e.Out, version.String())
 	return nil
 }
 

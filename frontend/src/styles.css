@@ -10,7 +10,13 @@
    Every colour in this file is a token. A palette that is only half-tokenised
    swaps into something worse than either theme. */
 :root {
+  /* --bg and --titlebar-height are also written into main.go, which needs them
+     before this file is ever parsed: the native window paints its background in
+     the moment before the web view appears, and it reserves the strip the
+     traffic lights sit in. Nothing can make the two share one definition, so a
+     test in main_test.go reads these two lines and fails if they drift. */
   --bg: #121418;
+  --titlebar-height: 50px;
   --panel: #191c22;
   --panel-2: #1f232b;
   --line: #2b303a;
@@ -192,7 +198,7 @@ header {
      beside it, so the gap below them is the same 18px this header uses at its
      sides. 34px used to be enough only because a line of text is lighter than a
      40px icon crowded up against them. */
-  padding: 50px 18px 12px;
+  padding: var(--titlebar-height) 18px 12px;
   border-bottom: 1px solid var(--line);
   /* Two properties for one behaviour, and both are needed.
      -webkit-app-region is WebKit's own, and it is what actually drags the window.

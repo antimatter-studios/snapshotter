@@ -74,8 +74,7 @@ func (s *SnapshotService) Overview(ctx context.Context) (Overview, error) {
 	out.Snapshots = views
 
 	if tm := apfs.DestinationInfo(ctx, s.Runner); tm.HasDestination {
-		out.TimeMachineWarning = "Time Machine has a backup destination configured. " +
-			"Its backup cycle thins local snapshots to roughly 24 hours, so a longer retention window will not hold."
+		out.TimeMachineWarning = timeMachineThinning
 	}
 
 	var stat syscall.Statfs_t

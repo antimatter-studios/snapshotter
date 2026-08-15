@@ -8,6 +8,11 @@
  */
 export type Theme = "system" | "light" | "dark";
 
+// localStorage is no longer where the preference LIVES — that is
+// ~/.config/snapshotter/config.yaml, so every installation agrees. It is kept
+// only as a cache, read synchronously before the first paint: the backend call
+// that returns the real value is asynchronous, and without a cached answer the
+// window would flash the wrong theme on every launch.
 const KEY = "snapshotter.theme";
 
 /** Reads the stored choice, defaulting to following the system. */

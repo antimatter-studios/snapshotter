@@ -3,12 +3,15 @@ package services
 import (
 	"context"
 	"fmt"
+	"math"
 	"os/exec"
 	"syscall"
 	"time"
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/mountmgr"
+	"snapshotter/internal/text"
+	"snapshotter/internal/version"
 )
 
 // openURL hands a URL to the system to open. System Settings panes are
@@ -53,6 +56,11 @@ const (
 type Health struct {
 	Level    Level  `json:"level"`
 	Headline string `json:"headline"`
+	// Version is the build the window is talking to, which is not necessarily the
+	// one someone thinks they installed: a copy in /Applications and a working
+	// build in bin/ share a bundle identifier, and the launchd agents run whichever
+	// path was installed. Showing it costs a line and settles that question.
+	Version string `json:"version"`
 	// Findings are the specific things wrong, worst first. Empty when all is
 	// well, so the panel has nothing to say rather than something reassuring.
 	Findings []Finding `json:"findings"`
@@ -111,7 +119,7 @@ type Finding struct {
 // Check gathers everything. It never fails on a partial answer: a system that
 // cannot report its free space should still say when the last snapshot was.
 func (s *StatusService) Check(ctx context.Context) (Health, error) {
-	h := Health{Faking: s.Faking, Scenario: s.Scenario}
+	h := Health{Faking: s.Faking, Scenario: s.Scenario, Version: version.String()}
 
 	snaps, err := apfs.List(ctx, s.Runner, s.Volume)
 	if err != nil {
@@ -140,7 +148,7 @@ func (s *StatusService) Check(ctx context.Context) (Health, error) {
 		h.ScheduleInstalled = st.Installed
 		h.ScheduleRunning = st.Loaded
 		h.IntervalHours = st.Config.Interval.Hours()
-		h.RetentionDays = st.Config.Retention.Hours() / 24
+		h.RetentionDays = inDays(st.Config.Retention)
 		if st.Installed && h.Newest != nil {
 			due := h.Newest.Add(st.Config.Interval)
 			h.NextDue = &due
@@ -252,10 +260,9 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 
 	if hasTMDestination {
 		out = append(out, Finding{
-			Level: LevelWarn,
-			Title: "Time Machine will thin these snapshots",
-			Detail: "A backup destination is configured, and backupd thins local snapshots to " +
-				"roughly 24 hours on each cycle. Any longer retention shown here will not hold.",
+			Level:  LevelWarn,
+			Title:  "Time Machine will thin these snapshots",
+			Detail: timeMachineThinning,
 		})
 	}
 	for _, c := range conflicts {
@@ -334,37 +341,28 @@ func summarise(h Health) (Level, string) {
 				actionable++
 			}
 		}
-		return level, fmt.Sprintf("%s, %s of cover — %d thing%s to look at",
+		return level, fmt.Sprintf("%s, %s of cover — %s to look at",
 			snapshotCount(h.SnapshotCount), coverage(h.CoverageHours),
-			actionable, plural(actionable))
+			text.Plural(actionable, "thing"))
 	}
 }
 
-func snapshotCount(n int) string {
-	if n == 1 {
-		return "1 snapshot"
-	}
-	return fmt.Sprintf("%d snapshots", n)
-}
+func snapshotCount(n int) string { return text.Plural(n, "snapshot") }
 
 // coverage words the span in the largest unit that stays honest, because "0.3
 // days" reads as a rounding error and "7 hours" reads as a fact.
 func coverage(hours float64) string {
 	switch {
 	case hours >= 48:
-		return fmt.Sprintf("%.0f days", hours/24)
+		return text.Plural(int(math.Round(hours/hoursPerDay)), "day")
 	case hours >= 1:
-		return fmt.Sprintf("%.0f hours", hours)
+		// Rounded first, then pluralised against what will actually be printed:
+		// 1.4 hours prints as "1 hour", and pluralising the unrounded value would
+		// have called it "1 hours".
+		return text.Plural(int(math.Round(hours)), "hour")
 	default:
 		return "under an hour"
 	}
-}
-
-func plural(n int) string {
-	if n == 1 {
-		return ""
-	}
-	return "s"
 }
 
 // OpenPrivacySettings reveals the Full Disk Access pane.

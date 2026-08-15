@@ -5,6 +5,7 @@ import {
   Snapshots,
   Schedule,
   message,
+  serviceChosenTail,
   type Health as HealthState,
   type Finding,
 } from "./api";
@@ -147,7 +148,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
             <>
               <button
                 onClick={() =>
-                  Schedule.Log(64 * 1024)
+                  Schedule.Log(serviceChosenTail)
                     .then(setLog)
                     .catch((err) => setError(message(err)))
                 }
@@ -209,6 +210,13 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
                 ? "Installed, not running"
                 : "Off"}
           </dd>
+        </div>
+        {/* Fills the eighth cell of a four-wide grid that was showing seven, and
+            earns it: a copy in /Applications and a working build share a bundle
+            identifier, so "which one am I looking at" is a real question. */}
+        <div>
+          <dt>Version</dt>
+          <dd>{health.version}</dd>
         </div>
       </dl>
     </div>

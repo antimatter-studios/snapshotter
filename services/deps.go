@@ -59,3 +59,12 @@ type Deps struct {
 	// filling a real disk to see it.
 	Space func(volume string) (total, free uint64, err error)
 }
+
+// timeMachineThinning is what a configured Time Machine destination does to
+// local snapshots, stated once.
+//
+// The overview banner and the health panel both have to say it, and a fact
+// worded separately in two files is a fact that ends up worded two different
+// ways — at which point a reader who sees both wonders which one is right.
+const timeMachineThinning = "Time Machine has a backup destination configured, and its backup cycle " +
+	"thins local snapshots to roughly 24 hours. A longer retention window will not hold."
