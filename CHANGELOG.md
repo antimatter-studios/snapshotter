@@ -7,6 +7,37 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.5.0 — 2026-08-15
+
+**The menu bar menu is legible, and says something a count cannot.**
+
+Everything informational in that menu was disabled, which macOS draws in the grey
+it uses for "you cannot have this". That is the wrong thing to say about the
+state of your own machine, and it made the text most worth reading the hardest to
+read. Nothing is disabled now: each row opens the window, so it is honestly
+clickable rather than merely enabled.
+
+A menu is not only a list of things to click, so two things are drawn rather than
+written:
+
+- **A coverage strip**, one cell per hour across the last two days, filled where a
+  snapshot exists. The gaps are the point. A count says how many restore points
+  there are; the strip says *when* they are, and a machine with twelve snapshots
+  taken in one hour is not covered by any useful definition.
+- **A glyph per finding**, chosen by what the finding is about rather than by how
+  bad it is. Findings previously took their icon from their level, so three
+  warnings were drawn with three identical warning icons — which tells a reader
+  only that there are three. Each finding now carries a `Kind`, and the shape
+  follows the kind while the colour still follows the level.
+
+The one exception is the cross, which is always red and smaller than the rest: it
+marks something absent, it is the strongest shape in the set, and in the same
+amber as everything else it read as decoration.
+
+Both are drawn in Go rather than shipped as assets, so they adapt to the light or
+dark background the menu is being drawn on, and both are covered by tests that
+fail if two things ever render identically or if a glyph draws an empty square.
+
 ## v0.4.0 — 2026-08-15
 
 **The settings file can be found, read and changed from the command line.**

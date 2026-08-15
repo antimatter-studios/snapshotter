@@ -15,14 +15,17 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/cli"
 	"snapshotter/internal/config"
 	"snapshotter/internal/elevate"
+	"snapshotter/internal/menubar"
 	"snapshotter/internal/mountmgr"
 	"snapshotter/internal/notify"
 	"snapshotter/internal/scenario"
@@ -276,6 +279,23 @@ const (
 	// a mismatch is a flash of the wrong colour on every launch.
 	windowBackgroundHex = "#121418"
 )
+
+// menuIsDark reports whether menus are currently being drawn on a dark
+// background, so the coverage strip is drawn in a shade that shows up on it.
+//
+// Asked of the system each time the menu is rebuilt rather than cached: someone
+// switching appearance expects the next menu to match, and this runs once a
+// minute rather than once a frame. The key is absent entirely in light mode,
+// which is why any error means light.
+var menuIsDark = func() bool {
+	out, err := exec.Command("defaults", "read", "-g", "AppleInterfaceStyle").Output()
+	return err == nil && strings.Contains(string(out), "Dark")
+}
+
+// coverageWindow is how far back the menu's strip reaches. Two days is far
+// enough to show a nightly rhythm and close enough that each hour is still wide
+// enough to see.
+const coverageWindow = 48 * time.Hour
 
 // windowBackground is windowBackgroundHex as the components Wails wants.
 var windowBackground = struct{ r, g, b uint8 }{0x12, 0x14, 0x18}
@@ -538,8 +558,16 @@ func installTray(app *application.App, status *services.StatusService, win appli
 		health, err := status.Check(context.Background())
 		menu := application.NewMenu()
 
+		// Nothing informational is disabled any more. A disabled item is drawn in
+		// the grey macOS uses for "you cannot have this", which is the wrong thing
+		// to say about the state of your machine — and it is the hardest text in
+		// the menu to read, which is backwards, because it is the text worth
+		// reading. Each of these opens the window instead, so it is honestly
+		// clickable rather than merely enabled.
+		reveal := func(*application.Context) { win.Show(); win.Focus() }
+
 		if scenarioName != "" {
-			menu.Add("SCENARIO " + scenarioName + " — invented state").SetEnabled(false)
+			menu.Add("SCENARIO " + scenarioName + " — invented state").OnClick(reveal)
 			menu.AddSeparator()
 		}
 
@@ -549,25 +577,57 @@ func installTray(app *application.App, status *services.StatusService, win appli
 			tray.SetIcon(trayIconBad)
 			tray.SetLabel(label + "⚠︎")
 			tray.SetTooltip(product + ": " + err.Error())
-			menu.Add("Could not read snapshot state").SetEnabled(false)
-			menu.Add(err.Error()).SetEnabled(false)
+			menu.Add("Could not read snapshot state").SetBitmap(trayIconBad).OnClick(reveal)
+			menu.Add(err.Error()).OnClick(reveal)
 		} else {
 			tray.SetIcon(trayIcon(health.Level))
 			tray.SetLabel(label + trayLabel(health))
 			tray.SetTooltip(product + " — " + health.Headline)
 
-			menu.Add(health.Headline).SetEnabled(false)
+			// A drawn dot rather than the menu bar's own icon: that icon is sized
+			// for the menu bar, and at menu size it dominates every row beneath it.
+			// The colour still ties the two together.
+			headline := menu.Add(health.Headline).OnClick(reveal)
+			if dot, dotErr := menubar.Status(menubar.Level(health.Level)); dotErr == nil {
+				headline.SetBitmap(dot)
+			}
+
+			// When the snapshots are, rather than how many there are. A machine with
+			// twelve snapshots taken in one hour is not covered, and no count says so.
+			if snaps, listErr := services.NewSnapshotService(status.Deps).List(context.Background()); listErr == nil {
+				taken := make([]time.Time, 0, len(snaps))
+				for _, snap := range snaps {
+					taken = append(taken, snap.Taken)
+				}
+				if strip, drawErr := menubar.Coverage(taken, time.Now(), coverageWindow, menuIsDark()); drawErr == nil {
+					// The caption sits above the strip rather than beside it: macOS
+					// draws an item's image before its label, so a labelled strip
+					// reads as a picture with its caption trailing off to the right.
+					menu.Add("Last two days").OnClick(reveal)
+					menu.Add("").SetBitmap(strip).OnClick(reveal)
+				}
+			}
+
 			if health.Newest != nil {
-				menu.Add("Newest: " + health.Newest.Format("Mon 2 Jan, 15:04")).SetEnabled(false)
+				menu.Add("Newest: " + health.Newest.Format("Mon 2 Jan, 15:04")).OnClick(reveal)
 			}
 			if health.ScheduleInstalled && health.NextDue != nil {
-				menu.Add("Next due: " + health.NextDue.Format("Mon 2 Jan, 15:04")).SetEnabled(false)
+				menu.Add("Next due: " + health.NextDue.Format("Mon 2 Jan, 15:04")).OnClick(reveal)
 			}
-			// Findings are the reason to have looked at all, so they sit above
-			// the actions rather than below them.
-			for _, f := range health.Findings {
+			// Findings are the reason to have looked at all, so they sit above the
+			// actions rather than below them. Each carries its level as an image,
+			// which is what the prefix characters were standing in for.
+			if len(health.Findings) > 0 {
 				menu.AddSeparator()
-				menu.Add(findingPrefix(f.Level) + " " + f.Title).SetEnabled(false)
+				for _, f := range health.Findings {
+					item := menu.Add(f.Title).SetTooltip(f.Detail).OnClick(reveal)
+					// Keyed on what the finding is about, not how bad it is: three
+					// warnings drawn with three identical warning icons say only
+					// that there are three.
+					if icon, err := menubar.Glyph(f.Kind, menubar.Level(f.Level)); err == nil {
+						item.SetBitmap(icon)
+					}
+				}
 			}
 		}
 
