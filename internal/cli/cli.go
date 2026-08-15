@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/config"
 	"snapshotter/internal/version"
 )
 
@@ -88,6 +89,11 @@ func commands() map[string]command {
 			summary: "print the version of this build",
 			usage:   "version",
 			run:     runVersion,
+		},
+		"config": {
+			summary: "show the settings file, or write it with the defaults",
+			usage:   "config [--write]",
+			run:     runConfig,
 		},
 	}
 }
@@ -275,5 +281,60 @@ func coverage(d time.Duration) string {
 		return fmt.Sprintf("%.0f hours", d.Hours())
 	default:
 		return "under an hour"
+	}
+}
+
+// runConfig shows where the settings live and what is currently in them.
+//
+// It exists because the file is the supported way to change anything the window
+// does not offer, and until now nothing told you where it was or what could go in
+// it. An absent file is not a fault — everything falls back to the defaults — but
+// it does leave you with nothing to edit, which is what --write fixes.
+func runConfig(_ context.Context, e Env, args []string) error {
+	write := false
+	for _, arg := range args {
+		switch arg {
+		case "--write":
+			write = true
+		default:
+			return fmt.Errorf("config: unknown option %q (usage: snapshotter config [--write])", arg)
+		}
+	}
+
+	path, err := config.Path()
+	if err != nil {
+		return err
+	}
+
+	_, statErr := os.Stat(path)
+	switch {
+	case statErr == nil && write:
+		// Refusing rather than merging: a rewrite would drop anything this build
+		// does not know about, and settings files outlive the version that wrote
+		// them.
+		return fmt.Errorf("config: %s already exists; edit it, or delete it first to start again", path)
+	case statErr == nil:
+		// Read back rather than printed from memory, so what is shown is what the
+		// file says — including a value this build ignores.
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(e.Out, path)
+		fmt.Fprintln(e.Out)
+		fmt.Fprint(e.Out, string(body))
+		return nil
+	case !os.IsNotExist(statErr):
+		return statErr
+	case write:
+		if err := config.Save(config.Defaults()); err != nil {
+			return err
+		}
+		fmt.Fprintf(e.Out, "wrote the defaults to %s\n", path)
+		return nil
+	default:
+		fmt.Fprintf(e.Out, "%s does not exist, so the defaults are in use.\n", path)
+		fmt.Fprintln(e.Out, "Write them there to start editing: snapshotter config --write")
+		return nil
 	}
 }

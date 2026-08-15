@@ -5,6 +5,13 @@ summarized in the README; the full history lives here.
 
 ## Unreleased
 
+`snapshotter config` says where the settings file is and what is in it, and
+`snapshotter config --write` creates it with the defaults. Until now nothing told
+you the file existed, which made the one supported way to change anything the
+window does not offer effectively undiscoverable. It refuses to overwrite a file
+that is already there: settings outlive the version that wrote them, and a
+rewrite would drop anything this build does not recognise.
+
 The command line tool is no longer published as a separate archive. It was there
 for a companion formula that no longer exists: the cask installs the application
 and symlinks the bundle's own executable onto PATH, so one `brew install --cask`
