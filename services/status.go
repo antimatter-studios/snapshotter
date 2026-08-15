@@ -9,6 +9,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/mountmgr"
+	"snapshotter/internal/version"
 )
 
 // openURL hands a URL to the system to open. System Settings panes are
@@ -53,6 +54,11 @@ const (
 type Health struct {
 	Level    Level  `json:"level"`
 	Headline string `json:"headline"`
+	// Version is the build the window is talking to, which is not necessarily the
+	// one someone thinks they installed: a copy in /Applications and a working
+	// build in bin/ share a bundle identifier, and the launchd agents run whichever
+	// path was installed. Showing it costs a line and settles that question.
+	Version string `json:"version"`
 	// Findings are the specific things wrong, worst first. Empty when all is
 	// well, so the panel has nothing to say rather than something reassuring.
 	Findings []Finding `json:"findings"`
@@ -111,7 +117,7 @@ type Finding struct {
 // Check gathers everything. It never fails on a partial answer: a system that
 // cannot report its free space should still say when the last snapshot was.
 func (s *StatusService) Check(ctx context.Context) (Health, error) {
-	h := Health{Faking: s.Faking, Scenario: s.Scenario}
+	h := Health{Faking: s.Faking, Scenario: s.Scenario, Version: version.String()}
 
 	snaps, err := apfs.List(ctx, s.Runner, s.Volume)
 	if err != nil {

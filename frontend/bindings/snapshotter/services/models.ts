@@ -7,6 +7,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as config$0 from "../internal/config/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as diffs$0 from "../internal/diffs/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -66,7 +69,7 @@ export class CompareRequest {
 
 /**
  * CompareSnapshotsRequest asks what changed between two snapshots.
- * 
+ *
  * Older and Newer state the roles the caller intends. They are not taken on
  * trust — see CompareSnapshots — but naming them rather than numbering them
  * means a caller cannot pass two snapshots without having thought about which
@@ -125,6 +128,50 @@ export class CompareSnapshotsRequest {
 }
 
 /**
+ * ConfigView is the settings plus where they are stored, because a settings screen
+ * that will not tell you which file it is editing is a settings screen you cannot
+ * fix by hand.
+ */
+export class ConfigView {
+    "path": string;
+    "config": config$0.Config;
+
+    /**
+     * Error is a configuration file that exists and could not be read. The
+     * defaults are returned alongside it rather than nothing at all, so the window
+     * still works while saying what is wrong.
+     */
+    "error": string;
+
+    /** Creates a new ConfigView instance. */
+    constructor($$source: Partial<ConfigView> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("config" in $$source)) {
+            this["config"] = (new config$0.Config());
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConfigView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ConfigView {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("config" in $$parsedSource) {
+            $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
+        }
+        return new ConfigView($$parsedSource as Partial<ConfigView>);
+    }
+}
+
+/**
  * Finding is one specific thing wrong, with what to do about it.
  */
 export class Finding {
@@ -168,6 +215,14 @@ export class Finding {
 export class Health {
     "level": Level;
     "headline": string;
+
+    /**
+     * Version is the build the window is talking to, which is not necessarily the
+     * one someone thinks they installed: a copy in /Applications and a working
+     * build in bin/ share a bundle identifier, and the launchd agents run whichever
+     * path was installed. Showing it costs a line and settles that question.
+     */
+    "version": string;
 
     /**
      * Findings are the specific things wrong, worst first. Empty when all is
@@ -238,6 +293,9 @@ export class Health {
         if (!("headline" in $$source)) {
             this["headline"] = "";
         }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
         if (!("findings" in $$source)) {
             this["findings"] = [];
         }
@@ -288,10 +346,10 @@ export class Health {
      * Creates a new Health instance from a string or object.
      */
     static createFrom($$source: any = {}): Health {
-        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField2_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
         }
         return new Health($$parsedSource as Partial<Health>);
     }
@@ -325,7 +383,7 @@ export enum Level {
 
     /**
      * LevelInfo is something the panel should say that is not a degradation.
-     * 
+     *
      * It exists for one reason: a scenario has to announce itself in the findings,
      * and if that announcement escalated the verdict then the clean "nothing to
      * say" state could never be reached under a scenario — which is one of the
@@ -375,7 +433,7 @@ export class Listing {
      * Creates a new Listing instance from a string or object.
      */
     static createFrom($$source: any = {}): Listing {
-        const $$createField2_0 = $$createType3;
+        const $$createField2_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField2_0($$parsedSource["entries"]);
@@ -427,7 +485,7 @@ export class MergedListing {
      * Creates a new MergedListing instance from a string or object.
      */
     static createFrom($$source: any = {}): MergedListing {
-        const $$createField2_0 = $$createType5;
+        const $$createField2_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField2_0($$parsedSource["rows"]);
@@ -473,7 +531,7 @@ export class Overview {
      * Creates a new Overview instance from a string or object.
      */
     static createFrom($$source: any = {}): Overview {
-        const $$createField0_0 = $$createType7;
+        const $$createField0_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("snapshots" in $$parsedSource) {
             $$parsedSource["snapshots"] = $$createField0_0($$parsedSource["snapshots"]);
@@ -485,7 +543,7 @@ export class Overview {
 /**
  * PolicyOption is one retention policy on offer, with what it would actually do
  * at the interval currently chosen.
- * 
+ *
  * The numbers are the point. "Hourly for a day, daily for a week" tells nobody
  * whether they end up with more or fewer restore points than they have now,
  * which is the only question anyone actually has about retention.
@@ -545,7 +603,7 @@ export class PolicyOption {
      * Creates a new PolicyOption instance from a string or object.
      */
     static createFrom($$source: any = {}): PolicyOption {
-        const $$createField4_0 = $$createType9;
+        const $$createField4_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tiers" in $$parsedSource) {
             $$parsedSource["tiers"] = $$createField4_0($$parsedSource["tiers"]);
@@ -734,8 +792,8 @@ export class ScheduleView {
      * Creates a new ScheduleView instance from a string or object.
      */
     static createFrom($$source: any = {}): ScheduleView {
-        const $$createField6_0 = $$createType10;
-        const $$createField11_0 = $$createType9;
+        const $$createField6_0 = $$createType11;
+        const $$createField11_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("conflicts" in $$parsedSource) {
             $$parsedSource["conflicts"] = $$createField6_0($$parsedSource["conflicts"]);
@@ -804,9 +862,9 @@ export class SearchResult {
      * Creates a new SearchResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SearchResult {
-        const $$createField1_0 = $$createType12;
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType10;
+        const $$createField1_0 = $$createType13;
+        const $$createField2_0 = $$createType11;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hits" in $$parsedSource) {
             $$parsedSource["hits"] = $$createField1_0($$parsedSource["hits"]);
@@ -824,7 +882,7 @@ export class SearchResult {
 /**
  * SnapshotComparison is the difference between two snapshots, with the two ends
  * named so that no row can be read backwards.
- * 
+ *
  * diffs.Change names its fields for a snapshot-against-live comparison, and here
  * they mean: AbsSnapshot, SnapSize and SnapModTime describe Older, while AbsLive,
  * LiveSize and LiveModTime describe Newer. Status follows from that —
@@ -878,9 +936,9 @@ export class SnapshotComparison {
      * Creates a new SnapshotComparison instance from a string or object.
      */
     static createFrom($$source: any = {}): SnapshotComparison {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType6;
-        const $$createField4_0 = $$createType13;
+        const $$createField0_0 = $$createType7;
+        const $$createField1_0 = $$createType7;
+        const $$createField4_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("older" in $$parsedSource) {
             $$parsedSource["older"] = $$createField0_0($$parsedSource["older"]);
@@ -1008,17 +1066,18 @@ export class TripwireView {
 }
 
 // Private type creation functions
-const $$createType0 = Finding.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = vfs$0.Entry.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = diffs$0.Change.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = SnapshotView.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = TierView.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $Create.Array($Create.Any);
-const $$createType11 = find$0.Hit.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = diffs$0.Result.createFrom;
+const $$createType0 = config$0.Config.createFrom;
+const $$createType1 = Finding.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = vfs$0.Entry.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = diffs$0.Change.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = SnapshotView.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = TierView.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $Create.Array($Create.Any);
+const $$createType12 = find$0.Hit.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = diffs$0.Result.createFrom;

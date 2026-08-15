@@ -21,6 +21,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/cli"
+	"snapshotter/internal/config"
 	"snapshotter/internal/elevate"
 	"snapshotter/internal/mountmgr"
 	"snapshotter/internal/notify"
@@ -161,12 +162,23 @@ func resolvePaths() (paths, error) {
 	if err != nil {
 		return paths{}, fmt.Errorf("cannot find this program's path: %w", err)
 	}
+	// Configured locations win where they are set; the defaults are what almost
+	// everyone wants and what every previous version used, so an absent setting
+	// changes nothing. agentDir is not configurable: launchd looks in exactly one
+	// place, and a plist anywhere else is a file nobody reads.
+	cfg, cfgErr := config.Load()
+	if cfgErr != nil {
+		log.Printf("configuration: %v (continuing with defaults)", cfgErr)
+	}
 	return paths{
-		mountRoot:       filepath.Join(home, "Library", "Application Support", "Snapshotter", "mounts"),
-		agentDir:        filepath.Join(home, "Library", "LaunchAgents"),
-		logPath:         filepath.Join(home, "Library", "Logs", "snapshotter.log"),
-		tripwireLogPath: filepath.Join(home, "Library", "Logs", "snapshotter-tripwire.log"),
-		program:         program,
+		mountRoot: config.ResolvePath(cfg.Paths.MountRoot,
+			filepath.Join(home, "Library", "Application Support", "Snapshotter", "mounts")),
+		agentDir: filepath.Join(home, "Library", "LaunchAgents"),
+		logPath: config.ResolvePath(cfg.Paths.Log,
+			filepath.Join(home, "Library", "Logs", "snapshotter.log")),
+		tripwireLogPath: config.ResolvePath(cfg.Paths.TripwireLog,
+			filepath.Join(home, "Library", "Logs", "snapshotter-tripwire.log")),
+		program: program,
 	}, nil
 }
 
@@ -326,6 +338,7 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 			application.NewService(services.NewScheduleService(deps)),
 			application.NewService(services.NewSearchService(deps)),
 			application.NewService(status),
+			application.NewService(services.NewConfigService()),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -344,10 +357,16 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		title = "Snapshotter — SCENARIO " + scenarioName + " (invented state, not this Mac)"
 	}
 
+	// One read for the window's own preferences. A broken configuration file has
+	// already been reported by resolvePaths, so this quietly takes the defaults
+	// rather than saying the same thing twice.
+	cfg, _ := config.Load()
+	windowWidth, windowHeight := cfg.WindowSize()
+
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  title,
-		Width:  1180,
-		Height: 780,
+		Width:  windowWidth,
+		Height: windowHeight,
 		// Mounted snapshots are deliberately left attached on quit. Detaching
 		// needs root, and a password prompt on the way out is a poor trade for
 		// tidying something read-only and harmless.
@@ -434,10 +453,11 @@ func openEveryFakeMount(deps services.Deps) {
 	log.Printf("fake mounts: opened %d snapshot(s)", len(names))
 }
 
-// trayRefresh is how often the menu bar recomputes. The underlying state moves
-// on the schedule's interval — hours, not seconds — so this is about noticing a
-// snapshot taken elsewhere rather than about being live.
-const trayRefresh = time.Minute
+// trayRefreshDefault is how often the menu bar recomputes when nothing is
+// configured. The underlying state moves on the schedule's interval — hours, not
+// seconds — so this is about noticing a snapshot taken elsewhere rather than about
+// being live. config.Refresh.menu_bar_seconds overrides it.
+const trayRefreshDefault = time.Minute
 
 // installTray puts the state in the menu bar, where it is visible without the
 // window being open.
@@ -450,6 +470,11 @@ const trayRefresh = time.Minute
 // before it says anything else. The menu bar is the surface that stays visible
 // with the window closed, so it is the one most able to mislead.
 func installTray(app *application.App, status *services.StatusService, win application.Window, scenarioName string) {
+	// Read once when the tray is built rather than on every tick: a person editing
+	// the file expects the next launch to honour it, not the next minute.
+	cfg, _ := config.Load()
+	trayRefresh := cfg.MenuBarRefresh()
+
 	tray := app.SystemTray.New()
 	// No icon is set here: every render sets one to match the level it just read,
 	// and the first render happens below before anything is on screen.

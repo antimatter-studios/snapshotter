@@ -4,6 +4,13 @@ includes:
   common: ../Taskfile.yml
 
 vars:
+  # The version stamped into the binary and the bundle. Empty for ordinary
+  # development, where the honest answer is "dev": a working copy is not a release
+  # and should not claim a number. The release workflow passes the tag.
+  #
+  #   task package VERSION=0.2.0
+  VERSION: '{{.VERSION | default ""}}'
+
   # Who `task package` signs the bundle as. Discovered from the keychain, not
   # configured, and that is the point.
   #
@@ -79,7 +86,7 @@ tasks:
     cmds:
       - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"'
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -X snapshotter/internal/version.Version={{.VERSION}}"{{end}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
       OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
     env:
@@ -176,6 +183,17 @@ tasks:
         fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      # The plist is a committed constant, so without this a release ships the last
+      # number anyone typed into it. v0.1.1 went out reporting 0.1.0 for exactly
+      # that reason: the tag, the binary and the bundle each knew a version and
+      # nothing made them agree.
+      - |
+        if [ -n "{{.VERSION}}" ]; then
+          plist="{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.VERSION}}" "$plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.VERSION}}" "$plist"
+          echo "  stamped bundle version {{.VERSION}}"
+        fi
       - task: '{{if eq OS "darwin"}}codesign:local{{else}}codesign:skip{{end}}'
 
   codesign:local:

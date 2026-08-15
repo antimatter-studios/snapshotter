@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Config } from "./api";
 
 /** How often an open window re-reads state it did not change itself.
  *
@@ -7,7 +8,7 @@ import { useEffect } from "react";
  *  snapshot taken elsewhere rather than about being live. Half a minute is short
  *  enough that a disagreement is never left on screen long enough to be believed.
  */
-const refreshEvery = 30_000;
+const refreshEveryDefault = 30_000;
 
 /** Re-runs a fetch periodically, and immediately whenever the window is looked at
  *  again.
@@ -25,9 +26,24 @@ const refreshEvery = 30_000;
  *  should already be right.
  */
 export function useLiveRefresh(refresh: () => unknown) {
+  // Read from the configuration file, so the interval is a setting rather than a
+  // constant someone has to rebuild to change. Read once per mount: a person
+  // editing the file expects the next launch to honour it.
+  const [every, setEvery] = useState(refreshEveryDefault);
+  useEffect(() => {
+    Config.Get()
+      .then((view) => {
+        const seconds = view.config?.refresh?.window_seconds;
+        if (typeof seconds === "number" && seconds > 0) setEvery(seconds * 1000);
+      })
+      .catch(() => {
+        // The default is already in effect.
+      });
+  }, []);
+
   useEffect(() => {
     const tick = () => void refresh();
-    const id = window.setInterval(tick, refreshEvery);
+    const id = window.setInterval(tick, every);
     // Both events: focus fires when the window is activated, visibilitychange
     // when it is uncovered or the app is switched back to. Either can happen
     // without the other.
@@ -41,5 +57,5 @@ export function useLiveRefresh(refresh: () => unknown) {
       window.removeEventListener("focus", tick);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [refresh]);
+  }, [refresh, every]);
 }

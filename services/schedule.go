@@ -3,9 +3,11 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
+	"snapshotter/internal/config"
 	"snapshotter/internal/schedule"
 )
 
@@ -97,6 +99,20 @@ func (s *ScheduleService) Install(ctx context.Context, intervalHours, retentionD
 // retentionDays is the flat window, and is used only when policyID names it —
 // every other policy carries its own bands.
 func (s *ScheduleService) InstallPolicy(ctx context.Context, intervalHours, retentionDays float64, policyID string) (ScheduleView, error) {
+	// Recorded as intent before anything is installed. launchd remains the truth
+	// about what is running; this is what the settings screen should show on a
+	// machine where nothing is installed yet, and what a second installation should
+	// inherit rather than asking again.
+	if cfg, err := config.Load(); err == nil {
+		cfg.Schedule.IntervalHours = intervalHours
+		cfg.Schedule.RetentionDays = retentionDays
+		if policyID != "" {
+			cfg.Schedule.Policy = policyID
+		}
+		if err := config.Save(cfg); err != nil {
+			log.Printf("schedule: recording the choice in the configuration: %v", err)
+		}
+	}
 	policy, ok := schedule.PolicyByID(policyID, days(retentionDays))
 	if !ok {
 		return ScheduleView{}, fmt.Errorf("services: %q is not a retention policy", policyID)

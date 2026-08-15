@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { applyTheme, nextTheme, storedTheme, systemIsDark, type Theme } from "./theme";
+import { Config } from "./api";
 
 /**
  * Cycles system → light → dark.
@@ -10,11 +11,31 @@ import { applyTheme, nextTheme, storedTheme, systemIsDark, type Theme } from "./
  * it honestly.
  */
 export function ThemeToggle() {
+  // Seeded from the cache so the first paint is right, then corrected from the
+  // configuration file, which is what every installation shares.
   const [theme, setTheme] = useState<Theme>(storedTheme);
+
+  useEffect(() => {
+    Config.Get()
+      .then((view) => {
+        const stored = view.config?.appearance?.theme;
+        if (stored === "system" || stored === "light" || stored === "dark") setTheme(stored);
+      })
+      .catch(() => {
+        // The cached value is already applied; a failure here is not worth a banner.
+      });
+  }, []);
 
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  const choose = (next: Theme) => {
+    setTheme(next);
+    // Written to the file rather than only to this webview's storage, so the same
+    // choice greets the next version installed.
+    Config.SetTheme(next).catch(() => {});
+  };
 
   const label: Record<Theme, string> = {
     system: `Following the system (${systemIsDark() ? "dark" : "light"}) — click for light`,
@@ -25,7 +46,7 @@ export function ThemeToggle() {
   return (
     <button
       className="theme-toggle"
-      onClick={() => setTheme(nextTheme(theme))}
+      onClick={() => choose(nextTheme(theme))}
       title={label[theme]}
       aria-label={label[theme]}
     >

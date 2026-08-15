@@ -210,6 +210,13 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
                 : "Off"}
           </dd>
         </div>
+        {/* Fills the eighth cell of a four-wide grid that was showing seven, and
+            earns it: a copy in /Applications and a working build share a bundle
+            identifier, so "which one am I looking at" is a real question. */}
+        <div>
+          <dt>Version</dt>
+          <dd>{health.version}</dd>
+        </div>
       </dl>
     </div>
   );

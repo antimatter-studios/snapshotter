@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/rjeczalik/notify v0.9.3
 	github.com/wailsapp/wails/v3 v3.0.0-beta.8
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
