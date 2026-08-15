@@ -448,6 +448,30 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 	// platform layer has not finished making, and the started event is the
 	// point at which it has.
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		// Before the tray, so the first menu it draws reflects a repaired machine
+		// rather than the broken one it started from.
+		//
+		// A launchd job does not survive everything: upgrading through Homebrew
+		// unloads both agents before staging the new version, and the loss is
+		// silent — the settings still record the interval that was chosen and
+		// nothing is taking snapshots. The settings are the intent; launchd is the
+		// current state; this reconciles the second to the first.
+		if restored, err := services.NewScheduleService(deps).Restore(context.Background()); err != nil {
+			log.Printf("restoring what was configured: %v", err)
+		} else if restored.Any() {
+			what := "the schedule"
+			if restored.Schedule && restored.Tripwire {
+				what = "the schedule and the bulk-deletion watcher"
+			} else if restored.Tripwire {
+				what = "the bulk-deletion watcher"
+			}
+			log.Printf("restored %s from the settings file", what)
+			if nerr := notify.Send(context.Background(), "Snapshotter restored your schedule",
+				"Something had removed "+what+", most likely an upgrade. It is running again."); nerr != nil {
+				log.Printf("could not post a notification: %v", nerr)
+			}
+		}
+
 		installTray(app, status, win, scenarioName)
 		if deps.Faking {
 			openEveryFakeMount(deps)
