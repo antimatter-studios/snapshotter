@@ -7,6 +7,28 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.8.0 — 2026-08-15
+
+**The window draws findings the way the menu bar does.**
+
+v0.7.0 gave every finding a kind — what it is about, as opposed to how bad it is
+— and drew nine shapes for it in the menu bar. The window kept styling findings
+by level alone, so the Health panel still had the problem the menu bar no longer
+has: three warnings that look identical and tell you only that there are three.
+
+Each finding now carries its shape. A cross for something absent, a clock for a
+timer, a clock crossed through for a schedule that exists and cannot run, bars
+thinning to the right, two rings overlapping, a gauge near full, a dashed outline
+for invented state.
+
+They are the same nine shapes, drawn twice: the menu bar needs PNG bytes and the
+window needs SVG, so no code is shared. What is shared is the list of kinds, and
+each side has a test that reads the other's list and fails when they drift — so
+a kind added to the service cannot quietly render as a blank in one of the two.
+
+The cross stays red in both, whatever the level's colour is. It marks something
+absent, which is the one state worth breaking a palette for.
+
 ## v0.7.0 — 2026-08-15
 
 **A schedule that cannot run now says so, and the tripwire is on by default.**

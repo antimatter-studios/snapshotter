@@ -10,6 +10,7 @@ import {
   type Finding,
 } from "./api";
 import { bytes, stamp } from "./format";
+import { FindingIcon } from "./FindingIcon";
 
 /**
  * What the one-click fix installs. Six hours rather than hourly, kept a
@@ -99,7 +100,12 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
 
       {health.findings.map((f: Finding, i: number) => (
         <div key={i} className={`finding ${f.level}`}>
-          <h4>{f.title}</h4>
+          {/* The shape says what the finding is about, the colour how bad it
+              is — the same split the menu bar makes, so the two agree. */}
+          <h4>
+            <FindingIcon kind={f.kind} />
+            {f.title}
+          </h4>
           <p>{f.detail}</p>
 
           {/* A finding you cannot act on from where you read it is just
