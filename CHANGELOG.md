@@ -5,28 +5,59 @@ summarized in the README; the full history lives here.
 
 ## Unreleased
 
-`snapshotter config` says where the settings file is and what is in it,
-`snapshotter config --write` creates it with the defaults, and
-`config keys`, `config get <key>` and `config set <key> <value>` read and change
-any single setting by its name in the file — which makes the application
-scriptable, and lets a test put a machine into a known state without
-hand-writing YAML.
+Nothing yet.
 
-The names are derived from the file's own structure rather than listed by hand,
-so a setting added later is addressable the moment it exists. Until now nothing told
-you the file existed, which made the one supported way to change anything the
-window does not offer effectively undiscoverable. It refuses to overwrite a file
-that is already there: settings outlive the version that wrote them, and a
-rewrite would drop anything this build does not recognise.
+## v0.4.0 — 2026-08-15
 
-The command line tool is no longer published as a separate archive. It was there
-for a companion formula that no longer exists: the cask installs the application
-and symlinks the bundle's own executable onto PATH, so one `brew install --cask`
-gives both.
+**The settings file can be found, read and changed from the command line.**
 
-They are deliberately not separable. The command line is the application's own
+0.3.0 moved everything configurable into `$HOME/.config/snapshotter/config.yaml`
+and then told nobody. It was the only way to change what the window does not
+offer, and finding it — or learning what keys go in it — meant reading the
+source.
+
+    snapshotter config                       where it is, and what it says
+    snapshotter config --write               create it with the defaults
+    snapshotter config keys                  everything that can be set
+    snapshotter config get <key>             read one setting
+    snapshotter config set <key> <value>     change one setting
+
+The names are the ones in the file — `schedule.interval_hours`, not a second
+vocabulary invented for the command line — and they are derived by walking the
+file's own structure rather than listed by hand, so a setting added later is
+addressable the moment it exists.
+
+This is the scripting surface the application did not have. It also means a test
+can put a machine into a known state without hand-writing YAML.
+
+Care where it writes to a file somebody owns:
+
+- `--write` refuses when the file already exists. Settings outlive the version
+  that wrote them, so rewriting one would drop anything this build does not
+  recognise, and deleting somebody's settings to "reset" them is not something a
+  flag should do quietly.
+- `set` refuses a value the field cannot hold, and changes nothing when it does,
+  so a script that fails does not leave the settings half applied.
+- `set` refuses outright if the existing file will not parse, rather than saving
+  the defaults over whatever it was trying to say.
+- What `get` prints is what `set` accepts, so a value can be read, decided on and
+  written back.
+
+Type is checked; meaning is not. `appearance.theme` will accept a colour that is
+not a theme — the window validates those, this does not.
+
+### The command line tool is no longer published on its own
+
+It was published as a separate archive for a companion formula that no longer
+exists: the cask installs the application and symlinks the bundle's own
+executable onto PATH, so one `brew install --cask` gives both.
+
+They are deliberately not separable. The command line **is** the application's
 executable, and browsing or restoring from a snapshot mounts a filesystem, which
-needs the Full Disk Access grant that only the installed bundle carries.
+needs the Full Disk Access grant that only the installed bundle carries. It also
+removes a step that had to be kept correct: a binary copied out of a bundle
+fails verification until it is re-signed, because it was signed as part of that
+bundle.
 
 ## v0.3.0 — 2026-08-15
 
