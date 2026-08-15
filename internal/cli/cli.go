@@ -91,8 +91,8 @@ func commands() map[string]command {
 			run:     runVersion,
 		},
 		"config": {
-			summary: "show the settings file, or write it with the defaults",
-			usage:   "config [--write]",
+			summary: "show, read or change the settings",
+			usage:   "config [--write | keys | get <key> | set <key> <value>]",
 			run:     runConfig,
 		},
 	}
@@ -291,6 +291,10 @@ func coverage(d time.Duration) string {
 // it. An absent file is not a fault — everything falls back to the defaults — but
 // it does leave you with nothing to edit, which is what --write fixes.
 func runConfig(_ context.Context, e Env, args []string) error {
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		return configSubcommand(e, args)
+	}
+
 	write := false
 	for _, arg := range args {
 		switch arg {
@@ -336,5 +340,71 @@ func runConfig(_ context.Context, e Env, args []string) error {
 		fmt.Fprintf(e.Out, "%s does not exist, so the defaults are in use.\n", path)
 		fmt.Fprintln(e.Out, "Write them there to start editing: snapshotter config --write")
 		return nil
+	}
+}
+
+// configSubcommand handles the forms that name a setting rather than the file.
+//
+// These exist for scripting and for tests: putting a machine into a known state
+// should not mean hand-writing YAML, and reading a value back should not mean
+// parsing it.
+func configSubcommand(e Env, args []string) error {
+	switch args[0] {
+	case "keys":
+		if len(args) != 1 {
+			return fmt.Errorf("config: keys takes no arguments")
+		}
+		for _, k := range config.Keys() {
+			fmt.Fprintln(e.Out, k)
+		}
+		return nil
+
+	case "get":
+		if len(args) != 2 {
+			return fmt.Errorf("config: get needs one key (usage: snapshotter config get <key>)")
+		}
+		// Loaded rather than read from the file directly, so an absent file
+		// answers with the default rather than with an error: the default is what
+		// the application would actually use.
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		value, err := config.Get(cfg, args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(e.Out, value)
+		return nil
+
+	case "set":
+		if len(args) != 3 {
+			return fmt.Errorf("config: set needs a key and a value (usage: snapshotter config set <key> <value>)")
+		}
+		// A file that will not parse is not overwritten here either. Load reports
+		// the error and hands back the defaults, and saving those would silently
+		// discard whatever the file was trying to say.
+		cfg, err := config.Load()
+		if err != nil {
+			return fmt.Errorf("config: %w (fix the file before setting anything)", err)
+		}
+		if err := config.Set(&cfg, args[1], args[2]); err != nil {
+			return err
+		}
+		if err := config.Save(cfg); err != nil {
+			return err
+		}
+		// Read back rather than echoing the argument, so what is printed is what
+		// was stored — "6" for a field that holds 6.0, and nothing at all if the
+		// write did not take.
+		stored, err := config.Get(cfg, args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(e.Out, "%s = %s\n", args[1], stored)
+		return nil
+
+	default:
+		return fmt.Errorf("config: %q is not a config command (try: keys, get, set)", args[0])
 	}
 }
