@@ -332,6 +332,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.5.0
+
+The menu bar menu no longer greys out everything it says. It also draws two
+things rather than writing them: a strip showing one cell per hour across the
+last two days, filled where a snapshot exists — so the gaps are visible, which no
+count can show — and a glyph per finding chosen by what the finding is about
+rather than by how bad it is.
+
 ### v0.4.0
 
 The settings file can be found and changed from the command line: `snapshotter
