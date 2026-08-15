@@ -7,6 +7,26 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.3.1 — 2026-08-15
+
+**Packaging only; the application is unchanged from v0.3.0.**
+
+The command line tool ships as one archive per architecture instead of one
+universal archive. The bundle stays universal, which is what a `.app` should be,
+but a formula is different: Homebrew resolves the architecture itself, so a
+universal tarball made every user download a slice they cannot run.
+
+It also could not be expressed as a formula the tap would accept. `brew style`
+refuses a top-level `url` declared after the `version` stanza, and the url has to
+interpolate the version — so the url must sit inside a per-architecture block,
+which is evaluated lazily and may therefore follow it. With a single universal
+asset there is no architecture to split on, and the tap's sync script requires
+exactly one url line per platform token, so declaring the same asset twice was
+not an option either.
+
+Each slice is thinned out of the universal binary before it is signed, so the
+signature is made over exactly the file that ships.
+
 ## v0.3.0 — 2026-08-15
 
 **One version number, one settings file, and a test suite that runs in CI.**

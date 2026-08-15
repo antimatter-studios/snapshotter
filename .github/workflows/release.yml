@@ -351,28 +351,62 @@ jobs:
           # Info.plist (plist or signature have been modified)" and macOS refuses to
           # run it — which would ship a tarball whose binary is killed on first use.
           # Re-signing turns it into a valid standalone Mach-O.
+          # One archive per architecture rather than one universal archive.
+          #
+          # The bundle stays universal, which is what a .app should be. A formula is
+          # different: Homebrew resolves the architecture itself, so a universal
+          # tarball would make every user download a slice they cannot run. It also
+          # cannot be expressed in a formula this tap will accept — `brew style`
+          # refuses a top-level url declared after the version stanza, and the url
+          # has to interpolate the version, so the url must live inside a per-arch
+          # block. With one asset there is no arch to split on.
+          #
+          # Thinned before signing, not after: each slice then carries a signature
+          # made over exactly the file that ships.
           staging="$RUNNER_TEMP/cli"
           mkdir -p "$staging"
-          cp bin/snapshotter.app/Contents/MacOS/snapshotter "$staging/snapshotter"
-          codesign --force --timestamp --options runtime \
-            --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" "$staging/snapshotter"
-          codesign --verify --strict --verbose=2 "$staging/snapshotter"
-          # Both slices must survive the copy; a formula installed on Intel gets this
-          # exact file.
-          test "$(lipo -archs "$staging/snapshotter")" = "x86_64 arm64" \
-            || test "$(lipo -archs "$staging/snapshotter")" = "arm64 x86_64"
-          "$staging/snapshotter" version
+          universal="$staging/snapshotter.universal"
+          cp bin/snapshotter.app/Contents/MacOS/snapshotter "$universal"
+          have=$(lipo -archs "$universal")
+          for arch in x86_64 arm64; do
+            case " $have " in
+              *" $arch "*) ;;
+              *) echo "::error::the bundle's binary has no $arch slice (has: $have)"; exit 1 ;;
+            esac
+          done
 
-          tar="snapshotter_${VERSION}_darwin_universal.tar.gz"
-          # -C so the archive holds the binary at its root rather than a path from
-          # the runner, which is what a formula expects to find.
-          tar -czf "$tar" -C "$staging" snapshotter
-          echo "cli=$tar" >> "$GITHUB_OUTPUT"
+          cli_assets=""
+          for arch in arm64 x86_64; do
+            dir="$staging/$arch"
+            mkdir -p "$dir"
+            lipo -thin "$arch" "$universal" -output "$dir/snapshotter"
+            codesign --force --timestamp --options runtime \
+              --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" "$dir/snapshotter"
+            codesign --verify --strict --verbose=2 "$dir/snapshotter"
+            test "$(lipo -archs "$dir/snapshotter")" = "$arch"
+
+            # -C so the archive holds the binary at its root rather than a path from
+            # the runner, which is what a formula expects to find.
+            tar="snapshotter_${VERSION}_darwin_${arch}.tar.gz"
+            tar -czf "$tar" -C "$dir" snapshotter
+            cli_assets="${cli_assets}${cli_assets:+ }${tar}"
+          done
+
+          # Only the slice this runner can execute; the other cannot be run here to
+          # be checked, which is what notarization and the formula's test block are
+          # for.
+          native=$(uname -m)
+          "$staging/$native/snapshotter" version
+
+          echo "cli=$cli_assets" >> "$GITHUB_OUTPUT"
 
       - name: Checksum
         env:
           DMG: ${{ steps.dmg.outputs.dmg }}
-        run: shasum -a 256 "$DMG" "${{ steps.cli.outputs.cli }}" | tee SHA256SUMS
+        # cli is a space-separated list of archives, so it is deliberately
+        # unquoted: the names are built from the version and the architecture and
+        # never contain a space.
+        run: shasum -a 256 "$DMG" ${{ steps.cli.outputs.cli }} | tee SHA256SUMS
 
       - name: Release notes
         id: notes
@@ -400,6 +434,6 @@ jobs:
           gh release create "$TAG" \
             --title "Snapshotter $TAG" \
             --notes-file "${{ steps.notes.outputs.path }}" \
-            "$DMG" "${{ steps.cli.outputs.cli }}" SHA256SUMS
+            "$DMG" ${{ steps.cli.outputs.cli }} SHA256SUMS
           echo "Published $TAG"
           echo "Now sync the tap: run tap-sync in antimatter-studios/homebrew-tap"
