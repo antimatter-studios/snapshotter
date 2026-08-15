@@ -332,6 +332,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.8.0
+
+The Health panel draws each finding with the shape that says what it is about,
+matching the menu bar. The same nine shapes exist twice — PNG for the menu, SVG
+for the window — and each side has a test that reads the other's list, so they
+cannot drift apart.
+
 ### v0.7.0
 
 A schedule whose program has been deleted is reported as broken rather than

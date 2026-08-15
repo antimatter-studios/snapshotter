@@ -834,6 +834,19 @@ pre.log {
 .finding.warn { border-left-color: var(--changed); }
 .finding.bad { border-left-color: var(--deleted); }
 
+/* The icon sits on the title's baseline rather than above it, so a two-line
+   title stays aligned with its picture. currentColor inherits the heading's
+   colour, which the level rules below already set. */
+.finding h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finding-icon {
+  flex: 0 0 auto;
+}
+
 .finding h4 {
   margin: 0 0 6px;
   font-size: 14px;

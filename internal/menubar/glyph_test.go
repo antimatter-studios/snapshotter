@@ -3,6 +3,8 @@ package menubar
 import (
 	"bytes"
 	"image/png"
+	"os"
+	"regexp"
 	"testing"
 )
 
@@ -165,5 +167,37 @@ func TestTheCrossIsSmallerThanTheClock(t *testing.T) {
 	}
 	if cross, clock := painted(KindTripwire), painted(KindSchedule); cross >= clock {
 		t.Errorf("the cross covers %d pixels, the clock %d — it is not the smaller", cross, clock)
+	}
+}
+
+// The window draws the same nine shapes as SVG, because a menu item needs PNG
+// bytes and a web view does not. The two cannot share code, so the list of kinds
+// is what holds them together — and this is the Go half of that check. Its
+// counterpart is frontend/src/FindingIcon.test.tsx.
+func TestTheKindsMatchTheOnesTheWindowDraws(t *testing.T) {
+	// Read out of the frontend rather than restated, so this fails when the two
+	// drift rather than when someone forgets to update a copy of a copy.
+	src, err := os.ReadFile("../../frontend/src/FindingIcon.tsx")
+	if err != nil {
+		t.Skipf("cannot read the window's icons: %v", err)
+	}
+
+	block := regexp.MustCompile(`(?s)findingKinds = \[(.*?)\]`).FindSubmatch(src)
+	if block == nil {
+		t.Fatal("findingKinds is not where this test expects it")
+	}
+	inWindow := map[string]bool{}
+	for _, m := range regexp.MustCompile(`"([a-z]+)"`).FindAllSubmatch(block[1], -1) {
+		inWindow[string(m[1])] = true
+	}
+
+	for _, kind := range allKinds() {
+		if !inWindow[kind] {
+			t.Errorf("%s is drawn in the menu bar but not in the window", kind)
+		}
+		delete(inWindow, kind)
+	}
+	for kind := range inWindow {
+		t.Errorf("%s is drawn in the window but not in the menu bar", kind)
 	}
 }
