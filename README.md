@@ -332,6 +332,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.4.0
+
+The settings file can be found and changed from the command line: `snapshotter
+config` says where it is and what is in it, and `config get` / `config set`
+read and change any single setting by name, which is the scriptable way in. The
+command line tool is no longer published separately — the cask installs the
+application and puts `snapshotter` on PATH beside it.
+
 ### v0.3.0
 
 The version is stamped into the build and answered by `snapshotter version`, and
