@@ -36,6 +36,12 @@ type Config struct {
 
 // Schedule is what to ask launchd for, not what launchd is currently doing.
 type Schedule struct {
+	// Enabled says a schedule was ASKED for, which the numbers below cannot: a
+	// fresh settings file carries defaults that are indistinguishable from a
+	// deliberate choice of the same values. Without it, restoring "what was
+	// configured" on launch would install a schedule for someone who never
+	// wanted one.
+	Enabled       bool    `yaml:"enabled" json:"enabled"`
 	IntervalHours float64 `yaml:"interval_hours" json:"interval_hours"`
 	RetentionDays float64 `yaml:"retention_days" json:"retention_days"`
 	// Policy names a retention preset — "flat" keeps everything inside the window,

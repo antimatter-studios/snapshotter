@@ -5,7 +5,29 @@ summarized in the README; the full history lives here.
 
 ## Unreleased
 
-Nothing yet.
+**Whatever was configured is put back on launch.**
+
+A launchd job is not as durable as it looks. Upgrading through Homebrew unloads
+both agents before staging the new version, so an upgrade silently removed the
+schedule — while the settings file still recorded the interval that had been
+chosen, and the window still offered to show it. Configured-looking and not
+working is the exact failure this application exists to prevent, and it was
+doing it to itself.
+
+The settings file is now treated as the intent and launchd as the current state,
+and the two are reconciled at startup: anything the settings say was asked for
+and launchd no longer has is reinstalled, with the interval, retention and policy
+it was installed with. A notification says so, because a repair nobody is told
+about is indistinguishable from nothing having been wrong.
+
+It only ever adds. A schedule that was deliberately uninstalled records that, and
+is not put back — an application that argues with its user once per launch is
+worse than one that forgets.
+
+`schedule.enabled` is new, and is what separates "6 hours was asked for" from "6
+hours is the default". **A settings file written before this release does not have
+it**, so the first launch after upgrading restores nothing; installing the
+schedule once records the intent, and every launch after that is covered.
 
 ## v0.5.0 — 2026-08-15
 

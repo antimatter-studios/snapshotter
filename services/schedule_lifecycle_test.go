@@ -313,3 +313,145 @@ func TestOverviewAgreesWithTheSnapshotsItLists(t *testing.T) {
 		}
 	}
 }
+
+// Restoring what was configured.
+//
+// The case that prompted it: `brew upgrade` unloads both agents before staging
+// the new version, so an upgrade silently removes the schedule while the
+// settings file still records the interval that was chosen.
+
+func TestRestorePutsBackAScheduleThatWasRemovedBehindOurBack(t *testing.T) {
+	s := newStack(t, "empty")
+	ctx := context.Background()
+
+	if _, err := s.Schedule.Install(ctx, 3, 21); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	// Removed the way something else would remove it — the plist deleted without
+	// the settings file being told.
+	view, err := s.Schedule.Status(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(view.PlistPath); err != nil {
+		t.Fatalf("removing the plist: %v", err)
+	}
+	if before, _ := s.Schedule.Status(ctx); before.Installed {
+		t.Fatal("the plist is still there, so this proves nothing")
+	}
+
+	restored, err := s.Schedule.Restore(ctx)
+	if err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if !restored.Schedule {
+		t.Error("restore did not report putting the schedule back")
+	}
+
+	after, err := s.Schedule.Status(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !after.Installed {
+		t.Fatal("the schedule was not put back")
+	}
+	// The settings it was installed with, not the defaults.
+	if after.IntervalHours != 3 || after.RetentionDays != 21 {
+		t.Errorf("restored with the wrong settings: %vh/%vd", after.IntervalHours, after.RetentionDays)
+	}
+}
+
+// The rule that keeps this from being obnoxious: a schedule somebody removed on
+// purpose must stay removed, or the application argues with its user once per
+// launch.
+func TestRestoreLeavesADeliberatelyRemovedScheduleAlone(t *testing.T) {
+	s := newStack(t, "empty")
+	ctx := context.Background()
+
+	if _, err := s.Schedule.Install(ctx, 6, 14); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Schedule.Uninstall(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	restored, err := s.Schedule.Restore(ctx)
+	if err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if restored.Any() {
+		t.Error("restore reinstated a schedule that was deliberately removed")
+	}
+	if after, _ := s.Schedule.Status(ctx); after.Installed {
+		t.Error("the schedule came back after being uninstalled")
+	}
+}
+
+// A machine that never asked for a schedule must not acquire one by being
+// launched. A fresh settings file carries defaults, and defaults are not a
+// request.
+func TestRestoreInstallsNothingOnAMachineThatNeverAskedForIt(t *testing.T) {
+	s := newStack(t, "empty")
+	ctx := context.Background()
+
+	if err := config.Save(config.Defaults()); err != nil {
+		t.Fatal(err)
+	}
+
+	restored, err := s.Schedule.Restore(ctx)
+	if err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if restored.Any() {
+		t.Error("a schedule was installed from the defaults alone")
+	}
+	if after, _ := s.Schedule.Status(ctx); after.Installed {
+		t.Error("a schedule appeared on a machine that never asked for one")
+	}
+}
+
+// Nothing to do is not an error, and must not be reported as one: this runs on
+// every launch.
+func TestRestoreIsQuietWhenThereIsNothingToDo(t *testing.T) {
+	s := newStack(t, "empty")
+	ctx := context.Background()
+
+	if _, err := s.Schedule.Install(ctx, 4, 7); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := s.Schedule.Restore(ctx)
+	if err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if restored.Any() {
+		t.Error("restore claimed to have done something to a healthy machine")
+	}
+}
+
+// The tripwire has the same lifecycle and the same failure.
+func TestRestorePutsBackTheTripwire(t *testing.T) {
+	s := newStack(t, "empty")
+	ctx := context.Background()
+
+	if _, err := s.Schedule.InstallTripwire(ctx); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.Schedule.TripwireStatus(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(view.PlistPath); err != nil {
+		t.Fatal(err)
+	}
+
+	restored, err := s.Schedule.Restore(ctx)
+	if err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if !restored.Tripwire {
+		t.Error("the tripwire was not reported as restored")
+	}
+	if after, _ := s.Schedule.TripwireStatus(ctx); !after.Installed {
+		t.Error("the tripwire was not put back")
+	}
+}

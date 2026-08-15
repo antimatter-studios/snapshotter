@@ -104,6 +104,7 @@ func (s *ScheduleService) InstallPolicy(ctx context.Context, intervalHours, rete
 	// machine where nothing is installed yet, and what a second installation should
 	// inherit rather than asking again.
 	if cfg, err := config.Load(); err == nil {
+		cfg.Schedule.Enabled = true
 		cfg.Schedule.IntervalHours = intervalHours
 		cfg.Schedule.RetentionDays = retentionDays
 		if policyID != "" {
@@ -173,6 +174,14 @@ func inDays(d time.Duration) float64 { return d.Hours() / hoursPerDay }
 func (s *ScheduleService) Uninstall(ctx context.Context) (ScheduleView, error) {
 	if err := s.Agent.Uninstall(ctx); err != nil {
 		return ScheduleView{}, err
+	}
+	// Recorded, or the next launch would helpfully put back the schedule that
+	// was just deliberately removed.
+	if cfg, err := config.Load(); err == nil {
+		cfg.Schedule.Enabled = false
+		if err := config.Save(cfg); err != nil {
+			log.Printf("schedule: recording the removal: %v", err)
+		}
 	}
 	return s.Status(ctx)
 }
@@ -291,6 +300,12 @@ func (s *ScheduleService) InstallTripwire(ctx context.Context) (TripwireView, er
 	if err := s.Tripwire.Install(ctx); err != nil {
 		return TripwireView{}, err
 	}
+	if cfg, err := config.Load(); err == nil {
+		cfg.Tripwire.Enabled = true
+		if err := config.Save(cfg); err != nil {
+			log.Printf("tripwire: recording the choice: %v", err)
+		}
+	}
 	return s.TripwireStatus(ctx)
 }
 
@@ -298,6 +313,12 @@ func (s *ScheduleService) InstallTripwire(ctx context.Context) (TripwireView, er
 func (s *ScheduleService) UninstallTripwire(ctx context.Context) (TripwireView, error) {
 	if err := s.Tripwire.Uninstall(ctx); err != nil {
 		return TripwireView{}, err
+	}
+	if cfg, err := config.Load(); err == nil {
+		cfg.Tripwire.Enabled = false
+		if err := config.Save(cfg); err != nil {
+			log.Printf("tripwire: recording the removal: %v", err)
+		}
 	}
 	return s.TripwireStatus(ctx)
 }
@@ -307,4 +328,66 @@ func (s *ScheduleService) UninstallTripwire(ctx context.Context) (TripwireView, 
 func (s *ScheduleService) TripwireLog(maxBytes int64) (string, error) {
 	return tailFile(s.Tripwire.LogPath, maxBytes,
 		"The bulk-deletion watcher has not written anything yet.")
+}
+
+// Restored says what Restore put back, so the caller can tell someone.
+type Restored struct {
+	Schedule bool `json:"schedule"`
+	Tripwire bool `json:"tripwire"`
+}
+
+// Any reports whether anything needed restoring.
+func (r Restored) Any() bool { return r.Schedule || r.Tripwire }
+
+// Restore reinstalls whatever the settings say was asked for and launchd no
+// longer has.
+//
+// A launchd job is not durable in the way people assume. Upgrading through
+// Homebrew removes it, because the cask's uninstall stanza unloads both agents
+// before the new version is staged; so does anything else that tidies
+// ~/Library/LaunchAgents. The failure is silent and it is the worst one this
+// application has: the window still shows the interval that was chosen, the
+// settings file still records it, and nothing is taking snapshots.
+//
+// So the settings file is treated as the intent and launchd as the current
+// state, and this reconciles the second to the first. It only ever ADDS: a
+// schedule that was deliberately removed sets Enabled to false, and is not put
+// back.
+func (s *ScheduleService) Restore(ctx context.Context) (Restored, error) {
+	var out Restored
+
+	cfg, err := config.Load()
+	if err != nil {
+		// A settings file that will not parse says nothing about what was wanted,
+		// and guessing would install a schedule nobody asked for.
+		return out, err
+	}
+
+	if cfg.Schedule.Enabled {
+		st, err := s.Agent.Status(ctx)
+		if err != nil {
+			return out, err
+		}
+		if !st.Installed {
+			if _, err := s.InstallPolicy(ctx, cfg.Schedule.IntervalHours, cfg.Schedule.RetentionDays, cfg.Schedule.Policy); err != nil {
+				return out, err
+			}
+			out.Schedule = true
+		}
+	}
+
+	if cfg.Tripwire.Enabled {
+		st, err := s.Tripwire.Status(ctx)
+		if err != nil {
+			return out, err
+		}
+		if !st.Installed {
+			if _, err := s.InstallTripwire(ctx); err != nil {
+				return out, err
+			}
+			out.Tripwire = true
+		}
+	}
+
+	return out, nil
 }
