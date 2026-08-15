@@ -37,6 +37,15 @@ type Elevator interface {
 // script rather than issuing one call per snapshot.
 type Osascript struct{}
 
+// runOsascript is a variable so the classification below can be tested. The real
+// implementation raises an authorization dialog, which no test can answer — and a
+// test suite that could would be a test suite able to mount filesystems on the
+// machine running it.
+var runOsascript = func(ctx context.Context, statement string) (string, error) {
+	out, err := exec.CommandContext(ctx, "osascript", "-e", statement).CombinedOutput()
+	return string(out), err
+}
+
 // appleScriptString escapes a Go string for use as an AppleScript literal.
 // Only backslash and double quote are special there.
 var appleScriptString = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
@@ -61,9 +70,8 @@ func authorizationStatement(script, reason string) string {
 }
 
 func (Osascript) RunPrivileged(ctx context.Context, script, reason string) (string, error) {
-	stmt := authorizationStatement(script, reason)
-	out, err := exec.CommandContext(ctx, "osascript", "-e", stmt).CombinedOutput()
-	text := strings.TrimSpace(string(out))
+	out, err := runOsascript(ctx, authorizationStatement(script, reason))
+	text := strings.TrimSpace(out)
 	if err != nil {
 		// osascript reports a dismissed dialog as error -128, which is a
 		// decision rather than a fault.

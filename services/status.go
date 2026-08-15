@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"math"
 	"os/exec"
 	"syscall"
 	"time"
@@ -358,9 +359,14 @@ func snapshotCount(n int) string {
 func coverage(hours float64) string {
 	switch {
 	case hours >= 48:
-		return fmt.Sprintf("%.0f days", hours/24)
+		days := int(math.Round(hours / 24))
+		return fmt.Sprintf("%d day%s", days, plural(days))
 	case hours >= 1:
-		return fmt.Sprintf("%.0f hours", hours)
+		// Rounded first, then pluralised against what will actually be printed:
+		// 1.4 hours prints as "1 hour", and pluralising the unrounded value would
+		// have called it "1 hours".
+		whole := int(math.Round(hours))
+		return fmt.Sprintf("%d hour%s", whole, plural(whole))
 	default:
 		return "under an hour"
 	}

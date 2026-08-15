@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // inTempHome points the package at a throwaway directory. XDG_CONFIG_HOME is
@@ -160,5 +161,89 @@ func TestSaveLeavesNoPartialConfig(t *testing.T) {
 	}
 	if len(entries) != 1 {
 		t.Errorf("want exactly config.yaml, got %d entries", len(entries))
+	}
+}
+
+// The helpers below turn what someone typed into what the application uses, and
+// each has a case where the honest answer is to ignore the file.
+
+func TestResolvePathFallsBackAndExpandsHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skipf("no home directory: %v", err)
+	}
+	for _, tc := range []struct {
+		name       string
+		configured string
+		fallback   string
+		want       string
+	}{
+		{"nothing configured", "", "/default/place", "/default/place"},
+		{"an absolute path", "/somewhere/else", "/default", "/somewhere/else"},
+		{"a tilde is expanded, because nothing else will", "~/snaps", "/default", filepath.Join(home, "snaps")},
+		{"a bare tilde is the home directory", "~", "/default", home},
+		{"a tilde mid-path is not a home reference", "/opt/~weird", "/default", "/opt/~weird"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ResolvePath(tc.configured, tc.fallback); got != tc.want {
+				t.Errorf("want %q, got %q", tc.want, got)
+			}
+		})
+	}
+}
+
+// A zero interval is a typo, not a request for a timer that never fires.
+func TestRefreshIntervalsRefuseNonsense(t *testing.T) {
+	d := Defaults()
+	for _, tc := range []struct {
+		seconds int
+		want    time.Duration
+	}{
+		{0, time.Duration(d.Refresh.MenuBarSeconds) * time.Second},
+		{-5, time.Duration(d.Refresh.MenuBarSeconds) * time.Second},
+		{90, 90 * time.Second},
+	} {
+		cfg := Defaults()
+		cfg.Refresh.MenuBarSeconds = tc.seconds
+		if got := cfg.MenuBarRefresh(); got != tc.want {
+			t.Errorf("menu bar %d: want %v, got %v", tc.seconds, tc.want, got)
+		}
+	}
+
+	cfg := Defaults()
+	cfg.Refresh.WindowSeconds = 0
+	if got, want := cfg.WindowRefresh(), time.Duration(d.Refresh.WindowSeconds)*time.Second; got != want {
+		t.Errorf("window: want %v, got %v", want, got)
+	}
+	cfg.Refresh.WindowSeconds = 15
+	if got := cfg.WindowRefresh(); got != 15*time.Second {
+		t.Errorf("window: want 15s, got %v", got)
+	}
+}
+
+// A window twenty pixels wide is a typo, and it would be very hard to correct
+// from inside the application it made unusable.
+func TestWindowSizeRefusesTheUnusable(t *testing.T) {
+	d := Defaults()
+	for _, tc := range []struct {
+		name  string
+		w, h  int
+		wantW int
+		wantH int
+	}{
+		{"configured", 900, 620, 900, 620},
+		{"too narrow", 20, 620, d.Window.Width, 620},
+		{"too short", 900, 1, 900, d.Window.Height},
+		{"zero, as an absent file would give", 0, 0, d.Window.Width, d.Window.Height},
+		{"negative", -100, -100, d.Window.Width, d.Window.Height},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := Defaults()
+			cfg.Window.Width, cfg.Window.Height = tc.w, tc.h
+			gotW, gotH := cfg.WindowSize()
+			if gotW != tc.wantW || gotH != tc.wantH {
+				t.Errorf("want %dx%d, got %dx%d", tc.wantW, tc.wantH, gotW, gotH)
+			}
+		})
 	}
 }
