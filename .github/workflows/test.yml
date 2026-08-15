@@ -4,9 +4,13 @@ name: Test
 # is macOS-only: the tests drive tmutil, diskutil and launchctl through a
 # scenario, and the packages under test import darwin-only APIs that will not
 # build anywhere else.
+#
+# Pull requests, and main itself. Not every branch push: a branch with a pull
+# request open would otherwise be tested twice for one push, and the macOS
+# runner these jobs need is billed at ten times the Linux rate.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
