@@ -319,6 +319,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.3.0
+
+The version is stamped into the build and answered by `snapshotter version`, and
+everything that used to be hard-coded now lives in
+`$HOME/.config/snapshotter/config.yaml`. The command line tool ships as its own
+signed tarball, so it can go on PATH without the bundle. Behind that: a test
+suite over every package, run on every pull request and again before a tag is
+allowed to become a release.
+
 ### v0.1.1
 
 Packaging only. The application bundle now carries its own notarization ticket, so

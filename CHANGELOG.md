@@ -7,6 +7,67 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.3.0 — 2026-08-15
+
+**One version number, one settings file, and a test suite that runs in CI.**
+
+The version is stamped into the binary at build time from a single source, shown
+on the home screen, and answered by `snapshotter version`. Before this there was
+nothing to ask: an installed copy could not tell you what it was.
+
+Everything that used to be hard-coded now lives in
+`$HOME/.config/snapshotter/config.yaml` — schedule, tripwire, appearance, window
+size, refresh intervals and paths — so every copy running on a machine agrees.
+A missing file means defaults and no complaint. A file that cannot be parsed
+means defaults, an error you can see, and the file left exactly as it is:
+someone with a broken configuration still needs the window in order to fix it.
+
+The command line tool is published as its own signed and notarized tarball, so
+it can be installed onto PATH without the application bundle.
+
+### Tests
+
+Every package clears 70% except `main`, whose remainder is the Wails event loop
+and process wiring — the parts exercised by launching the application rather
+than by `go test`.
+
+The two launchd entry points are now tested against a scenario rather than left
+to the machine. They run unattended, and the first anyone hears of a failure is
+a snapshot that is not there. That includes the rule that a retention policy
+this build cannot read prunes **nothing**: keeping too much is corrected by the
+next run, and deleting too much is not correctable at all.
+
+Writing the tests found three real faults:
+
+- the status line said "1 hours", because the number being pluralised was not
+  the number being printed;
+- `notify` and `elevate` had no seam, so what they conclude from a dismissed
+  password dialog — a decision, not a failure — could not be tested at all.
+
+The frontend gains a test suite of its own over formatting, theme handling and
+the comparison labels.
+
+### Fewer values written twice
+
+The window background colour and the title bar height were each written once in
+Go and once in CSS, with nothing connecting them. The second pair is what keeps
+the traffic lights off the title, and it was held together only by both numbers
+happening to be 50. Both are named on each side now, and a test reads the
+stylesheet and fails if they drift apart.
+
+The two screens showing the schedule's log asked for different amounts of it for
+no stated reason; the size lives in one place now. `runWindow` came down from 149
+lines to 78, and the rule that a scenario must never write a launchd plist into
+the real `~/Library/LaunchAgents` — where it would outlive the run and start
+taking real snapshots on a real timer — has a test for the first time.
+
+### CI
+
+Pull requests and `main` run gofmt, `go vet`, `go test -race`, a TypeScript
+typecheck and the frontend tests. The release workflow runs the suite before it
+imports the signing certificate, so a tag whose tests fail never reaches Apple
+and never becomes a release.
+
 ## v0.1.1 — 2026-08-14
 
 **Packaging only; the application is unchanged from v0.1.0.**
