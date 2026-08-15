@@ -32,6 +32,22 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # main.go embeds frontend/dist, which is a build output and is not
+      # committed. Without it nothing in the module compiles — not even go vet.
+      # Building it for real rather than stubbing it means the tests run against
+      # the same assets the application ships.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
       # gofmt before anything else: a formatting difference makes every later
       # diff harder to read, and it costs a second to catch.
       - name: Check formatting
@@ -52,8 +68,10 @@ jobs:
       - name: Test
         run: go test -race -coverprofile=coverage.out ./...
 
+      # Only when the tests actually produced a profile: a missing file here
+      # would report a second failure for the one the test step already reported.
       - name: Coverage summary
-        if: always()
+        if: always() && hashFiles('coverage.out') != ''
         run: |
           go tool cover -func=coverage.out | tail -1
           go tool cover -func=coverage.out >> "$GITHUB_STEP_SUMMARY"
