@@ -32,6 +32,10 @@ The command line alone is enough to take snapshots, list them and check whether
 this Mac is protected. Browsing or restoring from one mounts a filesystem, which
 is what needs that grant.
 
+Anything the window does not offer is set in `$HOME/.config/snapshotter/config.yaml`.
+`snapshotter config` says where that file is and what is in it; `snapshotter config
+--write` creates it with the defaults to edit.
+
 Then grant it Full Disk Access, which mounting a snapshot cannot work without:
 
 > System Settings → Privacy & Security → Full Disk Access → add Snapshotter
@@ -325,8 +329,8 @@ Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
 The version is stamped into the build and answered by `snapshotter version`, and
 everything that used to be hard-coded now lives in
-`$HOME/.config/snapshotter/config.yaml`. The command line tool ships as its own
-signed tarball, so it can go on PATH without the bundle. Behind that: a test
+`$HOME/.config/snapshotter/config.yaml`. Installing the cask puts `snapshotter`
+on PATH beside the window. Behind that: a test
 suite over every package, run on every pull request and again before a tag is
 allowed to become a release.
 

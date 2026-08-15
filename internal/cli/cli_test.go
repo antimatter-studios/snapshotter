@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"snapshotter/internal/config"
 	"strings"
 	"testing"
 	"time"
@@ -329,5 +332,110 @@ func TestCoverageIsWordedInTheLargestHonestUnit(t *testing.T) {
 		if got := coverage(tc.d); got != tc.want {
 			t.Errorf("%v: want %q, got %q", tc.d, tc.want, got)
 		}
+	}
+}
+
+// The settings file is the supported way to change what the window does not
+// offer, so the command that finds it has to be honest about three states: no
+// file (defaults apply), a file (show what it says), and a file it must not
+// overwrite.
+
+func TestConfigSaysWhereTheSettingsWouldGoWhenThereAreNone(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	e, out, _ := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"config"}); code != 0 {
+		t.Fatalf("config failed with no settings file: %d", code)
+	}
+	got := out.String()
+	if !strings.Contains(got, "config.yaml") {
+		t.Errorf("did not name the file it was looking for: %q", got)
+	}
+	// An absent file is not a fault, and saying so is the whole point: the
+	// application works without one.
+	if !strings.Contains(got, "defaults") {
+		t.Errorf("did not say the defaults are in use: %q", got)
+	}
+	if !strings.Contains(got, "--write") {
+		t.Errorf("did not say how to create one: %q", got)
+	}
+}
+
+func TestConfigWritesTheDefaultsAndThenShowsThem(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	e, out, _ := newEnv(&fakeRunner{})
+	if code := Run(context.Background(), e, []string{"config", "--write"}); code != 0 {
+		t.Fatalf("config --write failed: %d", code)
+	}
+
+	path := filepath.Join(dir, "snapshotter", "config.yaml")
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("nothing was written: %v", err)
+	}
+	// What it wrote must be what the application reads back, or the file is a
+	// decoration rather than settings.
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("the application cannot read what it just wrote: %v", err)
+	}
+	if cfg != config.Defaults() {
+		t.Errorf("what was written is not the defaults:\n got %+v\nwant %+v", cfg, config.Defaults())
+	}
+
+	out.Reset()
+	if code := Run(context.Background(), e, []string{"config"}); code != 0 {
+		t.Fatalf("config failed with a settings file present: %d", code)
+	}
+	shown := out.String()
+	if !strings.Contains(shown, path) {
+		t.Errorf("did not name the file: %q", shown)
+	}
+	if !strings.Contains(shown, "interval_hours") {
+		t.Errorf("did not show what the file says: %q", shown)
+	}
+}
+
+// Settings files outlive the version that wrote them, so a rewrite would drop
+// anything this build does not recognise.
+func TestConfigRefusesToOverwriteSettingsThatAlreadyExist(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	path := filepath.Join(dir, "snapshotter", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	mine := "appearance:\n    theme: dark\nsomething_from_a_later_version: 42\n"
+	if err := os.WriteFile(path, []byte(mine), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	e, _, errOut := newEnv(&fakeRunner{})
+	if code := Run(context.Background(), e, []string{"config", "--write"}); code == 0 {
+		t.Error("overwrote settings that were already there")
+	}
+	if !strings.Contains(errOut.String(), "already exists") {
+		t.Errorf("did not say why it refused: %q", errOut.String())
+	}
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != mine {
+		t.Errorf("the file was modified despite the refusal:\n%s", body)
+	}
+}
+
+func TestConfigRejectsAnOptionItDoesNotKnow(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	e, _, errOut := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"config", "--wipe"}); code == 0 {
+		t.Error("an unknown option was accepted")
+	}
+	if !strings.Contains(errOut.String(), "--wipe") {
+		t.Errorf("did not name the offending option: %q", errOut.String())
 	}
 }
