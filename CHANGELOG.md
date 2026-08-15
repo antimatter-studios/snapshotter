@@ -5,6 +5,10 @@ summarized in the README; the full history lives here.
 
 ## Unreleased
 
+Nothing yet.
+
+## v0.6.0 — 2026-08-15
+
 **Whatever was configured is put back on launch.**
 
 A launchd job is not as durable as it looks. Upgrading through Homebrew unloads

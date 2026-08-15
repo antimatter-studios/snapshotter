@@ -332,6 +332,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.6.0
+
+Whatever was configured is put back on launch. Upgrading through Homebrew unloads
+both launchd agents before staging the new version, so an upgrade silently
+removed the schedule while the settings file still recorded it. The settings are
+now treated as the intent and launchd as the current state, reconciled at
+startup. It only ever adds: a schedule removed on purpose stays removed.
+
 ### v0.5.0
 
 The menu bar menu no longer greys out everything it says. It also draws two
