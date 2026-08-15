@@ -107,6 +107,19 @@ type Health struct {
 }
 
 // Finding is one specific thing wrong, with what to do about it.
+// The kinds a finding can have. They name the subject, not the severity, so the
+// menu bar can draw a different picture for each rather than repeating one.
+const (
+	KindSnapshots = "snapshots"
+	KindSchedule  = "schedule"
+	KindOverdue   = "overdue"
+	KindTripwire  = "tripwire"
+	KindThinning  = "thinning"
+	KindConflict  = "conflict"
+	KindSpace     = "space"
+	KindSimulated = "simulated"
+)
+
 type Finding struct {
 	Level  Level  `json:"level"`
 	Title  string `json:"title"`
@@ -114,6 +127,11 @@ type Finding struct {
 	// Action names a button the interface can offer, empty when there is
 	// nothing to click.
 	Action string `json:"action,omitempty"`
+	// Kind says what the finding is ABOUT, where Level says how bad it is. Two
+	// findings can share a level and have nothing else in common, so anything
+	// choosing an icon or an illustration keys off this rather than off Level —
+	// otherwise every warning looks identical.
+	Kind string `json:"kind"`
 }
 
 // Check gathers everything. It never fails on a partial answer: a system that
@@ -200,6 +218,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level: LevelBad,
 			Title: "There are no snapshots",
+			Kind:  KindSnapshots,
 			Detail: "Nothing can be rolled back to. Taking one now costs no disk space " +
 				"immediately, because a snapshot only grows as the files it recorded change.",
 			Action: "take-snapshot",
@@ -209,6 +228,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level: LevelBad,
 			Title: "Nothing is taking snapshots automatically",
+			Kind:  KindSchedule,
 			Detail: "macOS only schedules local snapshots when Time Machine has a backup " +
 				"destination. Without one, and without this schedule, today's snapshot is the last one.",
 			Action: "install-schedule",
@@ -217,6 +237,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level:  LevelWarn,
 			Title:  "The schedule is installed but not running",
+			Kind:   KindSchedule,
 			Detail: "launchd has the job on disk but has not loaded it, so no snapshot will be taken.",
 			Action: "install-schedule",
 		})
@@ -230,6 +251,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 			out = append(out, Finding{
 				Level: LevelWarn,
 				Title: "The last snapshot is overdue",
+				Kind:  KindOverdue,
 				Detail: fmt.Sprintf("A snapshot was due at %s and the newest is still from %s. Check the scheduled task's log.",
 					h.NextDue.Format("15:04"), h.Newest.Format("Mon 15:04")),
 				Action: "show-log",
@@ -244,6 +266,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level: LevelWarn,
 			Title: "Nothing is watching for bulk deletion",
+			Kind:  KindTripwire,
 			Detail: "A schedule limits how far back you can go; it does not stop a deletion " +
 				"finishing. The watcher takes a snapshot as soon as something starts removing files " +
 				"in bulk, so the rest of that deletion stays recoverable.",
@@ -253,6 +276,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level:  LevelWarn,
 			Title:  "The bulk-deletion watcher is not running",
+			Kind:   KindTripwire,
 			Detail: "It is installed but launchd has not loaded it, so nothing is watching.",
 			Action: "install-tripwire",
 		})
@@ -262,6 +286,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level:  LevelWarn,
 			Title:  "Time Machine will thin these snapshots",
+			Kind:   KindThinning,
 			Detail: timeMachineThinning,
 		})
 	}
@@ -269,6 +294,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level: LevelWarn,
 			Title: "Another agent is also taking snapshots",
+			Kind:  KindConflict,
 			Detail: c + " looks like it takes local snapshots too. Two agents double the rate and " +
 				"apply two retention windows to one shared set. Install one, not both.",
 		})
@@ -280,6 +306,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level: LevelWarn,
 			Title: "Free space is low, so retention is not guaranteed",
+			Kind:  KindSpace,
 			Detail: fmt.Sprintf("%.0f%% free. Snapshots are purgeable: macOS reclaims the oldest under "+
 				"space pressure rather than failing a write, whatever retention is set.", h.FreePercent),
 		})
@@ -292,6 +319,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level: LevelInfo,
 			Title: "These readings are simulated",
+			Kind:  KindSimulated,
 			Detail: "Scenario " + h.Scenario + " is loaded. Every snapshot, schedule and " +
 				"figure on this screen was invented to drive the interface, and none of it " +
 				"describes this Mac.",
@@ -302,6 +330,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, Finding{
 			Level: LevelWarn,
 			Title: "Mounts are simulated",
+			Kind:  KindSimulated,
 			Detail: "SNAPSHOTTER_FAKE_MOUNTS is set. Everything inside a snapshot is invented for " +
 				"development, and Replace restores are refused. Nothing shown under a snapshot is real.",
 		})
