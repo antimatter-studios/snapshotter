@@ -72,6 +72,23 @@ jobs:
           go install "github.com/wailsapp/wails/v3/cmd/wails3@${wails_version}"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      # Before the certificate is imported and long before anything is
+      # published. A tag whose tests fail must not become a release, and finding
+      # that out after notarization wastes a round trip through Apple.
+      #
+      # The same checks the Test workflow runs on every pull request. They run
+      # again here because a tag can be placed on any commit, including one that
+      # never went through a pull request.
+      - name: Test
+        run: |
+          # go test cannot compile the module without frontend/dist, which
+          # main.go embeds. The bundle build further down rebuilds it anyway.
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+          go vet ./...
+          go test -race ./...
+          npm --prefix frontend test
+
       - name: Check the signing secrets are present
         id: secrets
         env:
