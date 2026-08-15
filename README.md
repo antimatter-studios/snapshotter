@@ -18,17 +18,19 @@ it does not](assets/screenshots/home.png)
 ## Install
 
 ```sh
-brew install --cask antimatter-studios/tap/snapshotter   # the application
-brew install antimatter-studios/tap/snapshotter-cli      # `snapshotter` on PATH
+brew install --cask antimatter-studios/tap/snapshotter
 ```
 
-Both ship the same binary — the command line tool is taken from inside the
-application's own bundle at release time — so `snapshotter version` and the
-window always agree. Install either or both.
+That installs the application and puts `snapshotter` on PATH. The command line
+is not a second copy: it is a symlink to the executable inside the bundle, so
+`snapshotter version` and the window can never disagree, and — more usefully —
+running it uses the application's identity. macOS attributes Full Disk Access to
+whichever executable makes the call, so the grant below covers both ways of
+running it. A separately installed copy would have needed its own.
 
 The command line alone is enough to take snapshots, list them and check whether
-this Mac is protected. Browsing or restoring from one needs the application,
-because that mounts a filesystem.
+this Mac is protected. Browsing or restoring from one mounts a filesystem, which
+is what needs that grant.
 
 Then grant it Full Disk Access, which mounting a snapshot cannot work without:
 
