@@ -167,7 +167,7 @@ jobs:
       - name: Build the universal bundle
         run: |
           set -euo pipefail
-          task darwin:package:universal
+          task darwin:package:universal VERSION="${{ steps.version.outputs.version }}"
           # lipo proves both slices are really present. A silently arm64-only
           # build installs fine and then refuses to launch on Intel.
           lipo -archs bin/snapshotter
@@ -314,10 +314,48 @@ jobs:
           xcrun stapler validate "$RUNNER_TEMP/verify/Snapshotter.app"
           hdiutil detach "$RUNNER_TEMP/verify"
 
+      - name: Package the command line tool
+        id: cli
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # The same universal binary the bundle contains, shipped separately so it
+          # can go on PATH. The tap refuses a cask that symlinks a binary — command
+          # line tools there are formulae — and a formula needs something to install
+          # that is not a .app.
+          #
+          # Taken from inside the bundle rather than rebuilt, so the two can never be
+          # different binaries claiming the same version.
+          #
+          # It must then be re-signed, and that is not optional: an executable inside
+          # a bundle is signed AS PART OF the bundle, its signature sealing the
+          # Info.plist beside it. Copied out, it fails verification with "invalid
+          # Info.plist (plist or signature have been modified)" and macOS refuses to
+          # run it — which would ship a tarball whose binary is killed on first use.
+          # Re-signing turns it into a valid standalone Mach-O.
+          staging="$RUNNER_TEMP/cli"
+          mkdir -p "$staging"
+          cp bin/snapshotter.app/Contents/MacOS/snapshotter "$staging/snapshotter"
+          codesign --force --timestamp --options runtime \
+            --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" "$staging/snapshotter"
+          codesign --verify --strict --verbose=2 "$staging/snapshotter"
+          # Both slices must survive the copy; a formula installed on Intel gets this
+          # exact file.
+          test "$(lipo -archs "$staging/snapshotter")" = "x86_64 arm64" \
+            || test "$(lipo -archs "$staging/snapshotter")" = "arm64 x86_64"
+          "$staging/snapshotter" version
+
+          tar="snapshotter_${VERSION}_darwin_universal.tar.gz"
+          # -C so the archive holds the binary at its root rather than a path from
+          # the runner, which is what a formula expects to find.
+          tar -czf "$tar" -C "$staging" snapshotter
+          echo "cli=$tar" >> "$GITHUB_OUTPUT"
+
       - name: Checksum
         env:
           DMG: ${{ steps.dmg.outputs.dmg }}
-        run: shasum -a 256 "$DMG" | tee SHA256SUMS
+        run: shasum -a 256 "$DMG" "${{ steps.cli.outputs.cli }}" | tee SHA256SUMS
 
       - name: Release notes
         id: notes
@@ -345,6 +383,6 @@ jobs:
           gh release create "$TAG" \
             --title "Snapshotter $TAG" \
             --notes-file "${{ steps.notes.outputs.path }}" \
-            "$DMG" SHA256SUMS
+            "$DMG" "${{ steps.cli.outputs.cli }}" SHA256SUMS
           echo "Published $TAG"
           echo "Now sync the tap: run tap-sync in antimatter-studios/homebrew-tap"
