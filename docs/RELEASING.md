@@ -21,8 +21,7 @@ git tag v0.2.0 && git push origin v0.2.0
         ├─ hdiutil   Snapshotter_0.2.0_universal.dmg   (built around the stapled app)
         ├─ notarize the IMAGE → stapler staple the .dmg
         ├─ spctl --assess             (the check Gatekeeper itself runs)
-        ├─ CLI tarball: the bundle's own binary, re-signed standalone
-        └─ gh release create          .dmg + .tar.gz + SHA256SUMS
+        └─ gh release create          .dmg + SHA256SUMS
         │
         ▼
 antimatter-studios/homebrew-tap  →  run `tap-sync` (manual)
@@ -108,19 +107,21 @@ Store the generated `xxxx-xxxx-xxxx-xxxx` value.
 from it, and the `git-changelog` pre-push guard refuses a tag whose version is
 undocumented — so this is enforced twice, on purpose.
 
-## Two artefacts, one binary
+## One artefact, one binary
 
-A release publishes a disk image and a `.tar.gz`, and the tarball's binary is
-copied out of the image's bundle rather than built again — so the two can never be
-different binaries claiming the same version.
+A release publishes a disk image and nothing else. The application and the
+command line are the same executable inside it, so there is no second thing to
+build, sign, notarize or keep in step.
 
-It is re-signed on the way out, and that is not tidiness. An executable inside a
-bundle is signed *as part of* the bundle, its signature sealing the Info.plist
-beside it; copied out, it fails verification with "invalid Info.plist (plist or
-signature have been modified)" and macOS refuses to run it. Re-signing makes it a
-valid standalone executable.
+It was briefly published as a standalone `.tar.gz` as well, for a companion
+formula that no longer exists. Copying that binary out of the bundle meant
+re-signing it — an executable inside a bundle is signed *as part of* that bundle,
+its signature sealing the Info.plist beside it, so a copy fails verification with
+"invalid Info.plist (plist or signature have been modified)" and macOS refuses to
+run it. Not shipping a copy removes that whole problem rather than working around
+it.
 
-The tarball is not what Homebrew installs. The cask does both jobs:
+The cask does both jobs:
 
 ```sh
 brew install --cask antimatter-studios/tap/snapshotter
@@ -137,8 +138,10 @@ Symlinking rather than installing a second copy is not just tidier. macOS
 attributes Full Disk Access to the executable making the call, so a separate
 copy would need its own grant before `snapshotter browse` could mount anything.
 
-The tarball is still published for anyone who wants the command line without the
-application, and is installed by unpacking it onto PATH by hand.
+The command line is not offered without the application. It is the application's
+own executable, and the work people reach for it to do — browsing a snapshot,
+restoring from one — mounts a filesystem, which needs the Full Disk Access grant
+that only the installed bundle can carry.
 
 ## Why both the application and the image are stapled
 
