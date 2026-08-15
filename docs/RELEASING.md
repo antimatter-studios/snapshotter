@@ -120,18 +120,25 @@ beside it; copied out, it fails verification with "invalid Info.plist (plist or
 signature have been modified)" and macOS refuses to run it. Re-signing makes it a
 valid standalone executable.
 
-The split exists because the tap ships command-line tools as **formulae** and
-applications as **casks** — a cask that symlinks a binary onto PATH is refused by
-the tap's own CI. So:
+The tarball is not what Homebrew installs. The cask does both jobs:
 
 ```sh
-brew install --cask antimatter-studios/tap/snapshotter      # the application
-brew install antimatter-studios/tap/snapshotter-cli         # `snapshotter` on PATH
+brew install --cask antimatter-studios/tap/snapshotter
 ```
 
-The formula's `test` block asserts the installed binary reports the version
-Homebrew believes it installed, which is the thing most likely to be wrong: the
-version is stamped at build time rather than read from anywhere.
+It stages the application and symlinks the bundle's own executable onto PATH.
+That was once refused by the tap's CI, which rejected any cask carrying a
+`binary` stanza — a rule written for casks that ship a *bare* binary, where
+Homebrew's quarantine kills an ad-hoc-signed executable on first run. A
+notarized, stapled, macOS-only bundle has no such problem, and the rule now
+fails only a cask that has a binary and no app.
+
+Symlinking rather than installing a second copy is not just tidier. macOS
+attributes Full Disk Access to the executable making the call, so a separate
+copy would need its own grant before `snapshotter browse` could mount anything.
+
+The tarball is still published for anyone who wants the command line without the
+application, and is installed by unpacking it onto PATH by hand.
 
 ## Why both the application and the image are stapled
 
