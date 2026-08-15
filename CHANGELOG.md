@@ -5,7 +5,14 @@ summarized in the README; the full history lives here.
 
 ## Unreleased
 
-Nothing yet.
+The command line tool is no longer published as a separate archive. It was there
+for a companion formula that no longer exists: the cask installs the application
+and symlinks the bundle's own executable onto PATH, so one `brew install --cask`
+gives both.
+
+They are deliberately not separable. The command line is the application's own
+executable, and browsing or restoring from a snapshot mounts a filesystem, which
+needs the Full Disk Access grant that only the installed bundle carries.
 
 ## v0.3.0 — 2026-08-15
 
