@@ -7,6 +7,16 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.20.0 — 2026-08-16
+
+**The outcome column says whether, not which.**
+
+It showed the snapshot's name, which is a date stamp — the same information as
+the first column of the same row, written twice. The column now says whether a
+snapshot was taken at all, which is the thing worth knowing and the thing that
+distinguishes one row from another. The name is in the tooltip, since the only
+use it has is finding that snapshot in the list.
+
 ## v0.19.0 — 2026-08-16
 
 **A folder per line, and a button that silences the one you meant.**

@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.20.0
+
+The outcome column of a bulk deletion warning says whether a snapshot was taken
+rather than repeating the date already in the first column.
+
 ### v0.19.0
 
 Each folder in a bulk deletion warning gets its own line and its own ignore
@@ -388,12 +393,6 @@ Internal tidying: `main.go` split into four files by what they do, `findings()`
 reduced from 145 lines to 56, one wording of the Time Machine warning instead of
 two, and one implementation of the window's busy/error handling instead of five.
 The settings file header now names what a running application cannot change.
-
-### v0.10.0
-
-The settings file is watched, so changing a value takes effect in the running
-application rather than at the next launch — the window resizes, the refresh
-intervals change, and new paths apply to work that has not started yet.
 
 
 ## Design decisions
