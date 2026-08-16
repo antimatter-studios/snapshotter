@@ -312,9 +312,7 @@ function BulkDeletionWarnings() {
           {warnings.map((w, i) => (
             <tr key={i}>
               <td className="warning-when">{stamp(w.at)}</td>
-              <td className="warning-where" title={w.where?.join(", ")}>
-                {w.where?.join(", ") || "an unknown location"}
-              </td>
+              <td className="warning-where">{w.where?.join(", ") || "an unknown location"}</td>
               {/* No snapshot is the row worth seeing from across the room: the
                   deletion happened and nothing was captured. */}
               <td className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}>
@@ -326,11 +324,10 @@ function BulkDeletionWarnings() {
               <td className="warning-action">
                 {w.where?.[0] && (
                   <button
-                    className="link"
                     title={`Stop warning about ${w.where[0]}`}
                     onClick={() => void ignore(w.where[0])}
                   >
-                    ignore
+                    Ignore
                   </button>
                 )}
               </td>
@@ -350,8 +347,8 @@ function BulkDeletionWarnings() {
             {ignored.map((fragment) => (
               <li key={fragment}>
                 <code>{fragment}</code>
-                <button className="link" title="Watch this again" onClick={() => void watchAgain(fragment)}>
-                  watch again
+                <button title="Start warning about this again" onClick={() => void watchAgain(fragment)}>
+                  Watch again
                 </button>
               </li>
             ))}

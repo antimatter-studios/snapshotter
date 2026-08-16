@@ -7,6 +7,23 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.18.0 — 2026-08-16
+
+**The buttons look like buttons, and paths are shown whole.**
+
+The ignore action was styled as the quietest thing on its row — a faint link, in
+a table whose whole reason for existing is to offer it. Both it and **watch
+again** are ordinary bordered buttons now. Undoing has to be as findable as
+doing: a list of silenced folders whose removal is a faint link is a list that
+only ever grows.
+
+Folder paths are no longer cut off with an ellipsis. That is a reasonable trade
+where something can be opened to read the rest, and there is nothing to open
+here — so the truncation simply hid the answer, and hid it from the wrong end,
+since a cache path carries its distinguishing part last. They wrap now, breaking
+inside a path component if they must, because the alternative is a column that
+scrolls sideways.
+
 ## v0.17.0 — 2026-08-16
 
 **Silencing a folder is a button on the warning, not a setting to go and find.**

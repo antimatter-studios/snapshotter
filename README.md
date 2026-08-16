@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.18.0
+
+The ignore and watch-again actions are proper buttons rather than faint links,
+and folder paths are shown in full rather than truncated.
+
 ### v0.17.0
 
 Bulk deletion warnings carry an **ignore** action, so silencing a noisy folder is
@@ -389,13 +394,6 @@ intervals change, and new paths apply to work that has not started yet.
 Finding icons come from Lucide rather than being drawn by hand — the window uses
 `lucide-react`, the menu bar the same icons rendered to PNG. 340 lines of drawing
 code and its tests deleted.
-
-### v0.8.0
-
-The Health panel draws each finding with the shape that says what it is about,
-matching the menu bar. The same nine shapes exist twice — PNG for the menu, SVG
-for the window — and each side has a test that reads the other's list, so they
-cannot drift apart.
 
 
 ## Design decisions
