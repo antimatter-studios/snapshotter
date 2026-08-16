@@ -332,6 +332,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.11.0
+
+Internal tidying: `main.go` split into four files by what they do, `findings()`
+reduced from 145 lines to 56, one wording of the Time Machine warning instead of
+two, and one implementation of the window's busy/error handling instead of five.
+The settings file header now names what a running application cannot change.
+
 ### v0.10.0
 
 The settings file is watched, so changing a value takes effect in the running

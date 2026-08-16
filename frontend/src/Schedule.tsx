@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView } from "./api";
 import "./Schedule.css";
+import { useAction } from "./useAction";
 
 const INTERVALS = [
   { hours: 1, label: "Every hour" },
@@ -42,8 +43,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   const [policy, setPolicy] = useState(FLAT);
   const [options, setOptions] = useState<PolicyOption[]>([]);
   const [log, setLog] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { busy, error, setError, run } = useAction(onStatus);
 
   const refresh = useCallback(async () => {
     try {
@@ -82,31 +82,15 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
     })();
   }, [interval, retention]);
 
-  const install = async () => {
-    setBusy(true);
-    setError("");
-    try {
+  const install = () =>
+    run(async () => {
       setView(await ScheduleAPI.InstallPolicy(interval, retention, policy));
-      onStatus("Schedule installed. The first snapshot is taken immediately.");
-    } catch (err) {
-      setError(message(err));
-    } finally {
-      setBusy(false);
-    }
-  };
+    }, "Schedule installed. The first snapshot is taken immediately.");
 
-  const uninstall = async () => {
-    setBusy(true);
-    setError("");
-    try {
+  const uninstall = () =>
+    run(async () => {
       setView(await ScheduleAPI.Uninstall());
-      onStatus("Schedule removed. Existing snapshots were left alone.");
-    } catch (err) {
-      setError(message(err));
-    } finally {
-      setBusy(false);
-    }
-  };
+    }, "Schedule removed. Existing snapshots were left alone.");
 
   const chosen = options.find((o) => o.id === policy);
 

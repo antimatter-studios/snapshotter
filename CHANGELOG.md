@@ -7,6 +7,39 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.11.0 — 2026-08-16
+
+**Readability, and one thing users read.**
+
+No behaviour changes except the last item.
+
+`main.go` was 808 lines doing eight unrelated jobs. It is now four files: the
+process and its window, the menu bar, the two things launchd runs, and applying
+settings to a running application. Nothing moved between packages and no
+signature changed.
+
+`findings()` was 145 lines of prose wrapped around twelve conditions. The seven
+findings that say the same thing every time are values now; the five that name
+something specific are built by small functions. What is left is the twelve
+conditions, read in order.
+
+The warning about what a configured Time Machine destination does to local
+snapshots was worded twice — once in the services and once in the command line,
+which cannot import them. It lives beside `DestinationInfo` now, which every
+caller invokes immediately before deciding whether to say it at all. It had
+already drifted: one copy said `backupd`, the other said Time Machine.
+
+The window's five copies of "set busy, clear the error, await, report, catch"
+became one hook. They had drifted too — some cleared the previous error on entry
+and some did not, so a stale "authorization was cancelled" could sit underneath a
+snapshot that had just been taken.
+
+**The one user-visible change:** the header written into the settings file said
+the application "reads this file on the next refresh". Since watching arrived
+that is both truer and less precise, so it now names the two exceptions — a
+snapshot already mounted stays where it is, and an installed scheduled task keeps
+writing to the log named in the copy launchd holds.
+
 ## v0.10.0 — 2026-08-16
 
 **Change a setting and it takes effect. No relaunch.**

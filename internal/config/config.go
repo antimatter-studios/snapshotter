@@ -212,10 +212,15 @@ func Save(cfg Config) error {
 
 // header is written above the settings so that someone opening the file knows
 // what it is and that editing it is allowed.
-const header = `# Snapshotter settings. Edit freely; the application reads this file on the next
-# refresh and writes it back when a setting changes in the window.
+const header = `# Snapshotter settings. Edit freely: a running Snapshotter notices the change
+# and applies it, and it writes this file back when a setting changes in the window.
 #
-# This records what was asked for. Whether the schedule is actually installed and
+# Two things do not change under a running application, because they are not
+# Snapshotter's to change: a snapshot that is already mounted stays where it is,
+# and an installed scheduled task keeps writing to the log named in the copy
+# launchd holds until that task is installed again.
+#
+# This records what was ASKED FOR. Whether the schedule is actually installed and
 # running is a question for launchd, which the Health screen answers.
 `
 

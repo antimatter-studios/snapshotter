@@ -74,7 +74,7 @@ func (s *SnapshotService) Overview(ctx context.Context) (Overview, error) {
 	out.Snapshots = views
 
 	if tm := apfs.DestinationInfo(ctx, s.Runner); tm.HasDestination {
-		out.TimeMachineWarning = timeMachineThinning
+		out.TimeMachineWarning = apfs.ThinningWarning
 	}
 
 	var stat syscall.Statfs_t
