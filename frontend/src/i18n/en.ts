@@ -178,7 +178,7 @@ export const en = {
   "diff.fade": "Fade between them",
   "diff.imageDifference": "Difference",
   "diff.imageDiffersInPixels": "{n}% of pixels differ",
-  "diff.imageSizeDiffers": "The two are different sizes, so their pixels cannot be compared.",
+  "diff.imageSizeDiffers": "The two have different dimensions, so their pixels cannot be compared.",
   "diff.imageNoPixelChange": "Every pixel is the same.",
   "diff.imageAdded": "Added since — not in {version}",
   "diff.imageDeleted": "Deleted — no longer in {version}",

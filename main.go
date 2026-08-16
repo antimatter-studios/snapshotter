@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"snapshotter/internal/i18n"
 	"strconv"
 
 	"snapshotter/internal/apfs"
@@ -348,6 +349,9 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 	// already been reported by resolvePaths, so this quietly takes the defaults
 	// rather than saying the same thing twice.
 	cfg, _ := config.Load()
+	// Set before the window, the tray or any notification exists, so nothing is
+	// ever worded in English and then corrected a moment later.
+	i18n.SetLanguage(cfg.Language())
 	windowWidth, windowHeight := cfg.WindowSize()
 
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
@@ -381,15 +385,15 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		if restored, err := services.NewScheduleService(deps).Restore(context.Background()); err != nil {
 			log.Printf("restoring what was configured: %v", err)
 		} else if restored.Any() {
-			what := "the schedule"
+			what := i18n.T("notify.what.schedule")
 			if restored.Schedule && restored.Tripwire {
-				what = "the schedule and the bulk-deletion watcher"
+				what = i18n.T("notify.what.both")
 			} else if restored.Tripwire {
-				what = "the bulk-deletion watcher"
+				what = i18n.T("notify.what.tripwire")
 			}
 			log.Printf("restored %s from the settings file", what)
-			if nerr := notify.Send(context.Background(), "Snapshotter restored your schedule",
-				"Something had removed "+what+", most likely an upgrade. It is running again."); nerr != nil {
+			if nerr := notify.Send(context.Background(), i18n.T("notify.scheduleRestored.title"),
+				i18n.T("notify.scheduleRestored.body", "what", what)); nerr != nil {
 				log.Printf("could not post a notification: %v", nerr)
 			}
 		}

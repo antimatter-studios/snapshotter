@@ -50,6 +50,34 @@ describe("the translation catalogues", () => {
         expect(short).toEqual([]);
       });
 
+      it("puts a space before a per-cent sign", () => {
+        // German, French and Spanish all take one; English does not. A figure
+        // rendered "42%" in a German interface is a small, permanent wrongness.
+        const wrong = (Object.keys(en) as Key[])
+          .filter((key) => en[key].includes("%"))
+          .filter((key) => /\S%/.test(catalogue[key]) && !/\d\s%/.test(catalogue[key]))
+          .map((key) => `${key}: ${catalogue[key]}`);
+        expect(wrong).toEqual([]);
+      });
+
+      it("writes an ellipsis as one character", () => {
+        // Three dots and an ellipsis are different characters, and mixing them
+        // shows as inconsistent spacing between two labels sitting side by side.
+        const wrong = (Object.keys(en) as Key[])
+          .filter((key) => catalogue[key].includes("...") || (en[key].includes("…") && !catalogue[key].includes("…")))
+          .map((key) => `${key}: ${catalogue[key]}`);
+        expect(wrong).toEqual([]);
+      });
+
+      it("has no whitespace at its edges", () => {
+        // A padded string renders as a stray gap, or swallows a space the layout
+        // was providing.
+        const wrong = (Object.keys(en) as Key[])
+          .filter((key) => catalogue[key] !== catalogue[key].trim())
+          .map((key) => key);
+        expect(wrong).toEqual([]);
+      });
+
       it("keeps the same placeholders as English", () => {
         // Order is not checked — a translator has to be free to move {version}
         // to wherever the sentence needs it — but the set must match, because a

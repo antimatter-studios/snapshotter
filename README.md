@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.41.0
+
+The health findings, the menu bar and notifications are translated, so the whole
+application follows the language rather than only the window.
+
 ### v0.40.0
 
 Comparing a file that is in neither version explains itself instead of reporting
@@ -379,11 +384,6 @@ too. Some screens are still English — see the changelog.
 The compare panel names both versions in its own header instead of in the diff
 viewer's column titles, which were clipping them. The menu bar's coverage strip
 now names its unit — one mark is an hour — so it stops looking stuck.
-
-### v0.31.0
-
-Every verdict has its own icon rather than only two of them, and the tick is
-legible at the size it is actually drawn.
 
 
 ## Design decisions

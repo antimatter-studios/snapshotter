@@ -7,6 +7,7 @@ import (
 	"math"
 	"os/exec"
 	"snapshotter/internal/events"
+	"snapshotter/internal/i18n"
 	"syscall"
 	"time"
 
@@ -227,13 +228,13 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 	var out []Finding
 
 	if h.SnapshotCount == 0 {
-		out = append(out, findingNoSnapshots)
+		out = append(out, findingNoSnapshots())
 	}
 
 	if !h.ScheduleInstalled {
-		out = append(out, findingNoSchedule)
+		out = append(out, findingNoSchedule())
 	} else if !h.ScheduleRunning {
-		out = append(out, findingScheduleNotRunning)
+		out = append(out, findingScheduleNotRunning())
 	}
 
 	// Worse than not installed, because it does not look like anything is wrong:
@@ -252,13 +253,13 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 	}
 
 	if !h.TripwireInstalled {
-		out = append(out, findingNoTripwire)
+		out = append(out, findingNoTripwire())
 	} else if !h.TripwireRunning {
-		out = append(out, findingTripwireNotRunning)
+		out = append(out, findingTripwireNotRunning())
 	}
 
 	if hasTMDestination {
-		out = append(out, findingTimeMachineThins)
+		out = append(out, findingTimeMachineThins())
 	}
 
 	for _, agent := range conflicts {
@@ -275,7 +276,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, simulatedReadingsFinding(h.Scenario))
 	}
 	if h.Faking {
-		out = append(out, findingSimulatedMounts)
+		out = append(out, findingSimulatedMounts())
 	}
 
 	return out
@@ -300,66 +301,81 @@ func overdueGrace(intervalHours float64) time.Duration {
 // They are values because that is what they are: fixed prose describing a fixed
 // situation. Keeping them out of findings() leaves it a list of the conditions
 // themselves, which is the part worth reading in order.
-var (
-	findingNoSnapshots = Finding{
-		Level: LevelBad,
-		Title: "There are no snapshots",
-		Kind:  KindSnapshots,
-		Detail: "Nothing can be rolled back to. Taking one now costs no disk space " +
-			"immediately, because a snapshot only grows as the files it recorded change.",
+// The findings, worded in whichever language is in force.
+//
+// Functions rather than package-level values, because a value would be built
+// once at startup and keep the language chosen then — and switching language is
+// meant to take effect without a relaunch. Each is called where it is used, which
+// is once per health check.
+func findingNoSnapshots() Finding {
+	return Finding{
+		Level:  LevelBad,
+		Title:  i18n.T("status.noSnapshots.title"),
+		Kind:   KindSnapshots,
+		Detail: i18n.T("status.noSnapshots.detail"),
 		Action: "take-snapshot",
 	}
+}
 
-	findingNoSchedule = Finding{
-		Level: LevelBad,
-		Title: "Nothing is taking snapshots automatically",
-		Kind:  KindSchedule,
-		Detail: "macOS only schedules local snapshots when Time Machine has a backup " +
-			"destination. Without one, and without this schedule, today's snapshot is the last one.",
-		Action: "install-schedule",
-	}
-
-	findingScheduleNotRunning = Finding{
-		Level:  LevelWarn,
-		Title:  "The schedule is installed but not running",
+func findingNoSchedule() Finding {
+	return Finding{
+		Level:  LevelBad,
+		Title:  i18n.T("status.noSchedule.title"),
 		Kind:   KindSchedule,
-		Detail: "launchd has the job on disk but has not loaded it, so no snapshot will be taken.",
+		Detail: i18n.T("status.noSchedule.detail"),
 		Action: "install-schedule",
 	}
+}
 
-	findingNoTripwire = Finding{
-		Level: LevelWarn,
-		Title: "Nothing is watching for bulk deletion",
-		Kind:  KindTripwire,
-		Detail: "A schedule limits how far back you can go; it does not stop a deletion " +
-			"finishing. The watcher takes a snapshot as soon as something starts removing files " +
-			"in bulk, so the rest of that deletion stays recoverable.",
-		Action: "install-tripwire",
-	}
-
-	findingTripwireNotRunning = Finding{
+func findingScheduleNotRunning() Finding {
+	return Finding{
 		Level:  LevelWarn,
-		Title:  "The bulk-deletion watcher is not running",
+		Title:  i18n.T("status.scheduleNotRunning.title"),
+		Kind:   KindSchedule,
+		Detail: i18n.T("status.scheduleNotRunning.detail"),
+		Action: "install-schedule",
+	}
+}
+
+func findingNoTripwire() Finding {
+	return Finding{
+		Level:  LevelWarn,
+		Title:  i18n.T("status.noTripwire.title"),
 		Kind:   KindTripwire,
-		Detail: "It is installed but launchd has not loaded it, so nothing is watching.",
+		Detail: i18n.T("status.noTripwire.detail"),
 		Action: "install-tripwire",
 	}
+}
 
-	findingTimeMachineThins = Finding{
+func findingTripwireNotRunning() Finding {
+	return Finding{
 		Level:  LevelWarn,
-		Title:  "Time Machine will thin these snapshots",
-		Kind:   KindThinning,
+		Title:  i18n.T("status.tripwireNotRunning.title"),
+		Kind:   KindTripwire,
+		Detail: i18n.T("status.tripwireNotRunning.detail"),
+		Action: "install-tripwire",
+	}
+}
+
+func findingTimeMachineThins() Finding {
+	return Finding{
+		Level: LevelWarn,
+		Title: i18n.T("status.timeMachineThins.title"),
+		Kind:  KindThinning,
+		// Untranslated: it is one sentence of Apple's own behaviour, kept beside
+		// the code that knows about it rather than copied into four catalogues.
 		Detail: apfs.ThinningWarning,
 	}
+}
 
-	findingSimulatedMounts = Finding{
-		Level: LevelWarn,
-		Title: "Mounts are simulated",
-		Kind:  KindSimulated,
-		Detail: "SNAPSHOTTER_FAKE_MOUNTS is set. Everything inside a snapshot is invented for " +
-			"development, and Replace restores are refused. Nothing shown under a snapshot is real.",
+func findingSimulatedMounts() Finding {
+	return Finding{
+		Level:  LevelWarn,
+		Title:  i18n.T("status.simulatedMounts.title"),
+		Kind:   KindSimulated,
+		Detail: i18n.T("status.simulatedMounts.detail"),
 	}
-)
+}
 
 // The findings that name something specific — which binary has gone, which agent
 // conflicts, how little room is left. Built rather than stored, because the
@@ -369,7 +385,7 @@ func staleProgramFinding(program string) Finding {
 	return Finding{
 		Level: LevelBad,
 		Kind:  KindStale,
-		Title: "The schedule points at a copy of Snapshotter that is gone",
+		Title: i18n.T("status.scheduleMissingBinary.title"),
 		Detail: "launchd still has the job and still reports it as running, but the " +
 			"program it names (" + program + ") no longer exists, so every " +
 			"run fails and no snapshot is taken. Installing the schedule again points " +
@@ -381,10 +397,10 @@ func staleProgramFinding(program string) Finding {
 func overdueFinding(dueAt, newest time.Time) Finding {
 	return Finding{
 		Level: LevelWarn,
-		Title: "The last snapshot is overdue",
+		Title: i18n.T("status.overdue.title"),
 		Kind:  KindOverdue,
-		Detail: fmt.Sprintf("A snapshot was due at %s and the newest is still from %s. Check the scheduled task's log.",
-			dueAt.Format("15:04"), newest.Format("Mon 15:04")),
+		Detail: i18n.T("status.overdue.detail",
+			"due", dueAt.Format("15:04"), "newest", newest.Format("Mon 15:04")),
 		Action: "show-log",
 	}
 }
@@ -392,7 +408,7 @@ func overdueFinding(dueAt, newest time.Time) Finding {
 func conflictingAgentFinding(agent string) Finding {
 	return Finding{
 		Level: LevelWarn,
-		Title: "Another agent is also taking snapshots",
+		Title: i18n.T("status.conflict.title"),
 		Kind:  KindConflict,
 		Detail: agent + " looks like it takes local snapshots too. Two agents double the rate and " +
 			"apply two retention windows to one shared set. Install one, not both.",
@@ -402,7 +418,7 @@ func conflictingAgentFinding(agent string) Finding {
 func lowFreeSpaceFinding(freePercent float64) Finding {
 	return Finding{
 		Level: LevelWarn,
-		Title: "Free space is low, so retention is not guaranteed",
+		Title: i18n.T("status.lowSpace.title"),
 		Kind:  KindSpace,
 		Detail: fmt.Sprintf("%.0f%% free. Snapshots are purgeable: macOS reclaims the oldest under "+
 			"space pressure rather than failing a write, whatever retention is set.", freePercent),
@@ -412,7 +428,7 @@ func lowFreeSpaceFinding(freePercent float64) Finding {
 func simulatedReadingsFinding(scenario string) Finding {
 	return Finding{
 		Level: LevelInfo,
-		Title: "These readings are simulated",
+		Title: i18n.T("status.simulated.title"),
 		Kind:  KindSimulated,
 		Detail: "Scenario " + scenario + " is loaded. Every snapshot, schedule and " +
 			"figure on this screen was invented to drive the interface, and none of it " +
@@ -440,7 +456,7 @@ func summarise(h Health) (Level, string) {
 
 	switch {
 	case h.SnapshotCount == 0:
-		return LevelBad, "No snapshots — nothing to roll back to"
+		return LevelBad, i18n.T("status.noSnapshotsShort")
 	case !h.ScheduleInstalled:
 		return LevelBad, fmt.Sprintf("%s, but nothing is taking more", snapshotCount(h.SnapshotCount))
 	case level == LevelOK:
@@ -489,10 +505,7 @@ func (s *StatusService) OpenPrivacySettings() error {
 // error it explains rather than written into the frontend.
 func (s *StatusService) MountHelp() string {
 	return mountmgr.ErrNeedsFullDiskAccess.Error() + ".\n\n" +
-		"Granting Full Disk Access to this application may not be enough on its own: the " +
-		"privileged command runs by way of osascript, and macOS checks the permission against " +
-		"that rather than against the application. The reliable test is to run the same " +
-		"mount_apfs command in Terminal, which usually already holds the permission."
+		i18n.T("status.fdaWarning")
 }
 
 // Warning is a bulk deletion the tripwire saw, as the window shows it.
