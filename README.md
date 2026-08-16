@@ -332,6 +332,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.13.0
+
+The bulk-deletion tripwire names the folder files are disappearing from rather
+than only reporting that they are. Errors no longer vanish before they can be
+read: the window refresh used to clear them on success, which wiped the reason a
+mount failed the moment the authorization dialog handed focus back.
+
 ### v0.12.0
 
 Written by Chris Thomas, published by Antimatter Studios — both are now named in
@@ -394,15 +401,6 @@ config` says where it is and what is in it, and `config get` / `config set`
 read and change any single setting by name, which is the scriptable way in. The
 command line tool is no longer published separately — the cask installs the
 application and puts `snapshotter` on PATH beside it.
-
-### v0.3.0
-
-The version is stamped into the build and answered by `snapshotter version`, and
-everything that used to be hard-coded now lives in
-`$HOME/.config/snapshotter/config.yaml`. Installing the cask puts `snapshotter`
-on PATH beside the window. Behind that: a test
-suite over every package, run on every pull request and again before a tag is
-allowed to become a release.
 
 
 ## Design decisions

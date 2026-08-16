@@ -42,7 +42,9 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
   const refresh = useCallback(async () => {
     try {
       setHealth(await Status.Check());
-      setError("");
+      // Deliberately does not clear the error: this runs on a timer and on
+      // focus, and clearing here wipes the reason an action failed before it can
+      // be read. See the same note in App.tsx.
     } catch (err) {
       setError(message(err));
     }
