@@ -1,0 +1,124 @@
+{
+  "count.days": {
+    "one": "{{.Count}} Tag",
+    "other": "{{.Count}} Tage"
+  },
+  "count.hours": {
+    "one": "{{.Count}} Stunde",
+    "other": "{{.Count}} Stunden"
+  },
+  "count.snapshots": {
+    "one": "{{.Count}} Snapshot",
+    "other": "{{.Count}} Snapshots"
+  },
+  "count.underAnHour": {
+    "other": "weniger als eine Stunde"
+  },
+  "notify.scheduleRestored.body": {
+    "other": "Etwas hatte {{.what}} entfernt, höchstwahrscheinlich eine Aktualisierung. Es läuft wieder."
+  },
+  "notify.scheduleRestored.title": {
+    "other": "Snapshotter hat Ihren Zeitplan wiederhergestellt"
+  },
+  "notify.what.both": {
+    "other": "den Zeitplan und die Überwachung von Massenlöschungen"
+  },
+  "notify.what.schedule": {
+    "other": "den Zeitplan"
+  },
+  "notify.what.tripwire": {
+    "other": "die Überwachung von Massenlöschungen"
+  },
+  "status.conflict.title": {
+    "other": "Ein weiterer Agent erstellt ebenfalls Snapshots"
+  },
+  "status.covered": {
+    "other": "Sie sind abgesichert"
+  },
+  "status.fdaWarning": {
+    "other": "Vollen Festplattenzugriff nur für diese Anwendung zu erteilen genügt möglicherweise nicht: Die geplante Aufgabe läuft als eigenes Programm und benötigt ihn ebenfalls."
+  },
+  "status.headline.covered": {
+    "one": "{{.Count}} Snapshot, {{.Cover}} Abdeckung",
+    "other": "{{.Count}} Snapshots, {{.Cover}} Abdeckung"
+  },
+  "status.headline.nothingTakingMore": {
+    "one": "{{.Count}} Snapshot, aber nichts erstellt weitere",
+    "other": "{{.Count}} Snapshots, aber nichts erstellt weitere"
+  },
+  "status.lowSpace.title": {
+    "other": "Wenig freier Speicher — die Aufbewahrung ist nicht garantiert"
+  },
+  "status.noSchedule.detail": {
+    "other": "macOS plant lokale Snapshots nur, wenn für Time Machine ein Backup-Ziel eingerichtet ist. Ohne eines und ohne diesen Zeitplan ist der heutige Snapshot der letzte."
+  },
+  "status.noSchedule.title": {
+    "other": "Es werden keine Snapshots automatisch erstellt"
+  },
+  "status.noSnapshots.detail": {
+    "other": "Es gibt nichts, wohin zurückgekehrt werden könnte. Einen jetzt zu erstellen kostet zunächst keinen Speicherplatz, denn ein Snapshot wächst erst, wenn sich die erfassten Dateien ändern."
+  },
+  "status.noSnapshots.title": {
+    "other": "Es gibt keine Snapshots"
+  },
+  "status.noSnapshotsShort": {
+    "other": "Keine Snapshots — nichts, wohin zurückgekehrt werden kann"
+  },
+  "status.noTripwire.detail": {
+    "other": "Ein Zeitplan begrenzt, wie weit Sie zurückgehen können; er hält eine laufende Löschung nicht auf. Die Überwachung erstellt einen Snapshot, sobald etwas beginnt, Dateien in großer Zahl zu entfernen, sodass der Rest dieser Löschung wiederherstellbar bleibt."
+  },
+  "status.noTripwire.title": {
+    "other": "Nichts überwacht Massenlöschungen"
+  },
+  "status.overdue.detail": {
+    "other": "Ein Snapshot war für {{.due}} fällig, der neueste stammt weiterhin von {{.newest}}. Prüfen Sie das Protokoll der geplanten Aufgabe."
+  },
+  "status.overdue.title": {
+    "other": "Der letzte Snapshot ist überfällig"
+  },
+  "status.scheduleMissingBinary.title": {
+    "other": "Der Zeitplan verweist auf eine nicht mehr vorhandene Kopie von Snapshotter"
+  },
+  "status.scheduleNotRunning.detail": {
+    "other": "launchd hat den Auftrag auf der Festplatte, ihn aber nicht geladen — es wird also kein Snapshot erstellt."
+  },
+  "status.scheduleNotRunning.title": {
+    "other": "Der Zeitplan ist eingerichtet, läuft aber nicht"
+  },
+  "status.simulated.title": {
+    "other": "Diese Werte sind simuliert"
+  },
+  "status.simulatedMounts.detail": {
+    "other": "SNAPSHOTTER_FAKE_MOUNTS ist gesetzt. Alles in einem Snapshot ist für die Entwicklung erfunden, und Ersetzen-Wiederherstellungen werden abgelehnt. Nichts, was unter einem Snapshot gezeigt wird, ist echt."
+  },
+  "status.simulatedMounts.title": {
+    "other": "Einbindungen sind simuliert"
+  },
+  "status.timeMachineThins.title": {
+    "other": "Time Machine wird diese Snapshots ausdünnen"
+  },
+  "status.tripwireNotRunning.detail": {
+    "other": "Sie ist eingerichtet, aber launchd hat sie nicht geladen — es wird also nichts überwacht."
+  },
+  "status.tripwireNotRunning.title": {
+    "other": "Die Überwachung von Massenlöschungen läuft nicht"
+  },
+  "tray.couldNotRead": {
+    "other": "Snapshot-Status konnte nicht gelesen werden"
+  },
+  "tray.coverageCaption": {
+    "other": "Letzte zwei Tage (eine Marke entspricht einer Stunde)"
+  },
+  "tray.newest": {
+    "other": "Neuester: {{.when}}"
+  },
+  "tray.openWindow": {
+    "other": "Snapshotter öffnen"
+  },
+  "tray.quit": {
+    "other": "Beenden"
+  },
+  "tray.takeSnapshot": {
+    "other": "Jetzt einen Snapshot erstellen"
+  }
+}

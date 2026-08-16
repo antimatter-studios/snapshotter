@@ -7,6 +7,43 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.42.0 — 2026-08-16
+
+**Replaces three hand-written implementations with the libraries that already
+existed.**
+
+The window now uses **i18next** and **react-i18next**, the Go side uses
+**go-i18n**, and image comparison uses **pixelmatch**. Roughly 250 lines of
+translation machinery and pixel comparison were deleted.
+
+This should have been the first choice, and the cost of it not being was visible
+in this changelog one version ago: v0.41.0 said the counting headlines "need
+plural rules per language rather than a lookup, which is a different piece of
+work". That work is what i18next and go-i18n do. Having written the lookup, I had
+to describe its central limitation as though it were a future feature.
+
+**The plurals are done now.** "12 snapshots, 3 days of cover" is translated,
+using CLDR plural categories rather than an appended "s". A test covers the case
+that makes this worth a library at all: French treats zero as singular, so it
+says "0 jour" where English says "0 days". A hand-rolled pluraliser gets that
+wrong and nobody notices for a year.
+
+`internal/text.Plural` is no longer used for anything a person reads.
+
+Two things were kept rather than lost in the move. Keys stay compile-time checked
+— i18next allows any string by default, so `CustomTypeOptions` is declared to
+restore what the typed catalogue gave. And the tests that check the translations
+themselves stay, because no library can see a dropped clause or a per-cent sign
+written the English way in a German string; what went are the tests that were
+really checking a lookup table, which the library now owns.
+
+Image comparison keeps only the part specific to this application: getting two
+data URIs into ImageData, refusing a mismatched pair, and producing something an
+image tag can show. The comparison itself is pixelmatch's, which does perceptual
+difference in YIQ space and anti-aliasing detection — a naive per-channel
+threshold, which is what was there, reports a re-saved JPEG as changed everywhere
+and a one-pixel text shift as a changed outline.
+
 ## v0.41.0 — 2026-08-16
 
 **The Go side speaks the four languages too.**

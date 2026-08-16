@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { FileVersions } from "./api";
 import { bytes } from "./format";
-import { useTranslation } from "./i18n";
-import { comparePixels, type PixelComparison } from "./pixelDiff";
+import { useTranslation } from "react-i18next";
+import { comparePixels, type PixelComparison } from "./comparePixels";
 
 /**
  * Two versions of a picture.

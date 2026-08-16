@@ -458,9 +458,9 @@ func summarise(h Health) (Level, string) {
 	case h.SnapshotCount == 0:
 		return LevelBad, i18n.T("status.noSnapshotsShort")
 	case !h.ScheduleInstalled:
-		return LevelBad, fmt.Sprintf("%s, but nothing is taking more", snapshotCount(h.SnapshotCount))
+		return LevelBad, i18n.N("status.headline.nothingTakingMore", h.SnapshotCount)
 	case level == LevelOK:
-		return LevelOK, fmt.Sprintf("%s, %s of cover", snapshotCount(h.SnapshotCount), coverage(h.CoverageHours))
+		return LevelOK, i18n.N("status.headline.covered", h.SnapshotCount, "Cover", coverage(h.CoverageHours))
 	default:
 		actionable := 0
 		for _, f := range h.Findings {
@@ -474,21 +474,26 @@ func summarise(h Health) (Level, string) {
 	}
 }
 
-func snapshotCount(n int) string { return text.Plural(n, "snapshot") }
+// snapshotCount words a number of snapshots in the current language.
+//
+// Through go-i18n rather than by appending an "s": English and German happen to
+// pluralise the same way here and Spanish does not, and a plural rule is not
+// something to reimplement per language.
+func snapshotCount(n int) string { return i18n.N("count.snapshots", n) }
 
 // coverage words the span in the largest unit that stays honest, because "0.3
 // days" reads as a rounding error and "7 hours" reads as a fact.
 func coverage(hours float64) string {
 	switch {
 	case hours >= 48:
-		return text.Plural(int(math.Round(hours/hoursPerDay)), "day")
+		return i18n.N("count.days", int(math.Round(hours/hoursPerDay)))
 	case hours >= 1:
 		// Rounded first, then pluralised against what will actually be printed:
 		// 1.4 hours prints as "1 hour", and pluralising the unrounded value would
 		// have called it "1 hours".
-		return text.Plural(int(math.Round(hours)), "hour")
+		return i18n.N("count.hours", int(math.Round(hours)))
 	default:
-		return "under an hour"
+		return i18n.T("count.underAnHour")
 	}
 }
 

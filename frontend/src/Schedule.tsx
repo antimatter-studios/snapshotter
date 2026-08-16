@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView } from "./api";
 import "./Schedule.css";
 import { useAction } from "./useAction";
-import { useTranslation } from "./i18n";
+import { useTranslation } from "react-i18next";
 
 // Keys rather than text: these are module-level, where no translation is in
 // scope, and holding the key defers the lookup to the render that shows it —

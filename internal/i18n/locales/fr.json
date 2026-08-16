@@ -1,0 +1,124 @@
+{
+  "count.days": {
+    "one": "{{.Count}} jour",
+    "other": "{{.Count}} jours"
+  },
+  "count.hours": {
+    "one": "{{.Count}} heure",
+    "other": "{{.Count}} heures"
+  },
+  "count.snapshots": {
+    "one": "{{.Count}} snapshot",
+    "other": "{{.Count}} snapshots"
+  },
+  "count.underAnHour": {
+    "other": "moins d'une heure"
+  },
+  "notify.scheduleRestored.body": {
+    "other": "Quelque chose avait supprimé {{.what}}, très probablement une mise à jour. C'est de nouveau actif."
+  },
+  "notify.scheduleRestored.title": {
+    "other": "Snapshotter a rétabli votre planification"
+  },
+  "notify.what.both": {
+    "other": "la planification et la surveillance des suppressions massives"
+  },
+  "notify.what.schedule": {
+    "other": "la planification"
+  },
+  "notify.what.tripwire": {
+    "other": "la surveillance des suppressions massives"
+  },
+  "status.conflict.title": {
+    "other": "Un autre agent crée aussi des snapshots"
+  },
+  "status.covered": {
+    "other": "Vous êtes couvert"
+  },
+  "status.fdaWarning": {
+    "other": "Accorder l'accès complet au disque à cette application peut ne pas suffire : la tâche planifiée s'exécute comme un programme distinct et en a besoin aussi."
+  },
+  "status.headline.covered": {
+    "one": "{{.Count}} snapshot, {{.Cover}} de couverture",
+    "other": "{{.Count}} snapshots, {{.Cover}} de couverture"
+  },
+  "status.headline.nothingTakingMore": {
+    "one": "{{.Count}} snapshot, mais rien n'en crée d'autres",
+    "other": "{{.Count}} snapshots, mais rien n'en crée d'autres"
+  },
+  "status.lowSpace.title": {
+    "other": "L'espace libre est faible ; la rétention n'est donc pas garantie"
+  },
+  "status.noSchedule.detail": {
+    "other": "macOS ne planifie des snapshots locaux que si Time Machine dispose d'une destination de sauvegarde. Sans elle, et sans cette planification, le snapshot d'aujourd'hui est le dernier."
+  },
+  "status.noSchedule.title": {
+    "other": "Rien ne crée de snapshots automatiquement"
+  },
+  "status.noSnapshots.detail": {
+    "other": "Il n'y a rien vers quoi revenir. En créer un maintenant ne coûte aucun espace disque immédiatement, car un snapshot ne grandit qu'à mesure que les fichiers qu'il a enregistrés changent."
+  },
+  "status.noSnapshots.title": {
+    "other": "Aucun snapshot"
+  },
+  "status.noSnapshotsShort": {
+    "other": "Aucun snapshot — rien vers quoi revenir"
+  },
+  "status.noTripwire.detail": {
+    "other": "Une planification limite jusqu'où vous pouvez remonter ; elle n'empêche pas une suppression d'aboutir. La surveillance crée un snapshot dès que quelque chose commence à supprimer des fichiers en masse, si bien que le reste de cette suppression reste récupérable."
+  },
+  "status.noTripwire.title": {
+    "other": "Rien ne surveille les suppressions massives"
+  },
+  "status.overdue.detail": {
+    "other": "Un snapshot était attendu à {{.due}} et le plus récent date toujours de {{.newest}}. Consultez le journal de la tâche planifiée."
+  },
+  "status.overdue.title": {
+    "other": "Le dernier snapshot est en retard"
+  },
+  "status.scheduleMissingBinary.title": {
+    "other": "La planification pointe vers une copie de Snapshotter qui n'existe plus"
+  },
+  "status.scheduleNotRunning.detail": {
+    "other": "launchd a la tâche sur le disque mais ne l'a pas chargée ; aucun snapshot ne sera donc créé."
+  },
+  "status.scheduleNotRunning.title": {
+    "other": "La planification est installée mais ne s'exécute pas"
+  },
+  "status.simulated.title": {
+    "other": "Ces relevés sont simulés"
+  },
+  "status.simulatedMounts.detail": {
+    "other": "SNAPSHOTTER_FAKE_MOUNTS est défini. Tout ce qui se trouve dans un snapshot est inventé pour le développement, et les restaurations par remplacement sont refusées. Rien de ce qui apparaît sous un snapshot n'est réel."
+  },
+  "status.simulatedMounts.title": {
+    "other": "Les montages sont simulés"
+  },
+  "status.timeMachineThins.title": {
+    "other": "Time Machine va éclaircir ces snapshots"
+  },
+  "status.tripwireNotRunning.detail": {
+    "other": "Elle est installée mais launchd ne l'a pas chargée, donc rien n'est surveillé."
+  },
+  "status.tripwireNotRunning.title": {
+    "other": "La surveillance des suppressions massives ne s'exécute pas"
+  },
+  "tray.couldNotRead": {
+    "other": "Impossible de lire l'état des snapshots"
+  },
+  "tray.coverageCaption": {
+    "other": "Deux derniers jours (une marque représente une heure)"
+  },
+  "tray.newest": {
+    "other": "Le plus récent : {{.when}}"
+  },
+  "tray.openWindow": {
+    "other": "Ouvrir Snapshotter"
+  },
+  "tray.quit": {
+    "other": "Quitter"
+  },
+  "tray.takeSnapshot": {
+    "other": "Créer un snapshot maintenant"
+  }
+}

@@ -1,4 +1,6 @@
-import { flags, languages, useTranslation, type Language } from "./i18n";
+import { useTranslation } from "react-i18next";
+import { Config } from "./api";
+import { flags, languages, rememberLanguage, type Language } from "./i18n";
 
 /**
  * Choosing which language the application speaks.
@@ -15,7 +17,15 @@ import { flags, languages, useTranslation, type Language } from "./i18n";
  * who has landed in a language they cannot read needs to recognise their own.
  */
 export function LanguagePicker() {
-  const { language, setLanguage, t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  // i18next holds the live language; the settings file is what the menu bar
+  // reads, so both are written.
+  const choose = (next: Language) => {
+    void i18n.changeLanguage(next);
+    rememberLanguage(next);
+    Config.SetLanguage(next).catch(() => {});
+  };
 
   // Written in each language rather than in the current one, so "Deutsch" is
   // findable by a German speaker looking at a Spanish interface.
@@ -29,7 +39,7 @@ export function LanguagePicker() {
   return (
     <label className="language-picker" title={t("language.label")}>
       <span className="visually-hidden">{t("language.label")}</span>
-      <select value={language} onChange={(e) => setLanguage(e.target.value as Language)}>
+      <select value={i18n.language} onChange={(e) => choose(e.target.value as Language)}>
         {languages.map((code) => (
           <option key={code} value={code}>
             {flags[code]} {endonym[code]}

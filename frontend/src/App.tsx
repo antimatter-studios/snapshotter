@@ -8,7 +8,7 @@ import { Health } from "./Health";
 import { Search } from "./Search";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguagePicker } from "./LanguagePicker";
-import { useTranslation } from "./i18n";
+import { useTranslation } from "react-i18next";
 import { useLiveRefresh } from "./live";
 import { useAction } from "./useAction";
 // The same file the application icon and the favicon are built from, reached out

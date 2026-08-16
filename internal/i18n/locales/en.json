@@ -1,0 +1,124 @@
+{
+  "count.days": {
+    "one": "{{.Count}} day",
+    "other": "{{.Count}} days"
+  },
+  "count.hours": {
+    "one": "{{.Count}} hour",
+    "other": "{{.Count}} hours"
+  },
+  "count.snapshots": {
+    "one": "{{.Count}} snapshot",
+    "other": "{{.Count}} snapshots"
+  },
+  "count.underAnHour": {
+    "other": "under an hour"
+  },
+  "notify.scheduleRestored.body": {
+    "other": "Something had removed {{.what}}, most likely an upgrade. It is running again."
+  },
+  "notify.scheduleRestored.title": {
+    "other": "Snapshotter restored your schedule"
+  },
+  "notify.what.both": {
+    "other": "the schedule and the bulk-deletion watcher"
+  },
+  "notify.what.schedule": {
+    "other": "the schedule"
+  },
+  "notify.what.tripwire": {
+    "other": "the bulk-deletion watcher"
+  },
+  "status.conflict.title": {
+    "other": "Another agent is also taking snapshots"
+  },
+  "status.covered": {
+    "other": "You are covered"
+  },
+  "status.fdaWarning": {
+    "other": "Granting Full Disk Access to this application may not be enough on its own: the scheduled task runs as a separate program and needs it too."
+  },
+  "status.headline.covered": {
+    "one": "{{.Count}} snapshot, {{.Cover}} of cover",
+    "other": "{{.Count}} snapshots, {{.Cover}} of cover"
+  },
+  "status.headline.nothingTakingMore": {
+    "one": "{{.Count}} snapshot, but nothing is taking more",
+    "other": "{{.Count}} snapshots, but nothing is taking more"
+  },
+  "status.lowSpace.title": {
+    "other": "Free space is low, so retention is not guaranteed"
+  },
+  "status.noSchedule.detail": {
+    "other": "macOS only schedules local snapshots when Time Machine has a backup destination. Without one, and without this schedule, today's snapshot is the last one."
+  },
+  "status.noSchedule.title": {
+    "other": "Nothing is taking snapshots automatically"
+  },
+  "status.noSnapshots.detail": {
+    "other": "Nothing can be rolled back to. Taking one now costs no disk space immediately, because a snapshot only grows as the files it recorded change."
+  },
+  "status.noSnapshots.title": {
+    "other": "There are no snapshots"
+  },
+  "status.noSnapshotsShort": {
+    "other": "No snapshots — nothing to roll back to"
+  },
+  "status.noTripwire.detail": {
+    "other": "A schedule limits how far back you can go; it does not stop a deletion finishing. The watcher takes a snapshot as soon as something starts removing files in bulk, so the rest of that deletion stays recoverable."
+  },
+  "status.noTripwire.title": {
+    "other": "Nothing is watching for bulk deletion"
+  },
+  "status.overdue.detail": {
+    "other": "A snapshot was due at {{.due}} and the newest is still from {{.newest}}. Check the scheduled task's log."
+  },
+  "status.overdue.title": {
+    "other": "The last snapshot is overdue"
+  },
+  "status.scheduleMissingBinary.title": {
+    "other": "The schedule points at a copy of Snapshotter that is gone"
+  },
+  "status.scheduleNotRunning.detail": {
+    "other": "launchd has the job on disk but has not loaded it, so no snapshot will be taken."
+  },
+  "status.scheduleNotRunning.title": {
+    "other": "The schedule is installed but not running"
+  },
+  "status.simulated.title": {
+    "other": "These readings are simulated"
+  },
+  "status.simulatedMounts.detail": {
+    "other": "SNAPSHOTTER_FAKE_MOUNTS is set. Everything inside a snapshot is invented for development, and Replace restores are refused. Nothing shown under a snapshot is real."
+  },
+  "status.simulatedMounts.title": {
+    "other": "Mounts are simulated"
+  },
+  "status.timeMachineThins.title": {
+    "other": "Time Machine will thin these snapshots"
+  },
+  "status.tripwireNotRunning.detail": {
+    "other": "It is installed but launchd has not loaded it, so nothing is watching."
+  },
+  "status.tripwireNotRunning.title": {
+    "other": "The bulk-deletion watcher is not running"
+  },
+  "tray.couldNotRead": {
+    "other": "Could not read snapshot state"
+  },
+  "tray.coverageCaption": {
+    "other": "Last two days (mark represents an hour)"
+  },
+  "tray.newest": {
+    "other": "Newest: {{.when}}"
+  },
+  "tray.openWindow": {
+    "other": "Open Snapshotter"
+  },
+  "tray.quit": {
+    "other": "Quit"
+  },
+  "tray.takeSnapshot": {
+    "other": "Take a snapshot now"
+  }
+}
