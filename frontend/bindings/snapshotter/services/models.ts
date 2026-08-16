@@ -1116,6 +1116,55 @@ export class TripwireView {
     }
 }
 
+/**
+ * Warning is a bulk deletion the tripwire saw, as the window shows it.
+ *
+ * It comes from a file rather than from memory because the tripwire is a
+ * separate process: by the time anyone opens the window, the process that saw
+ * the deletion has long exited.
+ */
+export class Warning {
+    "at": string;
+
+    /**
+     * Where names the folders the files went from, commonest first. This is the
+     * part worth reading — "something is deleting a lot of files" tells you to
+     * worry, and "from ~/Documents/Invoices" tells you whether to.
+     */
+    "where": string[];
+
+    /**
+     * Snapshot is the restore point taken in response. Empty means none was, and
+     * Note says why.
+     */
+    "snapshot"?: string;
+    "note"?: string;
+
+    /** Creates a new Warning instance. */
+    constructor($$source: Partial<Warning> = {}) {
+        if (!("at" in $$source)) {
+            this["at"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (!("where" in $$source)) {
+            this["where"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Warning instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Warning {
+        const $$createField1_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("where" in $$parsedSource) {
+            $$parsedSource["where"] = $$createField1_0($$parsedSource["where"]);
+        }
+        return new Warning($$parsedSource as Partial<Warning>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = config$0.Config.createFrom;
 const $$createType1 = Finding.createFrom;

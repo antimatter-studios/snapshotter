@@ -22,6 +22,14 @@ import (
 // Label identifies this application's agent to launchd.
 const Label = "com.christhomas.snapshotter"
 
+// BundleID is the application these agents belong to.
+//
+// It is the same string as Label by history rather than by rule — the tripwire's
+// label is not — so it is named separately. System Settings uses it to attribute
+// the background items to Snapshotter; without it, it attributes them to whoever
+// signed the binary.
+const BundleID = "com.christhomas.snapshotter"
+
 // conflictMarkers are strings that give away another agent taking local
 // snapshots. Two such agents would double the snapshot rate and apply two
 // retention windows to one shared set.
@@ -273,6 +281,17 @@ func (a *Agent) render(cfg Config) (string, error) {
 	<key>Label</key>
 	<string>%s</string>
 
+	<!-- Which application these belong to.
+	     Without it, System Settings has nothing to attribute the job to and falls
+	     back to the name on the signing certificate — so "App Background Activity"
+	     listed the developer, "Chris Thomas", rather than Snapshotter. The user
+	     sees a person's name against two background items and no way to tell what
+	     they are. -->
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>%s</string>
+	</array>
+
 	<key>ProgramArguments</key>
 	<array>
 %s	</array>
@@ -307,7 +326,7 @@ func (a *Agent) render(cfg Config) (string, error) {
 	<string>%s</string>
 </dict>
 </plist>
-`, Label, argXML.String(), int(cfg.Interval.Seconds()),
+`, Label, BundleID, argXML.String(), int(cfg.Interval.Seconds()),
 		retentionEnv, hoursUp(policy.Horizon()), policyEnv, policyText,
 		logPath, logPath), nil
 }

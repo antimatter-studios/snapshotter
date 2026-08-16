@@ -1014,3 +1014,56 @@ pre.log {
   color: var(--muted);
   font-size: 11px;
 }
+
+/* Bulk deletion warnings: history, not state, so it is quieter than the findings
+   above it. Absent entirely when nothing has happened — an empty section under
+   that heading invites someone to wonder what is missing. */
+.warnings {
+  margin-top: 20px;
+}
+
+.warnings h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.warnings ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.warnings li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.warning-when {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* The folder is the answer to "was that me?", so it gets the room and the
+   emphasis. Long paths wrap rather than being cut off. */
+.warning-where {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.warning-outcome {
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.warning-outcome.ok {
+  color: var(--muted);
+}
+
+/* A deletion nobody captured is the one worth seeing from across the room. */
+.warning-outcome.bad {
+  color: var(--deleted);
+}

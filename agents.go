@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/events"
 	"snapshotter/internal/notify"
 	"snapshotter/internal/schedule"
 	"snapshotter/internal/watch"
@@ -78,6 +79,15 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 	w := watch.New([]string{home}, func(ctx context.Context, where []string) error {
 		snap, err := apfs.Create(ctx, runner)
 		if err != nil {
+			// Recorded even though it failed — especially because it failed. A
+			// bulk deletion nobody captured is the thing most worth being able to
+			// look back at.
+			if eerr := events.Append(events.Event{
+				Kind: events.KindBulkDeletion, Where: where,
+				Note: "no snapshot was taken: " + err.Error(),
+			}); eerr != nil {
+				log.Printf("could not record the event: %v", eerr)
+			}
 			if nerr := notify.Send(ctx, "Files are being deleted from "+watch.Places(where),
 				"Could not take a snapshot: "+err.Error()); nerr != nil {
 				log.Printf("could not post a notification: %v", nerr)
@@ -85,6 +95,16 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 			return err
 		}
 		log.Printf("created %s", snap.Stamp)
+
+		// Recorded for the window, which is a different process and is almost
+		// never running when this fires. Nothing this agent learns can be held in
+		// memory for it, so it goes in the file both can read.
+		if eerr := events.Append(events.Event{
+			Kind: events.KindBulkDeletion, Where: where, Snapshot: snap.Stamp,
+		}); eerr != nil {
+			log.Printf("could not record the event: %v", eerr)
+		}
+
 		// Worth interrupting for: something is deleting in bulk, and the user
 		// may not have asked for it.
 		// The location is the point. "Something is deleting a lot of files" tells

@@ -403,3 +403,35 @@ func TestRenderEscapesPathsForXML(t *testing.T) {
 		t.Errorf("wrong escaping:\n%s", plist)
 	}
 }
+
+// System Settings lists background items under whatever it can attribute them
+// to. With nothing to go on it uses the name on the signing certificate, so
+// "App Background Activity" showed a person's name — "Chris Thomas" — against two
+// items, with no way for the user to tell what they were or that they belonged
+// to Snapshotter.
+func TestThePlistSaysWhichApplicationItBelongsTo(t *testing.T) {
+	dir := t.TempDir()
+	a := &Agent{
+		Runner: &recordingRunner{}, AgentDir: dir,
+		Program: "/Applications/Snapshotter.app/Contents/MacOS/snapshotter",
+		LogPath: filepath.Join(dir, "log"), UID: os.Getuid(),
+	}
+
+	plist, err := a.render(DefaultConfig)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(plist, "<key>AssociatedBundleIdentifiers</key>") {
+		t.Error("the plist does not say which application it belongs to")
+	}
+	if !strings.Contains(plist, BundleID) {
+		t.Errorf("the bundle identifier is missing: %s", BundleID)
+	}
+	// The label and the identifier are the same string for this agent and
+	// different for the tripwire, so the identifier must not be derived from the
+	// label.
+	if BundleID != "com.christhomas.snapshotter" {
+		t.Errorf("the bundle identifier moved to %q; the Full Disk Access grant "+
+			"and the cask's uninstall stanza are both keyed on the old one", BundleID)
+	}
+}

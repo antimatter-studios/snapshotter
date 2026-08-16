@@ -3,8 +3,10 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
 	"os/exec"
+	"snapshotter/internal/events"
 	"syscall"
 	"time"
 
@@ -491,3 +493,50 @@ func (s *StatusService) MountHelp() string {
 		"that rather than against the application. The reliable test is to run the same " +
 		"mount_apfs command in Terminal, which usually already holds the permission."
 }
+
+// Warning is a bulk deletion the tripwire saw, as the window shows it.
+//
+// It comes from a file rather than from memory because the tripwire is a
+// separate process: by the time anyone opens the window, the process that saw
+// the deletion has long exited.
+type Warning struct {
+	At time.Time `json:"at"`
+	// Where names the folders the files went from, commonest first. This is the
+	// part worth reading — "something is deleting a lot of files" tells you to
+	// worry, and "from ~/Documents/Invoices" tells you whether to.
+	Where []string `json:"where"`
+	// Snapshot is the restore point taken in response. Empty means none was, and
+	// Note says why.
+	Snapshot string `json:"snapshot,omitempty"`
+	Note     string `json:"note,omitempty"`
+}
+
+// RecentWarnings returns the last few bulk deletions, newest first.
+//
+// Never an error: a machine where nothing has happened is the ordinary case, and
+// a screen that shows a red banner instead of an empty section on a healthy Mac
+// has made things worse.
+func (s *StatusService) RecentWarnings(limit int) []Warning {
+	if limit <= 0 {
+		limit = defaultWarningsShown
+	}
+	recent, err := events.Recent(limit)
+	if err != nil {
+		log.Printf("reading recent warnings: %v", err)
+		return nil
+	}
+
+	out := make([]Warning, 0, len(recent))
+	for _, e := range recent {
+		if e.Kind != events.KindBulkDeletion {
+			continue
+		}
+		out = append(out, Warning{At: e.At, Where: e.Where, Snapshot: e.Snapshot, Note: e.Note})
+	}
+	return out
+}
+
+// defaultWarningsShown is how many the home screen asks for. Enough to see a
+// pattern — the same folder three times is a different story from three
+// different folders — without turning a summary into a log viewer.
+const defaultWarningsShown = 5

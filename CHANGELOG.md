@@ -7,6 +7,43 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.14.0 — 2026-08-16
+
+**The home screen lists recent bulk deletion warnings.**
+
+The tripwire is a launchd agent — a separate process from the window, and almost
+never running at the same time. So nothing it learns can be held in memory for
+the window to show later: by the time anyone opens the window, the process that
+saw the deletion has exited.
+
+The two now share a file: one JSON object per line, in
+`~/Library/Application Support/Snapshotter/events.jsonl`. The tripwire appends
+when it fires — including when it fires and the snapshot *fails*, which is the
+case most worth being able to look back at — and the window reads the last five.
+
+It is trimmed to the newest hundred rather than emptied at the limit. Emptying
+would throw away exactly the entries the screen is displaying, so the list would
+go blank at the moment it had most to say. Writers hold a file lock across the
+append and the trim, because three processes can write it and a trim that
+rewrites the file would otherwise race an append. A line that cannot be parsed —
+a writer that died mid-write, a field from a later version — is skipped rather
+than costing the rest of the file.
+
+The section is absent entirely when nothing has happened, rather than being an
+empty heading that invites someone to wonder what is missing.
+
+### Also
+
+The attribution now genuinely appears in the window. v0.12.0 claimed it did; the
+edit to the component silently failed to match, so the line existed only in the
+macOS About panel and the stylesheet was styling an element that was never
+rendered. The bundle metadata part of that release was real.
+
+Both launchd agents now declare which application they belong to. Without it,
+System Settings had nothing to attribute the background items to and fell back to
+the name on the signing certificate — so "App Background Activity" listed
+**Chris Thomas**, with two items under it and no way to tell what they were.
+
 ## v0.13.0 — 2026-08-16
 
 **The tripwire says where, and errors stop vanishing before they can be read.**

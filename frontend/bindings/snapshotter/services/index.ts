@@ -39,5 +39,6 @@ export {
     SnapshotComparison,
     SnapshotView,
     TierView,
-    TripwireView
+    TripwireView,
+    Warning
 } from "./models.js";
