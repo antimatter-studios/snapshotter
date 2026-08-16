@@ -58,3 +58,34 @@ func TestNoWarningsOnAMachineWhereNothingHasHappened(t *testing.T) {
 		t.Errorf("warnings appeared from nowhere: %v", got)
 	}
 }
+
+// The window shows one form and acts on another: "~" is for reading, and means
+// nothing to a comparison against a path the filesystem reported. Sending only
+// the short form would produce ignore rules that never match.
+func TestAWarningCarriesBothTheRealPathAndAReadableOne(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	full := home + "/Library/Caches/Something"
+	if err := events.Append(events.Event{
+		Kind: events.KindBulkDeletion, Where: []string{full}, Snapshot: "x",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := NewStatusService(Deps{}).RecentWarnings(1)
+	if len(got) != 1 {
+		t.Fatalf("want one warning, got %d", len(got))
+	}
+	if got[0].Where[0] != full {
+		t.Errorf("the real path was changed: %q", got[0].Where[0])
+	}
+	if got[0].Labels[0] != "~/Library/Caches/Something" {
+		t.Errorf("the readable form is %q, want ~/Library/Caches/Something", got[0].Labels[0])
+	}
+	// One label per folder, or the window pairs the wrong name with the wrong
+	// button.
+	if len(got[0].Labels) != len(got[0].Where) {
+		t.Errorf("%d labels for %d folders", len(got[0].Labels), len(got[0].Where))
+	}
+}

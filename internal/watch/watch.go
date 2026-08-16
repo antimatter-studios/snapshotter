@@ -130,15 +130,25 @@ func Places(dirs []string) string {
 	if len(dirs) == 0 {
 		return "an unknown location"
 	}
-	home, err := os.UserHomeDir()
 	out := make([]string, 0, len(dirs))
 	for _, dir := range dirs {
-		if err == nil && strings.HasPrefix(dir, home+string(os.PathSeparator)) {
-			dir = "~" + strings.TrimPrefix(dir, home)
-		}
-		out = append(out, dir)
+		out = append(out, Shorten(dir))
 	}
 	return strings.Join(out, ", ")
+}
+
+// Shorten writes a path the way a person writes it, with the home directory as
+// "~". Twenty characters of "/Users/somebody" carry no information at all on the
+// machine they refer to.
+//
+// Only for display. What gets stored, matched and ignored is always the full
+// path: "~" means nothing to a string comparison against an FSEvents path.
+func Shorten(dir string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || !strings.HasPrefix(dir, home+string(os.PathSeparator)) {
+		return dir
+	}
+	return "~" + strings.TrimPrefix(dir, home)
 }
 
 // ignored reports whether a path is machine churn rather than anybody's work.

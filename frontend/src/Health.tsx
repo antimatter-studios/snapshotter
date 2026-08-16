@@ -312,24 +312,38 @@ function BulkDeletionWarnings() {
           {warnings.map((w, i) => (
             <tr key={i}>
               <td className="warning-when">{stamp(w.at)}</td>
-              <td className="warning-where">{w.where?.join(", ") || "an unknown location"}</td>
+              {/* One folder per line, each with its own button.
+
+                  They were joined with commas, which wrapped into a block nobody
+                  could read — and the single Ignore button silenced whichever
+                  happened to be first, which is not a choice anyone made. A burst
+                  usually spans two or three folders and only one of them is the
+                  noisy one. */}
+              <td className="warning-where">
+                {w.where?.length ? (
+                  <ul>
+                    {w.where.map((folder, n) => (
+                      <li key={folder}>
+                        {/* Shown short, ignored long: "~" is for reading and
+                            means nothing to a path comparison. */}
+                        <span className="folder">{w.labels?.[n] ?? folder}</span>
+                        <button
+                          title={`Stop warning about ${folder}`}
+                          onClick={() => void ignore(folder)}
+                        >
+                          Ignore
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  "an unknown location"
+                )}
+              </td>
               {/* No snapshot is the row worth seeing from across the room: the
                   deletion happened and nothing was captured. */}
               <td className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}>
                 {w.snapshot ? w.snapshot : w.note || "no snapshot"}
-              </td>
-              {/* The moment someone wants this is while looking at a warning
-                  they did not want, so the button is on the row rather than in a
-                  settings screen they would have to go and find. */}
-              <td className="warning-action">
-                {w.where?.[0] && (
-                  <button
-                    title={`Stop warning about ${w.where[0]}`}
-                    onClick={() => void ignore(w.where[0])}
-                  >
-                    Ignore
-                  </button>
-                )}
               </td>
             </tr>
           ))}
