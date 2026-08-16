@@ -164,7 +164,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
                     <strong>{option.retained}</strong> snapshots
                   </span>
                   <span title={`${Math.round(option.reachDays)} days`}>
-                    reaching back <strong>{reach(option.reachDays)}</strong>
+                    {t("schedule.reachingBack")} <strong>{reach(option.reachDays)}</strong>
                   </span>
                 </div>
               </div>
@@ -219,8 +219,8 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       </section>
 
       <section>
-        <h2>Log</h2>
-        <p className="explain">Written by the scheduled task at {view?.logPath}</p>
+        <h2>{t("schedule.log")}</h2>
+        <p className="explain">{t("schedule.writtenBy")} {view?.logPath}</p>
         <pre className="log">{log || t("schedule.nothingLogged")}</pre>
       </section>
     </div>

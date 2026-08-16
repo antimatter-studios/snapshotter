@@ -648,6 +648,9 @@ table.rows {
 }
 
 table.rows th {
+  /* One line. "Snapshot Size" wrapping to two put the header row at double
+     height and left the figures beneath looking detached from their column. */
+  white-space: nowrap;
   text-align: left;
   font-weight: 500;
   color: var(--muted);
@@ -1090,23 +1093,17 @@ pre.log {
 
 /* The folder is the answer to "was that me?", so it gets the room and the
    emphasis. Long paths wrap rather than being cut off. */
-.warning-where {
-  min-width: 0;
-  word-break: break-word;
-}
-
-.warning-outcome {
-  white-space: nowrap;
+/* Only drawn when the tripwire fired and no snapshot came of it — which is what
+   the outcome column used to say, on every row, mostly to report success. */
+.warning-failed {
+  margin: 0 0 4px;
+  color: var(--deleted);
   font-size: 11px;
 }
 
-.warning-outcome.ok {
-  color: var(--muted);
-}
-
-/* A deletion nobody captured is the one worth seeing from across the room. */
-.warning-outcome.bad {
-  color: var(--deleted);
+.warning-where {
+  min-width: 0;
+  word-break: break-word;
 }
 
 /* The health screen is a fixed header, a scrolling middle, and eight figures
@@ -1226,22 +1223,6 @@ pre.log {
   background: var(--hover);
   border-color: var(--accent);
   color: var(--accent);
-}
-
-.warning-outcome {
-  white-space: nowrap;
-  width: 1%;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.warning-outcome.ok {
-  color: var(--muted);
-}
-
-/* A deletion nobody captured is the row worth seeing from across the room. */
-.warning-outcome.bad {
-  color: var(--deleted);
 }
 
 
