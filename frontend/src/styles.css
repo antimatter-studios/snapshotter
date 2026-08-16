@@ -1306,10 +1306,30 @@ pre.log {
 /* Quiet is not the same as invisible. A folder can sit here for a moment while
    its walk runs, and the word alone did not read as work in progress — it read
    as the answer. The spinner is what distinguishes the two. */
-.badge.detecting {
+/* All three of a folder's outcomes are drawn as the same circle, so a row reads
+   as one shape settling rather than three unrelated marks: the ring turns while
+   the walk runs, then closes around a tick or a cross. */
+.badge.detecting,
+.badge.same,
+.badge.notExamined {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.badge-mark {
+  flex: 0 0 auto;
+}
+
+/* The two settled marks carry the colour, not the words. The badge text stays
+   quiet — a folder that matches is not news, and one that could not be read is a
+   fact about this program rather than about the file. */
+.badge.same .badge-mark {
+  color: var(--ok-fg);
+}
+
+.badge.notExamined .badge-mark {
+  color: var(--error-fg);
 }
 
 .spinner {

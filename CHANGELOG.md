@@ -7,6 +7,27 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.28.0 — 2026-08-16
+
+**A mark on every folder verdict, and a better word for a match.**
+
+The spinner said a walk was running. Nothing said how it ended, so the two
+outcomes were distinguishable only by reading the text. Now a folder that
+matches gets a green tick and one that could not be read gets a red cross.
+
+All three are the same circle by design: the ring turns while the walk runs,
+then closes around a tick or a cross. One shape settling rather than three
+unrelated marks.
+
+The colour is on the mark, not the words. A folder that matches is not news, and
+one that could not be read is a fact about this program rather than about the
+file.
+
+**"Identical" replaces "unchanged".** What was compared is two versions of a
+file, and the word should say they match. "Unchanged" describes a history nobody
+observed — a file may well have been edited twice since the snapshot and put
+back. The toggle follows the badge it controls: *Show identical*.
+
 ## v0.27.0 — 2026-08-16
 
 **A spinner while a folder's verdict is being worked out.**

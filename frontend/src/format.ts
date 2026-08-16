@@ -54,7 +54,11 @@ export function breadcrumbs(path: string): { label: string; path: string }[] {
 
 /** The label shown on a status badge. */
 export const statusLabel: Record<string, string> = {
-  same: "unchanged",
+  // "Identical" rather than "unchanged": what was actually compared is two
+  // versions of a file, and the word says they match. "Unchanged" describes a
+  // history nobody observed — the file may well have been edited twice since the
+  // snapshot and put back.
+  same: "identical",
   modified: "changed",
   onlyInSnapshot: "deleted since",
   onlyOnDisk: "new since",
