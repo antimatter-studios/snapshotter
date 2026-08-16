@@ -83,3 +83,57 @@ func TestRunRefusesAnIncompleteWatcher(t *testing.T) {
 		t.Error("Run accepted a watcher with no snapshot function")
 	}
 }
+
+// A browser clearing its cache deletes hundreds of files in seconds — the exact
+// shape of the thing being watched for, and none of its meaning. This machine's
+// tripwire fired on Microsoft Edge doing precisely that, took a snapshot nobody
+// needed, and would have gone on doing so.
+
+func TestCacheChurnIsNotABulkDeletion(t *testing.T) {
+	w := &Watcher{Ignore: []string{"/Library/Caches/", "/private/var/folders/"}}
+
+	for _, path := range []string{
+		"/Users/someone/Library/Caches/Microsoft Edge/Default/Code Cache/js/a.bin",
+		"/Users/someone/Library/Caches/com.apple.Safari/x",
+		"/private/var/folders/0k/T/build-artifact",
+	} {
+		if !w.ignored(path) {
+			t.Errorf("%s should not count towards a burst", path)
+		}
+	}
+}
+
+// The list must stay narrow. Anything someone would ask to recover has to reach
+// the trigger, or the tripwire is quiet about the one deletion that mattered.
+func TestWorkIsNeverIgnored(t *testing.T) {
+	w := &Watcher{Ignore: []string{"/Library/Caches/", "/private/var/folders/", "/.Trash/"}}
+
+	for _, path := range []string{
+		"/Users/someone/Documents/Invoices/january.pdf",
+		"/Users/someone/Desktop/thesis.docx",
+		"/Users/someone/Pictures/wedding/001.jpg",
+		"/Users/someone/src/project/main.go",
+		// A folder merely NAMED cache, in someone's own work, is still theirs.
+		"/Users/someone/Documents/cache-study/notes.md",
+	} {
+		if w.ignored(path) {
+			t.Errorf("%s was ignored, so its deletion would go unwatched", path)
+		}
+	}
+}
+
+// No list configured means watch everything: a settings file that could not be
+// read must not quietly turn the tripwire into a no-op.
+func TestNoIgnoreListWatchesEverything(t *testing.T) {
+	w := &Watcher{}
+	if w.ignored("/Users/someone/Library/Caches/anything") {
+		t.Error("something was ignored with no list configured")
+	}
+
+	// An empty string would match every path — a single stray entry must not
+	// silence the whole watcher.
+	w = &Watcher{Ignore: []string{""}}
+	if w.ignored("/Users/someone/Documents/x") {
+		t.Error("an empty fragment silenced the watcher")
+	}
+}

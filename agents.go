@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/config"
 	"snapshotter/internal/events"
 	"snapshotter/internal/notify"
 	"snapshotter/internal/schedule"
@@ -116,6 +117,14 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 		}
 		return nil
 	})
+	// Read once at startup. The tripwire is its own process and launchd restarts
+	// it, so a changed ignore list takes effect on the next run rather than
+	// needing anything clever here.
+	if cfg, cerr := config.Load(); cerr == nil {
+		w.Ignore = cfg.Tripwire.Ignore
+	} else {
+		log.Printf("configuration: %v (watching everything)", cerr)
+	}
 	w.Log = log.Printf
 	return w.Run(ctx)
 }

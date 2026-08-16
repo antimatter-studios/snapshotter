@@ -117,11 +117,7 @@ export default function App() {
           </div>
         </div>
         <div className="header-actions">
-          {overview && (
-            <span className="disk">
-              {bytes(overview.volumeFreeBytes)} free of {bytes(overview.volumeTotalBytes)}
-            </span>
-          )}
+          {overview && <DiskSpace free={overview.volumeFreeBytes} total={overview.volumeTotalBytes} />}
           <ThemeToggle />
         </div>
       </header>
@@ -292,5 +288,38 @@ export default function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+/**
+ * Free space, as a bar and a number.
+ *
+ * Snapshots are purgeable: macOS reclaims the oldest under space pressure rather
+ * than failing a write, so a disk filling up is the quiet way a retention setting
+ * stops being kept. That is worth seeing at a glance rather than reading, which a
+ * number alone cannot do.
+ *
+ * The colour is the glance and the number is the detail. The thresholds match the
+ * health screen's — below a tenth is what it calls low — so the two cannot
+ * disagree about whether this Mac is running out.
+ */
+function DiskSpace({ free, total }: { free: number; total: number }) {
+  if (!total) return null;
+
+  const freeRatio = free / total;
+  const level = freeRatio < 0.1 ? "bad" : freeRatio < 0.2 ? "warn" : "ok";
+
+  return (
+    <span
+      className={`disk ${level}`}
+      title={`${bytes(free)} free of ${bytes(total)} — ${Math.round(freeRatio * 100)}% free`}
+    >
+      {/* The bar fills with what is USED, because one that empties as things get
+          worse reads backwards: a full bar looks like a full disk. */}
+      <span className="disk-bar" aria-hidden="true">
+        <span className="disk-used" style={{ width: `${Math.min(100, (1 - freeRatio) * 100)}%` }} />
+      </span>
+      <span className="disk-text">{bytes(free)} free</span>
+    </span>
   );
 }

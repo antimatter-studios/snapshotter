@@ -332,6 +332,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.16.0
+
+The header shows free space as a coloured bar and a number rather than a
+sentence. The bulk-deletion tripwire ignores cache and temporary directories, so
+a browser clearing its cache no longer trips it. A development build refuses to join a menu
+bar that already has the installed copy in it. The release retries `hdiutil`,
+which fails transiently on shared runners.
+
 ### v0.15.0
 
 The health screen pins its eight figures to the foot of the window and scrolls
@@ -390,14 +398,6 @@ running — launchd keeps such a job loaded and fails it silently once an interv
 The bulk-deletion tripwire is on by default for new installations. Development
 builds mark themselves `DEV` in the menu bar, and `config set` now refuses a
 theme that is not a theme.
-
-### v0.6.0
-
-Whatever was configured is put back on launch. Upgrading through Homebrew unloads
-both launchd agents before staging the new version, so an upgrade silently
-removed the schedule while the settings file still recorded it. The settings are
-now treated as the intent and launchd as the current state, reconciled at
-startup. It only ever adds: a schedule removed on purpose stays removed.
 
 
 ## Design decisions

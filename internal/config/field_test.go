@@ -192,3 +192,51 @@ func TestSetRefusesAnEmptyPolicy(t *testing.T) {
 		t.Errorf("flat was refused: %v", err)
 	}
 }
+
+// The ignore list is a list, and lists are exactly the sort of thing someone
+// scripting this wants to change — "stop warning me about node_modules" is a
+// one-liner or it does not happen.
+func TestAListCanBeReadEditedAndWrittenBack(t *testing.T) {
+	cfg := Defaults()
+
+	before, err := Get(cfg, "tripwire.ignore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(before, "/Library/Caches/") {
+		t.Errorf("the defaults are not being reported: %q", before)
+	}
+
+	if err := Set(&cfg, "tripwire.ignore", before+",/node_modules/"); err != nil {
+		t.Fatalf("adding one entry was refused: %v", err)
+	}
+	if len(cfg.Tripwire.Ignore) != len(Defaults().Tripwire.Ignore)+1 {
+		t.Errorf("wrong length after adding one: %v", cfg.Tripwire.Ignore)
+	}
+	if cfg.Tripwire.Ignore[len(cfg.Tripwire.Ignore)-1] != "/node_modules/" {
+		t.Errorf("the added entry is wrong: %v", cfg.Tripwire.Ignore)
+	}
+}
+
+// An empty value means an empty list, not a list containing "". The difference
+// matters: a single empty fragment matches every path, which would silence the
+// tripwire completely while looking like a configured setting.
+func TestClearingAListDoesNotLeaveAnEmptyEntry(t *testing.T) {
+	cfg := Defaults()
+
+	if err := Set(&cfg, "tripwire.ignore", ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Tripwire.Ignore) != 0 {
+		t.Errorf("clearing left %d entries: %v", len(cfg.Tripwire.Ignore), cfg.Tripwire.Ignore)
+	}
+
+	// And spaces around entries are trimmed, because a person typing a list will
+	// put them there.
+	if err := Set(&cfg, "tripwire.ignore", " /a/ , /b/ "); err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Tripwire.Ignore) != 2 || cfg.Tripwire.Ignore[0] != "/a/" {
+		t.Errorf("spacing was not handled: %v", cfg.Tripwire.Ignore)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"snapshotter/internal/config"
 	"strings"
 	"testing"
@@ -380,7 +381,7 @@ func TestConfigWritesTheDefaultsAndThenShowsThem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the application cannot read what it just wrote: %v", err)
 	}
-	if cfg != config.Defaults() {
+	if !reflect.DeepEqual(cfg, config.Defaults()) {
 		t.Errorf("what was written is not the defaults:\n got %+v\nwant %+v", cfg, config.Defaults())
 	}
 

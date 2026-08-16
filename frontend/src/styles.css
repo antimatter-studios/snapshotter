@@ -290,9 +290,58 @@ header h1 {
 }
 
 .subtitle,
+/* Free space: a bar to glance at, a number to read.
+
+   Snapshots are purgeable — macOS reclaims the oldest under space pressure
+   rather than failing a write — so a disk filling up is how a retention setting
+   quietly stops being kept. The colour carries that at a distance; the
+   thresholds are the health screen's, so the two cannot disagree. */
 .disk {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.disk-bar {
+  width: 54px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.disk-used {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--new);
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.disk.warn .disk-used {
+  background: var(--changed);
+}
+
+.disk.bad .disk-used {
+  background: var(--deleted);
+}
+
+/* Only the text takes the colour once it matters. Tinting it green when all is
+   well would make a permanent fixture out of something that should only catch
+   the eye when it has something to say. */
+.disk.warn .disk-text {
+  color: var(--changed);
+}
+
+.disk.bad .disk-text {
+  color: var(--deleted);
+}
+
+.disk-text {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .header-actions {
