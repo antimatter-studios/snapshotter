@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Snapshots, Browse, Status, message, type SnapshotView, type Overview } from "./api";
 import { age, bytes, stamp } from "./format";
 import { Browser } from "./Browser";
-import { Compare } from "./Compare";
+import { FileDiff } from "./FileDiff";
 import { Schedule } from "./Schedule";
 import { Health } from "./Health";
 import { Search } from "./Search";
@@ -18,7 +18,10 @@ import iconUrl from "../../assets/icons/icon.svg";
  *  selected in the sidebar, which is why health is no longer among them: it
  *  describes the machine and ignored the selection entirely, so as a tab it
  *  claimed to be about a snapshot and was not. It is the home view instead. */
-type Tab = "browse" | "compare" | "search";
+// The compare tab is gone. It walked a tree and produced a list of paths that
+// had changed, which says where to look and nothing about what is there — the
+// question people actually had is answered per file, from the row itself.
+type Tab = "browse" | "search";
 
 /** Which of the three things the window can be showing. home and schedule are
  *  whole-machine; snapshots is the one that depends on what is selected. */
@@ -43,6 +46,9 @@ export default function App() {
   // mountHelp is fetched lazily, because it only means anything once mounting
   // has actually been refused.
   const [mountHelp, setMountHelp] = useState("");
+  // The file whose contents are being compared, or none. Held here rather than
+  // in the browser because the panel covers the whole view.
+  const [diffFile, setDiffFile] = useState("");
 
   // A refusal to mount is not an ordinary error: it names a permission, and the
   // place to grant it is four levels into System Settings. Recognising it here
@@ -263,9 +269,6 @@ export default function App() {
             <button className={tab === "browse" ? "active" : ""} onClick={() => setTab("browse")}>
               Browse
             </button>
-            <button className={tab === "compare" ? "active" : ""} onClick={() => setTab("compare")}>
-              Compare
-            </button>
             <button className={tab === "search" ? "active" : ""} onClick={() => setTab("search")}>
               Search
             </button>
@@ -277,11 +280,21 @@ export default function App() {
               path={path}
               onPathChange={setPath}
               onMount={() => current && mount(current)}
-              onCompare={() => setTab("compare")}
+              onDiff={(livePath) => setDiffFile(livePath)}
               onStatus={setStatus}
             />
           )}
-          {tab === "compare" && <Compare snapshot={current} path={path} onStatus={setStatus} />}
+
+          {/* Over the browser rather than beside it: a diff wants the width, and
+              it is opened for one file and closed again. */}
+          {diffFile && current && (
+            <FileDiff
+              snapshot={current.name}
+              livePath={diffFile}
+              dark={darkNow()}
+              onClose={() => setDiffFile("")}
+            />
+          )}
           {tab === "search" && <Search onStatus={setStatus} />}
           </>
           )}
@@ -322,4 +335,18 @@ function DiskSpace({ free, total }: { free: number; total: number }) {
       <span className="disk-text">{bytes(free)} free</span>
     </span>
   );
+}
+
+/**
+ * Whether the window is currently dark, for anything that has to be told rather
+ * than inheriting it from CSS.
+ *
+ * The diff viewer takes a boolean, so the answer is read off the root element —
+ * which is where applyTheme stamps it, and which follows the system when no
+ * choice has been made.
+ */
+function darkNow(): boolean {
+  const chosen = document.documentElement.getAttribute("data-theme");
+  if (chosen) return chosen === "dark";
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
 }
