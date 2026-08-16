@@ -7,6 +7,28 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.31.0 — 2026-08-16
+
+**A mark on every verdict, and a tick that reads as a tick.**
+
+Two faults, both mine, from the version that added the first marks.
+
+Only "identical" and "could not check" ever got one. "Changed", "deleted since",
+"new since" and "type changed" silently had none — a gap that looks like a
+rendering fault rather than a state. All six now have their own: a pencil for
+changed, a bin for deleted since, a plus for new since, and a shuffle for type
+changed.
+
+And the tick was unreadable. It was `CircleCheck` at 12px, chosen so the settled
+marks would echo the spinner's ring — but a tick inside a ring at that size is
+about five pixels of tick, and it read as a dot. A motif nobody can resolve is
+not a motif. The marks are bare glyphs now, larger and more heavily stroked. The
+spinner keeps its ring, being the only one whose shape is carried by movement
+rather than detail.
+
+A test now asserts that every status carrying a word also carries a mark, which
+is what would have caught the first fault.
+
 ## v0.30.0 — 2026-08-16
 
 **Compare, and a choice of what to compare against.**

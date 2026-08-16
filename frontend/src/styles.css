@@ -691,7 +691,11 @@ tr:hover td.actions button {
 }
 
 .badge {
-  display: inline-block;
+  /* Flex so the mark and the word sit on one baseline; every status carries a
+     mark now. */
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   /* One line, always. A pill that wraps stops looking like a pill and drags the
      row's height with it, so a listing ends up with rows of differing heights. */
   white-space: nowrap;
@@ -1315,14 +1319,6 @@ pre.log {
 /* All three of a folder's outcomes are drawn as the same circle, so a row reads
    as one shape settling rather than three unrelated marks: the ring turns while
    the walk runs, then closes around a tick or a cross. */
-.badge.detecting,
-.badge.same,
-.badge.notExamined {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
 .badge-mark {
   flex: 0 0 auto;
 }

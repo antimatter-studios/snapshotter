@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.31.0
+
+Every verdict has its own icon rather than only two of them, and the tick is
+legible at the size it is actually drawn.
+
 ### v0.30.0
 
 Every file row has a Compare button, which opens the snapshot's version beside
@@ -385,12 +390,6 @@ application taking six cores for a minute on a home directory listing.
 Differences are shown per file, opened from the row, rather than as a separate
 compare view that only listed which paths had changed. Folders in a listing read
 as *detecting…* and resolve one at a time.
-
-### v0.21.0
-
-Browsing a snapshot no longer reports every folder as unchanged without looking
-inside it. A directory is walked until the first difference and then stopped,
-which is all the browser needs to print one word per row.
 
 
 ## Design decisions
