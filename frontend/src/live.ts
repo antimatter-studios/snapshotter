@@ -26,23 +26,30 @@ const refreshEveryDefault = 30_000;
  *  should already be right.
  */
 export function useLiveRefresh(refresh: () => unknown) {
-  // Read from the configuration file, so the interval is a setting rather than a
-  // constant someone has to rebuild to change. Read once per mount: a person
-  // editing the file expects the next launch to honour it.
+  // Read from the settings file, so the interval is a setting rather than a
+  // constant someone has to rebuild to change — and re-read on every tick, so
+  // editing it takes effect without relaunching. The read is a binding call
+  // against a file the application has already loaded, on a timer that fires
+  // every half minute, so the cost of asking each time is not worth the
+  // surprise of a value that only applies at the next launch.
   const [every, setEvery] = useState(refreshEveryDefault);
-  useEffect(() => {
+  const readInterval = () => {
     Config.Get()
       .then((view) => {
         const seconds = view.config?.refresh?.window_seconds;
-        if (typeof seconds === "number" && seconds > 0) setEvery(seconds * 1000);
+        setEvery(typeof seconds === "number" && seconds > 0 ? seconds * 1000 : refreshEveryDefault);
       })
       .catch(() => {
-        // The default is already in effect.
+        // The value already in effect stays in effect.
       });
-  }, []);
+  };
+  useEffect(readInterval, []);
 
   useEffect(() => {
-    const tick = () => void refresh();
+    const tick = () => {
+      readInterval();
+      void refresh();
+    };
     const id = window.setInterval(tick, every);
     // Both events: focus fires when the window is activated, visibilitychange
     // when it is uncovered or the app is switched back to. Either can happen

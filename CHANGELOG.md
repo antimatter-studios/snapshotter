@@ -7,6 +7,41 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.10.0 — 2026-08-16
+
+**Change a setting and it takes effect. No relaunch.**
+
+The settings file was read at startup and then held. Editing the theme worked
+immediately, because the window asks for it on every read; editing the window
+size, either refresh interval, or any of the paths did nothing until the
+application was launched again — which is a poor answer when nothing about the
+change requires it.
+
+The file is now watched, and a change is applied to the running application:
+
+- the window resizes;
+- the menu bar picks up its new interval and redraws at once, rather than after
+  one more wait at the old one;
+- the window's own refresh interval is re-read as it ticks;
+- the mount root and log paths take effect for work that has not started yet.
+
+Two limits, which are real rather than laziness and are written into the code
+next to the parts they apply to. A snapshot already mounted stays where it is,
+because a mounted filesystem cannot be moved by editing a file. An installed
+launchd agent keeps writing to the log its plist names until the agent is
+installed again, because the plist carries its own copy of that path.
+
+Nothing in the watcher installs or removes an agent. Restoring what was asked for
+happens at startup; saving a file is not the same as asking for snapshots to
+start being taken.
+
+The directory is watched rather than the file, because saving replaces the file
+by renaming a new one over it and a watch on the old path would be left pointing
+at an inode nothing writes to again. Writes are debounced, so one edit is one
+reload rather than one per event, and a file that will not parse is not
+delivered at all — what is already in force stays in force rather than the
+application reacting to half a line of YAML.
+
 ## v0.9.0 — 2026-08-16
 
 **The finding icons come from a designed set instead of being drawn by hand.**

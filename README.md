@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.10.0
+
+The settings file is watched, so changing a value takes effect in the running
+application rather than at the next launch — the window resizes, the refresh
+intervals change, and new paths apply to work that has not started yet.
+
 ### v0.9.0
 
 Finding icons come from Lucide rather than being drawn by hand — the window uses
