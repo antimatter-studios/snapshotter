@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.28.0
+
+Folder verdicts carry a mark as well as a word: a green tick for identical, a
+red cross for one that could not be read. "Identical" replaces "unchanged",
+since what was compared is two versions rather than a history.
+
 ### v0.27.0
 
 Folders being examined show a spinner beside "detecting", so a verdict still
@@ -383,11 +389,6 @@ rather than repeating the date already in the first column.
 Each folder in a bulk deletion warning gets its own line and its own ignore
 button, rather than a comma-separated block and one button that silenced
 whichever folder came first.
-
-### v0.18.0
-
-The ignore and watch-again actions are proper buttons rather than faint links,
-and folder paths are shown in full rather than truncated.
 
 
 ## Design decisions

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Browse, Restore, message, type MergedListing, type Change, type SnapshotView } from "./api";
 import { bytes, breadcrumbs, stamp, statusLabel } from "./format";
+import { CircleCheck, CircleX } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 
 interface Props {
@@ -21,7 +22,7 @@ interface Props {
  */
 export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatus }: Props) {
   const [listing, setListing] = useState<MergedListing | null>(null);
-  const [showUnchanged, setShowUnchanged] = useState(true);
+  const [showIdentical, setShowIdentical] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -42,7 +43,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     setBusy(true);
     setError("");
     try {
-      const merged = await Browse.Merged(snapshot.name, path, showUnchanged);
+      const merged = await Browse.Merged(snapshot.name, path, showIdentical);
       setListing(merged);
 
       // Each folder is asked about on its own and fills in when it answers, a few
@@ -82,7 +83,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     } finally {
       setBusy(false);
     }
-  }, [snapshot, path, showUnchanged]);
+  }, [snapshot, path, showIdentical]);
 
   useEffect(() => {
     void load();
@@ -119,7 +120,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     }
   };
 
-  // Unchanged folders are hidden here rather than by the listing, which cannot
+  // Identical folders are hidden here rather than by the listing, which cannot
   // know: a folder arrives unexamined and only becomes "same" once its own walk
   // answers, long after the rows were built. Files are already filtered on the
   // way out of Merged.
@@ -127,7 +128,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
   // Computed once so the table below and the "nothing has changed" message
   // cannot disagree about whether anything is showing.
   const visibleRows = (listing?.rows ?? []).filter(
-    (row) => showUnchanged || !row.isDir || (folderStatus[row.absLive] ?? "detecting") !== "same",
+    (row) => showIdentical || !row.isDir || (folderStatus[row.absLive] ?? "detecting") !== "same",
   );
 
   return (
@@ -145,8 +146,8 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
         </nav>
         <div className="toolbar-actions">
           <label className="check">
-            <input type="checkbox" checked={showUnchanged} onChange={(e) => setShowUnchanged(e.target.checked)} />
-            Show unchanged
+            <input type="checkbox" checked={showIdentical} onChange={(e) => setShowIdentical(e.target.checked)} />
+            Show identical
           </label>
           <button onClick={() => Browse.RevealInFinder(snapshot.name, path).catch((e) => setError(message(e)))}>
             Reveal in Finder
@@ -193,6 +194,8 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
                       colour but is a finished answer, and a spinner on it would
                       promise a result that is never coming. */}
                   {status === "detecting" && <span className="spinner" aria-hidden="true" />}
+                  {status === "same" && <CircleCheck className="badge-mark" size={12} aria-hidden="true" />}
+                  {status === "notExamined" && <CircleX className="badge-mark" size={12} aria-hidden="true" />}
                   {statusLabel[status] ?? status}
                 </span>
               </td>
@@ -224,7 +227,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
 
       {!busy && listing && visibleRows.length === 0 && (
         <p className="empty-note">
-          {showUnchanged ? "This folder is empty on both sides." : "Nothing has changed in this folder."}
+          {showIdentical ? "This folder is empty on both sides." : "Nothing has changed in this folder."}
         </p>
       )}
     </div>
