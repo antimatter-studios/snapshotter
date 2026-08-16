@@ -7,6 +7,38 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.22.0 — 2026-08-16
+
+**Differences are shown per file, from the row itself. The compare view is gone.**
+
+The compare view walked a tree and produced a list of paths that had changed. That
+tells you where to look and nothing about what is there — which is why
+`react-diff-viewer-continued` has sat in the dependencies unused since the
+beginning. Somebody intended this and never built it.
+
+A file row now offers **Differences**, which opens both versions side by side,
+compared word by word within a changed line so a renamed variable does not
+present as the whole line differing.
+
+Two cases are declined rather than attempted, and neither is an error: a file too
+large to put through a web view, and a binary one, which has no lines to compare.
+Both still report their sizes, because 2.1 MB becoming 2.4 MB is a real answer
+about a photograph.
+
+### Folders resolve one at a time
+
+A listing is two directory reads and is instant. A folder's verdict may be a walk
+of everything beneath it — and only when nothing has changed, since a difference
+is returned the moment it appears. Asking for both together made every listing as
+slow as its slowest folder, so folders now read as *detecting…* and fill in as
+their answers arrive. A large untouched tree delays nothing but its own row.
+
+### What went with the compare view
+
+`Compare.tsx`, its stylesheet, and the tab. This also removes snapshot-to-snapshot
+comparison — "what changed between Tuesday and Thursday" — which a per-file button
+does not replace. Removed deliberately rather than by accident.
+
 ## v0.21.0 — 2026-08-16
 
 **A folder is no longer reported as unchanged without being looked at.**
