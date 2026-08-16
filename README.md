@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.15.0
+
+The health screen pins its eight figures to the foot of the window and scrolls
+everything else behind them, so the space goes to whatever actually has something
+to say. Bulk deletion warnings are a compact table, one row per event.
+
 ### v0.14.0
 
 The home screen lists recent bulk deletion warnings, read from a file the
@@ -392,14 +398,6 @@ both launchd agents before staging the new version, so an upgrade silently
 removed the schedule while the settings file still recorded it. The settings are
 now treated as the intent and launchd as the current state, reconciled at
 startup. It only ever adds: a schedule removed on purpose stays removed.
-
-### v0.5.0
-
-The menu bar menu no longer greys out everything it says. It also draws two
-things rather than writing them: a strip showing one cell per hour across the
-last two days, filled where a snapshot exists — so the gaps are visible, which no
-count can show — and a glyph per finding chosen by what the finding is about
-rather than by how bad it is.
 
 
 ## Design decisions
