@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.26.0
+
+The "show unchanged" toggle hides unchanged folders as well as files. Folders
+could not be filtered when the listing was built, because a folder's verdict
+arrives afterwards.
+
 ### v0.25.0
 
 Folders show the verdict they resolved, rather than the placeholder the listing
@@ -383,14 +389,6 @@ and folder paths are shown in full rather than truncated.
 Bulk deletion warnings carry an **ignore** action, so silencing a noisy folder is
 done where the reason for wanting it appears. What has been silenced is listed
 underneath with a way to undo it.
-
-### v0.16.0
-
-The header shows free space as a coloured bar and a number rather than a
-sentence. The bulk-deletion tripwire ignores cache and temporary directories, so
-a browser clearing its cache no longer trips it. A development build refuses to join a menu
-bar that already has the installed copy in it. The release retries `hdiutil`,
-which fails transiently on shared runners.
 
 
 ## Design decisions

@@ -119,6 +119,17 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     }
   };
 
+  // Unchanged folders are hidden here rather than by the listing, which cannot
+  // know: a folder arrives unexamined and only becomes "same" once its own walk
+  // answers, long after the rows were built. Files are already filtered on the
+  // way out of Merged.
+  //
+  // Computed once so the table below and the "nothing has changed" message
+  // cannot disagree about whether anything is showing.
+  const visibleRows = (listing?.rows ?? []).filter(
+    (row) => showUnchanged || !row.isDir || (folderStatus[row.absLive] ?? "detecting") !== "same",
+  );
+
   return (
     <div className="browser">
       <div className="toolbar">
@@ -158,7 +169,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
           </tr>
         </thead>
         <tbody>
-          {(listing?.rows ?? []).map((row) => {
+          {visibleRows.map((row) => {
             // A folder comes back unexamined and is resolved on its own, so it
             // reads as detecting until its answer arrives.
             const status = row.isDir ? folderStatus[row.absLive] ?? "detecting" : row.status;
@@ -207,7 +218,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
         </tbody>
       </table>
 
-      {!busy && listing && listing.rows.length === 0 && (
+      {!busy && listing && visibleRows.length === 0 && (
         <p className="empty-note">
           {showUnchanged ? "This folder is empty on both sides." : "Nothing has changed in this folder."}
         </p>

@@ -7,6 +7,20 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.26.0 — 2026-08-16
+
+**"Show unchanged" hides unchanged folders again.**
+
+It never stopped hiding unchanged files — those are filtered as the listing is
+built. Folders were not, and could not be: a folder arrives unexamined and only
+becomes "unchanged" once its own walk answers, which happens well after the rows
+have been sent. By then nothing was left to filter them.
+
+They are hidden as they resolve. The visible list is computed once and used both
+for the table and for the "nothing has changed in this folder" message, so the
+two cannot disagree about whether anything is showing — which they would have, on
+a folder whose contents all turned out to be unchanged.
+
 ## v0.25.0 — 2026-08-16
 
 **Folders show the verdict they resolved.**
