@@ -71,6 +71,14 @@ type Options struct {
 	IncludeSame bool
 	// MaxDepth limits recursion; zero means no limit.
 	MaxDepth int
+	// DeferDirectories leaves every directory reported as NotExamined instead of
+	// walking it for a verdict.
+	//
+	// The browser sets it so a listing appears at once: a folder whose contents
+	// are unchanged costs a full walk to prove it, and a window that waits for
+	// several of those before drawing anything is a window that feels broken. Each
+	// row is then resolved on its own, and fills in as its answer arrives.
+	DeferDirectories bool
 }
 
 // Result is the outcome of a comparison.

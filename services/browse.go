@@ -128,7 +128,12 @@ func (b *BrowseService) Merged(snapshotName, livePath string, includeSame bool) 
 
 	out.SnapshotExists = diffs.DirExists(snapshotDir)
 	out.LiveExists = diffs.DirExists(out.LivePath)
-	rows, err := diffs.Level(snapshotDir, out.LivePath, diffs.Options{IncludeSame: includeSame})
+	// Directories come back unexamined and are resolved one at a time by
+	// DirectoryStatus below, so the listing appears at once rather than waiting
+	// on however many full walks it would take to prove some folder is untouched.
+	rows, err := diffs.Level(snapshotDir, out.LivePath, diffs.Options{
+		IncludeSame: includeSame, DeferDirectories: true,
+	})
 	if err != nil {
 		return out, err
 	}
@@ -224,4 +229,38 @@ func parentOf(path string) string {
 		return "/"
 	}
 	return filepath.Dir(clean)
+}
+
+// DirectoryStatus answers whether anything under one directory has changed.
+//
+// Separate from Merged because the two have opposite costs. A listing is two
+// directory reads and is instant; a directory's verdict may be a walk of
+// everything beneath it, and only in the case where nothing has changed — a
+// difference is found and returned the moment it appears. Asking for them
+// together would make every listing as slow as its slowest folder.
+//
+// The window calls this once per folder row and fills each in as it answers, so
+// a large untouched tree delays nothing but its own row.
+func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (string, error) {
+	mountPoint, err := b.mountPointOf(snapshotName)
+	if err != nil {
+		return string(diffs.NotExamined), err
+	}
+	// vfs.ToSnapshot, not string surgery: it is the same mapping Merged uses, and
+	// a hand-rolled one here would compare a different directory than the one the
+	// row came from.
+	snapshotDir, err := vfs.ToSnapshot(mountPoint, livePath)
+	if err != nil {
+		return string(diffs.NotExamined), err
+	}
+
+	differs, answered := diffs.DiffersWithin(snapshotDir, filepath.Clean(livePath), diffs.Options{})
+	switch {
+	case !answered:
+		return string(diffs.NotExamined), nil
+	case differs:
+		return string(diffs.Modified), nil
+	default:
+		return string(diffs.Same), nil
+	}
 }

@@ -37,7 +37,7 @@ export function Compare(req: $models.CompareRequest): $CancellablePromise<diffs$
 
 /**
  * CompareSnapshots reports what changed between two snapshots under LivePath.
- * 
+ *
  * Which snapshot is the older one is decided by the snapshots' own timestamps,
  * not by the order the arguments arrived in. A change between two snapshots has
  * no inherent direction, and getting it backwards inverts every row silently: a
@@ -45,7 +45,7 @@ export function Compare(req: $models.CompareRequest): $CancellablePromise<diffs$
  * failure than any refusal, so argument order is treated as an intention to be
  * checked rather than as a fact. The check is free and authoritative, because
  * tmutil puts the instant a snapshot was taken in its name.
- * 
+ *
  * Two snapshots cannot tie. The stamp is a whole second of local time and it *is*
  * the snapshot's identity, so equal timestamps mean one snapshot named twice,
  * which is refused below.
@@ -56,6 +56,21 @@ export function CompareSnapshots(req: $models.CompareSnapshotsRequest): $Cancell
     });
 }
 
+/**
+ * FileVersions reads one file from both sides so the window can show what
+ * changed inside it.
+ *
+ * This is the question the tree comparison never answered: it produced a list of
+ * paths that had changed, which tells someone where to look and nothing about
+ * what they would find there.
+ */
+export function FileVersions(snapshotName: string, livePath: string): $CancellablePromise<$models.FileVersions> {
+    return $Call.ByID(3591362334, snapshotName, livePath).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = diffs$0.Result.createFrom;
 const $$createType1 = $models.SnapshotComparison.createFrom;
+const $$createType2 = $models.FileVersions.createFrom;

@@ -59,6 +59,11 @@ func Level(snapshotDir, liveDir string, opt Options) ([]Change, error) {
 			c.SnapModTime, c.LiveModTime = snapInfo.ModTime(), liveInfo.ModTime()
 			// This used to be an unconditional Same, which told anyone browsing
 			// that a folder was untouched without looking inside it once.
+			if opt.DeferDirectories {
+				c.Status = NotExamined
+				out = append(out, c)
+				continue
+			}
 			differs, answered := DiffersWithin(snapPath, livePath, opt)
 			switch {
 			case !answered:

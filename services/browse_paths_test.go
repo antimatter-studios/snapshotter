@@ -182,3 +182,58 @@ func TestLocateReportsPresencePerSnapshot(t *testing.T) {
 		}
 	}
 }
+
+// The listing must come back at once, with folders resolved separately: a folder
+// whose contents are unchanged costs a full walk to prove it, and a window that
+// waits for several of those before drawing anything looks broken.
+func TestTheListingDefersFolderVerdictsAndResolvesThemSeparately(t *testing.T) {
+	svc, seed := browseFixture(t)
+
+	listing, err := svc.Merged(browseSnapshot, seed, true)
+	if err != nil {
+		t.Fatalf("merged: %v", err)
+	}
+
+	var sawFolder bool
+	for _, row := range listing.Rows {
+		if !row.IsDir {
+			continue
+		}
+		sawFolder = true
+		if row.Status != "notExamined" {
+			t.Errorf("%s came back as %q; the listing should not have walked it",
+				row.RelPath, row.Status)
+		}
+	}
+	if !sawFolder {
+		t.Skip("the fixture has no folders to defer")
+	}
+
+	// And asking directly answers it. The fake mount copies the seed, so nothing
+	// has changed between the two sides.
+	status, err := svc.DirectoryStatus(browseSnapshot, seed+"/Documents")
+	if err != nil {
+		t.Fatalf("directory status: %v", err)
+	}
+	if status != "same" {
+		t.Errorf("an unchanged folder resolved to %q", status)
+	}
+}
+
+// A folder whose contents differ must resolve to changed, which is the bug that
+// started this: it used to say unchanged without looking.
+func TestAChangedFolderResolvesToChanged(t *testing.T) {
+	svc, seed := browseFixture(t)
+
+	if err := os.WriteFile(seed+"/Documents/notes.md", []byte("edited, and longer than before"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	status, err := svc.DirectoryStatus(browseSnapshot, seed+"/Documents")
+	if err != nil {
+		t.Fatalf("directory status: %v", err)
+	}
+	if status != "modified" {
+		t.Errorf("a folder with an edited file inside resolved to %q", status)
+	}
+}
