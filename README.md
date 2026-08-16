@@ -332,13 +332,20 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.30.0
+
+Every file row has a Compare button, which opens the snapshot's version beside
+another. The right-hand side defaults to the live disk and can be switched to any
+other mounted snapshot. The button is new: the panel shipped in v0.22.0 with
+nothing to open it.
+
 ### v0.29.0
 
 The file listing has a white background in the light theme rather than the
 window's grey, which was hard to read against small monospaced text. The dark
 theme is unchanged.
 
-### v0.28.0
+### v0.28.0 (released as part of v0.29.0)
 
 Folder verdicts carry a mark as well as a word: a green tick for identical, a
 red cross for one that could not be read. "Identical" replaces "unchanged",
@@ -384,11 +391,6 @@ as *detecting…* and resolve one at a time.
 Browsing a snapshot no longer reports every folder as unchanged without looking
 inside it. A directory is walked until the first difference and then stopped,
 which is all the browser needs to print one word per row.
-
-### v0.20.0
-
-The outcome column of a bulk deletion warning says whether a snapshot was taken
-rather than repeating the date already in the first column.
 
 
 ## Design decisions

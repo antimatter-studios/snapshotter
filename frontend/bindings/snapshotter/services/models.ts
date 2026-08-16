@@ -172,16 +172,21 @@ export class ConfigView {
 }
 
 /**
- * FileVersions is one file as the snapshot holds it and as it is now, ready to
- * be shown side by side.
+ * FileVersions is one file as two chosen versions hold it, ready to be shown
+ * side by side.
+ *
+ * Left and Right rather than Snapshot and Live, because the right side is no
+ * longer always the disk: it is whichever version was picked to compare against,
+ * and another mounted snapshot is as valid a choice as the live filesystem. The
+ * left side is always the snapshot being browsed.
  */
 export class FileVersions {
     /**
-     * Snapshot and Live are the two texts. Empty with Readable false means the
-     * file was not returned as text at all, and the reason is in Note.
+     * Left and Right are the two texts. Empty with Readable false means the file
+     * was not returned as text at all, and the reason is in Note.
      */
-    "snapshot": string;
-    "live": string;
+    "left": string;
+    "right": string;
 
     /**
      * Readable is false for a file that is binary or too large. Both are ordinary
@@ -195,37 +200,47 @@ export class FileVersions {
      * The figures are given whatever happens, because "2.1 MB became 2.4 MB" is
      * still an answer about a file that cannot be diffed.
      */
-    "snapshotSize": number;
-    "liveSize": number;
+    "leftSize": number;
+    "rightSize": number;
 
     /**
-     * Missing sides are how a file created or deleted since the snapshot appears.
+     * Missing sides are how a file created or deleted between the two versions
+     * appears.
      */
-    "inSnapshot": boolean;
-    "onDisk": boolean;
+    "leftExists": boolean;
+    "rightExists": boolean;
+
+    /**
+     * RightLabel names what the right side turned out to be, so the window can say
+     * so without repeating the rule for resolving it.
+     */
+    "rightLabel": string;
 
     /** Creates a new FileVersions instance. */
     constructor($$source: Partial<FileVersions> = {}) {
-        if (!("snapshot" in $$source)) {
-            this["snapshot"] = "";
+        if (!("left" in $$source)) {
+            this["left"] = "";
         }
-        if (!("live" in $$source)) {
-            this["live"] = "";
+        if (!("right" in $$source)) {
+            this["right"] = "";
         }
         if (!("readable" in $$source)) {
             this["readable"] = false;
         }
-        if (!("snapshotSize" in $$source)) {
-            this["snapshotSize"] = 0;
+        if (!("leftSize" in $$source)) {
+            this["leftSize"] = 0;
         }
-        if (!("liveSize" in $$source)) {
-            this["liveSize"] = 0;
+        if (!("rightSize" in $$source)) {
+            this["rightSize"] = 0;
         }
-        if (!("inSnapshot" in $$source)) {
-            this["inSnapshot"] = false;
+        if (!("leftExists" in $$source)) {
+            this["leftExists"] = false;
         }
-        if (!("onDisk" in $$source)) {
-            this["onDisk"] = false;
+        if (!("rightExists" in $$source)) {
+            this["rightExists"] = false;
+        }
+        if (!("rightLabel" in $$source)) {
+            this["rightLabel"] = "";
         }
 
         Object.assign(this, $$source);

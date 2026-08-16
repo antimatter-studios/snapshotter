@@ -7,7 +7,33 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.30.0 — 2026-08-16
+
+**Compare, and a choice of what to compare against.**
+
+The button that opens a file's differences never existed. The service behind it,
+the panel it opens and the wiring in between all shipped in v0.22.0, but the row
+never rendered a control to reach any of it — the callback was threaded through
+the browser and dropped. `noUnusedParameters` is off, so nothing said so. Every
+file row has a **Compare** button now, which is the first time the feature has
+been reachable at all.
+
+**The right side is a choice.** It defaults to the live disk, because "what have
+I done to this since" is the usual question. Any other mounted snapshot can be
+picked instead, which turns the panel into "what happened to this file between
+these two dates" — something the disk alone cannot answer. The left side stays
+fixed on the snapshot being browsed.
+
+`FileVersions` gained a target argument and its fields are `Left`/`Right` rather
+than `Snapshot`/`Live`, because the right side is no longer always the disk. It
+also returns a label for whatever the right side resolved to, so the window names
+it rather than restating the rule. An unmounted target is refused rather than
+quietly falling back to the disk, which would answer a question nobody asked.
+
 ## v0.29.0 — 2026-08-16
+
+Carries the marks work below as well: v0.28.0 was written up but never tagged,
+so it reached people here rather than under its own version.
 
 **The file listing is white in the light theme.**
 
@@ -22,8 +48,6 @@ surface. And row hover was drawn with `--panel`, which is `#ffffff` in the light
 theme and therefore invisible against a white listing; it now uses `--hover`,
 the token that means this. Hover is consequently a little more legible in the
 dark theme too.
-
-## v0.28.0 — 2026-08-16
 
 **A mark on every folder verdict, and a better word for a match.**
 

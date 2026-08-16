@@ -292,13 +292,18 @@ func emit(name string, data any) {
 	}
 }
 
-// FileVersions is one file as the snapshot holds it and as it is now, ready to
-// be shown side by side.
+// FileVersions is one file as two chosen versions hold it, ready to be shown
+// side by side.
+//
+// Left and Right rather than Snapshot and Live, because the right side is no
+// longer always the disk: it is whichever version was picked to compare against,
+// and another mounted snapshot is as valid a choice as the live filesystem. The
+// left side is always the snapshot being browsed.
 type FileVersions struct {
-	// Snapshot and Live are the two texts. Empty with Readable false means the
-	// file was not returned as text at all, and the reason is in Note.
-	Snapshot string `json:"snapshot"`
-	Live     string `json:"live"`
+	// Left and Right are the two texts. Empty with Readable false means the file
+	// was not returned as text at all, and the reason is in Note.
+	Left  string `json:"left"`
+	Right string `json:"right"`
 	// Readable is false for a file that is binary or too large. Both are ordinary
 	// outcomes rather than errors: a JPEG has no line-by-line difference to show
 	// and a 500MB log would take the window down with it.
@@ -306,11 +311,15 @@ type FileVersions struct {
 	Note     string `json:"note,omitempty"`
 	// The figures are given whatever happens, because "2.1 MB became 2.4 MB" is
 	// still an answer about a file that cannot be diffed.
-	SnapshotSize int64 `json:"snapshotSize"`
-	LiveSize     int64 `json:"liveSize"`
-	// Missing sides are how a file created or deleted since the snapshot appears.
-	InSnapshot bool `json:"inSnapshot"`
-	OnDisk     bool `json:"onDisk"`
+	LeftSize  int64 `json:"leftSize"`
+	RightSize int64 `json:"rightSize"`
+	// Missing sides are how a file created or deleted between the two versions
+	// appears.
+	LeftExists  bool `json:"leftExists"`
+	RightExists bool `json:"rightExists"`
+	// RightLabel names what the right side turned out to be, so the window can say
+	// so without repeating the rule for resolving it.
+	RightLabel string `json:"rightLabel"`
 }
 
 // maxDiffableBytes is the largest file each side may be for a text comparison.
@@ -327,41 +336,57 @@ const maxDiffableBytes = 1 << 20
 // This is the question the tree comparison never answered: it produced a list of
 // paths that had changed, which tells someone where to look and nothing about
 // what they would find there.
-func (d *DiffService) FileVersions(snapshotName, livePath string) (FileVersions, error) {
+func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string) (FileVersions, error) {
 	var out FileVersions
 
-	_, snapshotPath, err := d.mountedSide(snapshotName, livePath)
+	_, leftPath, err := d.mountedSide(snapshotName, livePath)
 	if err != nil {
 		return out, err
 	}
-	live := filepath.Clean(livePath)
 
-	snapInfo, snapErr := os.Stat(snapshotPath)
-	liveInfo, liveErr := os.Stat(live)
-	out.InSnapshot, out.OnDisk = snapErr == nil, liveErr == nil
-	if !out.InSnapshot && !out.OnDisk {
-		return out, fmt.Errorf("services: %s is in neither the snapshot nor on disk", livePath)
-	}
-	if out.InSnapshot {
-		out.SnapshotSize = snapInfo.Size()
-	}
-	if out.OnDisk {
-		out.LiveSize = liveInfo.Size()
+	// An empty target means the live disk, which is both the default and the
+	// common case. Any other value names a snapshot, which must be mounted for
+	// the same reason the left side must be — an unmounted snapshot has no paths
+	// to read.
+	rightPath := filepath.Clean(livePath)
+	out.RightLabel = "the live disk"
+	if targetSnapshot != "" {
+		if targetSnapshot == snapshotName {
+			return out, fmt.Errorf("services: %s cannot be compared with itself", snapshotName)
+		}
+		view, path, err := d.mountedSide(targetSnapshot, livePath)
+		if err != nil {
+			return out, err
+		}
+		rightPath, out.RightLabel = path, view.Stamp
 	}
 
-	if out.SnapshotSize > maxDiffableBytes || out.LiveSize > maxDiffableBytes {
+	leftInfo, leftErr := os.Stat(leftPath)
+	rightInfo, rightErr := os.Stat(rightPath)
+	out.LeftExists, out.RightExists = leftErr == nil, rightErr == nil
+	if !out.LeftExists && !out.RightExists {
+		return out, fmt.Errorf("services: %s is in neither version", livePath)
+	}
+	if out.LeftExists {
+		out.LeftSize = leftInfo.Size()
+	}
+	if out.RightExists {
+		out.RightSize = rightInfo.Size()
+	}
+
+	if out.LeftSize > maxDiffableBytes || out.RightSize > maxDiffableBytes {
 		out.Note = "too large to compare line by line"
 		return out, nil
 	}
 
-	snapText, okSnap := readableFile(snapshotPath, out.InSnapshot)
-	liveText, okLive := readableFile(live, out.OnDisk)
-	if !okSnap || !okLive {
+	leftText, okLeft := readableFile(leftPath, out.LeftExists)
+	rightText, okRight := readableFile(rightPath, out.RightExists)
+	if !okLeft || !okRight {
 		out.Note = "this looks like a binary file, so there are no lines to compare"
 		return out, nil
 	}
 
-	out.Snapshot, out.Live, out.Readable = snapText, liveText, true
+	out.Left, out.Right, out.Readable = leftText, rightText, true
 	return out, nil
 }
 
