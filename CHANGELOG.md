@@ -7,6 +7,34 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.39.0 — 2026-08-16
+
+**The name and the contents both have to say "picture".**
+
+Only images were ever shown this way — a zip fell through to "no lines to
+compare" like any other binary — but the decision was made on the file's
+extension alone, and that is wrong in a way worth fixing: a zip renamed
+`photo.png` would have been encoded, sent to the window and handed to an image
+tag, which draws a broken icon and explains nothing.
+
+The contents are sniffed now. Where the sniff recognises a picture it decides,
+because the web view sniffs too and will draw what the file actually is. Where it
+positively identifies something else — a zip, a PDF, an executable — that is not
+a picture whatever it is called.
+
+The extension is allowed to decide only where the sniff has no opinion at all,
+which is not a loophole but the point: HEIC, AVIF and SVG are unknown to the
+standard library and drawn perfectly well by the web view, and HEIC is what this
+Mac's own screenshots and photographs are. Rejecting them would have been the
+worse error.
+
+**And a missing picture says which kind of missing it is.** An empty half of the
+pair read "not in this snapshot" on either side, which is only true on the left.
+Missing on the left means the picture was added after the snapshot was taken;
+missing on the right means it has been deleted — which is the case someone
+browsing a snapshot is most often here to find. Each side now says its own, in
+the frame the picture would have had, so the two still read as a pair.
+
 ## v0.38.0 — 2026-08-16
 
 **Pictures are shown, not described.**

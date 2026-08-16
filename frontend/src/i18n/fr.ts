@@ -169,4 +169,6 @@ export const fr: Record<Key, string> = {
   "diff.imageDiffersInPixels": "{n} % des pixels diffèrent",
   "diff.imageSizeDiffers": "Les deux ont des dimensions différentes ; leurs pixels ne peuvent donc pas être comparés.",
   "diff.imageNoPixelChange": "Chaque pixel est identique.",
+  "diff.imageAdded": "Ajoutée depuis — absente de {version}",
+  "diff.imageDeleted": "Supprimée — ne figure plus dans {version}",
 };

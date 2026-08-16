@@ -1569,3 +1569,17 @@ pre.log {
   background: #101014;
   max-height: 100%;
 }
+
+/* An empty half of the pair, where the picture is absent rather than merely
+   unshowable. Given the frame a picture would have had, so the two sides still
+   read as a pair rather than as one panel and some text. */
+.image-absent {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  color: var(--deleted);
+}

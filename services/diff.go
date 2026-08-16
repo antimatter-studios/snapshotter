@@ -11,6 +11,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -415,7 +416,14 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	// check because every image format is binary, and "no lines to compare" is a
 	// poor answer to "what changed in this screenshot" when both versions can
 	// simply be put side by side.
-	if mediaType := imageMediaType(livePath); mediaType != "" {
+	// Either side settles it: a picture deleted since the snapshot exists only on
+	// the left, and one created since only on the right. Asking the right first
+	// means a file whose type changed is shown as whatever it is now.
+	mediaType := imageMediaType(rightPath, out.RightExists)
+	if mediaType == "" {
+		mediaType = imageMediaType(leftPath, out.LeftExists)
+	}
+	if mediaType != "" {
 		out.Kind = "image"
 		out.LeftImage = dataURI(leftPath, mediaType, out.LeftExists, out.LeftSize)
 		out.RightImage = dataURI(rightPath, mediaType, out.RightExists, out.RightSize)
@@ -485,10 +493,58 @@ var imageTypes = map[string]string{
 	".avif": "image/avif",
 }
 
-// imageMediaType returns the media type for a path, or empty if it is not a
+// sniffedTypeBytes is how much of a file http.DetectContentType needs. Its own
+// documented figure; more is read from no file than this.
+const sniffedTypeBytes = 512
+
+// imageMediaType returns the media type for a file, or empty if it is not a
 // picture this can show.
-func imageMediaType(path string) string {
-	return imageTypes[strings.ToLower(filepath.Ext(path))]
+//
+// The name and the contents have to agree, because each alone gets it wrong in a
+// different direction.
+//
+// Trusting the extension alone means a ZIP renamed photo.png is base64-encoded,
+// sent to the window and handed to an <img> tag, which fails to draw it. Trusting
+// the sniff alone rejects HEIC, AVIF and SVG, which the standard library does not
+// recognise but the web view draws perfectly well — and HEIC is what this Mac's
+// own screenshots and photographs are.
+//
+// So: the sniff decides when it recognises a picture, and the extension is
+// allowed to decide only when the sniff has no opinion at all. Anything the sniff
+// positively identifies as something else — a zip, a PDF, an executable — is not
+// a picture whatever it is called.
+func imageMediaType(path string, exists bool) string {
+	byName := imageTypes[strings.ToLower(filepath.Ext(path))]
+	if byName == "" || !exists {
+		return ""
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	buf := make([]byte, sniffedTypeBytes)
+	n, err := f.Read(buf)
+	if n == 0 || (err != nil && !errors.Is(err, io.EOF)) {
+		return ""
+	}
+	sniffed := http.DetectContentType(buf[:n])
+
+	// The contents say picture: believe them over the name, since the web view
+	// sniffs too and will draw what it actually is.
+	if strings.HasPrefix(sniffed, "image/") {
+		return sniffed
+	}
+	// No opinion. This is what HEIC, AVIF and SVG look like to the standard
+	// library, so the extension is allowed to stand.
+	if sniffed == "application/octet-stream" || strings.HasPrefix(sniffed, "text/") {
+		return byName
+	}
+	// A confident answer that is not a picture: application/zip, application/pdf,
+	// and everything else it knows by signature.
+	return ""
 }
 
 // dataURI reads a file and encodes it for an <img> tag.
