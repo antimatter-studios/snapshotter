@@ -34,10 +34,15 @@ Dismissing the password prompt handed focus back, the refresh succeeded, and the
 explanation was wiped before it could be read.
 
 A background read succeeding says nothing about whether the thing you asked for
-worked. Neither the overview nor the health refresh clears an error now; it stays
-until the next action or until it is dismissed. The clears that happen at the
-*start* of an action are kept, because a new attempt genuinely does start with a
-clean slate.
+worked. The error is held state now: neither the overview nor the health refresh
+clears it, and it survives every refresh until something replaces it. The clears
+that happen at the *start* of an action are kept, because a new attempt genuinely
+does start with a clean slate.
+
+Because it persists, it can also be dismissed — clicking it clears it, which is
+what the status banner beside it has always done. An error that cannot be got rid
+of except by doing something else is a worse thing to leave on screen than the
+one that vanished too fast.
 
 ## v0.12.0 — 2026-08-16
 
