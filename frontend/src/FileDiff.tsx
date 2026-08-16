@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { Diff, message, type FileVersions, type SnapshotView } from "./api";
 import { bytes } from "./format";
+import { useTranslation } from "./i18n";
 
 /**
  * What changed inside one file, between two chosen versions of it.
@@ -36,6 +37,7 @@ export function FileDiff({
   dark: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [versions, setVersions] = useState<FileVersions | null>(null);
   const [error, setError] = useState("");
   // "" is the live disk. It is the default rather than a special case.
@@ -84,42 +86,42 @@ export function FileDiff({
               viewer's own column titles are not used: they are laid out inside a
               row this file does not control, and a snapshot stamp was tall enough
               to be clipped by it. */}
-          <span className="version">{left?.stamp ?? "The snapshot"}</span>
+          <span className="version">{left?.stamp ?? t("diff.theSnapshot")}</span>
           <span className="arrow" aria-hidden="true">
             →
           </span>
           <label className="visually-hidden" htmlFor="diff-target">
-            Compare with
+            {t("diff.compareWith")}
           </label>
           <select id="diff-target" value={target} onChange={(e) => setTarget(e.target.value)}>
-            <option value="">The live disk</option>
+            <option value="">{t("diff.theLiveDisk")}</option>
             {targets.map((s) => (
               <option key={s.name} value={s.name}>
                 {s.stamp}
               </option>
             ))}
           </select>
-          <button onClick={onClose}>Close</button>
+          <button onClick={onClose}>{t("diff.close")}</button>
         </div>
       </header>
 
       {error && <p className="error">{error}</p>}
-      {!versions && !error && <p className="empty-note">Reading both versions…</p>}
+      {!versions && !error && <p className="empty-note">{t("diff.reading")}</p>}
 
       {versions && !versions.readable && (
         <p className="empty-note">
-          {versions.note || "This file cannot be compared line by line."}{" "}
+          {versions.note || t("diff.cannotCompare")}{" "}
           {/* The sizes are what is left to say, and they are worth saying. */}
-          {versions.leftExists ? bytes(versions.leftSize) : "not in this snapshot"} →{" "}
-          {versions.rightExists ? bytes(versions.rightSize) : `not in ${versions.rightLabel}`}
+          {versions.leftExists ? bytes(versions.leftSize) : t("diff.notInThisSnapshot")} →{" "}
+          {versions.rightExists ? bytes(versions.rightSize) : t("diff.notIn", { version: versions.rightLabel })}
         </p>
       )}
 
       {versions?.readable && (!versions.leftExists || !versions.rightExists) && (
         <p className="empty-note">
           {!versions.leftExists
-            ? `This file is not in ${left?.stamp ?? "the snapshot"} — everything below was added.`
-            : `This file is no longer in ${versions.rightLabel} — everything below was removed.`}
+            ? t("diff.addedWhole", { version: left?.stamp ?? t("diff.theSnapshot") })
+            : t("diff.removedWhole", { version: versions.rightLabel })}
         </p>
       )}
 

@@ -7,6 +7,34 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.33.0 — 2026-08-16
+
+**English, German, Spanish and French**, chosen from a picker beside the theme
+toggle.
+
+Two catalogues rather than one. The window's text is compiled into the frontend,
+because it is needed for the first paint and a round trip to a service would mean
+either a flash of English or an empty window while it arrived. The menu bar's
+text stays in Go, where it is drawn. They share one setting: the language is
+written to the settings file, so the watcher already there redraws the menu bar
+and both surfaces change together, without a relaunch.
+
+English is the source of truth for the key list and the other three catalogues
+are typed against it, so a language missing a key fails the build rather than
+falling back silently at runtime. A test covers what the types cannot — blank
+strings, and placeholders dropped in translation, which would otherwise render a
+sentence with its value quietly missing.
+
+The flags are a compromise, and worth naming as one: a flag is a country and a
+language is not. Each language is written in its own name beside its flag, and
+never translated, so someone who has landed in a language they cannot read can
+still find their own.
+
+**Not yet translated:** the Health, Schedule and Search screens, and the Go-side
+strings in the menu bar and notifications. The machinery for both is in place;
+what is left is the text. The translations are machine-made and have not been
+read by a native speaker.
+
 ## v0.32.0 — 2026-08-16
 
 **The compare header no longer clips the version it names.**
