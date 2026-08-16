@@ -79,9 +79,18 @@ export function FileDiff({
           <span className="path">{livePath}</span>
         </div>
         <div className="diff-target">
-          {/* Named rather than left to a bare control: the reader has to know
-              which of the two sides this changes. */}
-          <label htmlFor="diff-target">Compare with</label>
+          {/* The two versions read left to right, in the order they appear below,
+              with the control sitting on the side it actually changes. The diff
+              viewer's own column titles are not used: they are laid out inside a
+              row this file does not control, and a snapshot stamp was tall enough
+              to be clipped by it. */}
+          <span className="version">{left?.stamp ?? "The snapshot"}</span>
+          <span className="arrow" aria-hidden="true">
+            →
+          </span>
+          <label className="visually-hidden" htmlFor="diff-target">
+            Compare with
+          </label>
           <select id="diff-target" value={target} onChange={(e) => setTarget(e.target.value)}>
             <option value="">The live disk</option>
             {targets.map((s) => (
@@ -106,6 +115,14 @@ export function FileDiff({
         </p>
       )}
 
+      {versions?.readable && (!versions.leftExists || !versions.rightExists) && (
+        <p className="empty-note">
+          {!versions.leftExists
+            ? `This file is not in ${left?.stamp ?? "the snapshot"} — everything below was added.`
+            : `This file is no longer in ${versions.rightLabel} — everything below was removed.`}
+        </p>
+      )}
+
       {versions?.readable && (
         <div className="file-diff-body">
           <ReactDiffViewer
@@ -116,8 +133,6 @@ export function FileDiff({
             // Word-level within a changed line: a renamed variable should not
             // present as the whole line being different.
             compareMethod={DiffMethod.WORDS}
-            leftTitle={versions.leftExists ? left?.stamp || "In the snapshot" : "Not in this snapshot"}
-            rightTitle={versions.rightExists ? versions.rightLabel : `Not in ${versions.rightLabel}`}
           />
         </div>
       )}

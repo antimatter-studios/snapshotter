@@ -139,7 +139,14 @@ func installTray(app *application.App, status *services.StatusService, win appli
 					// The caption sits above the strip rather than beside it: macOS
 					// draws an item's image before its label, so a labelled strip
 					// reads as a picture with its caption trailing off to the right.
-					menu.Add("Last two days").OnClick(reveal)
+					//
+					// It says what a mark means, because the strip alone does not.
+					// Twenty-two snapshots can fill three marks — which is the whole
+					// point of showing when rather than how many — but without a
+					// sentence saying so it reads as a strip that has stopped
+					// updating.
+					covered, total := menubar.HoursCovered(taken, time.Now(), coverageWindow)
+					menu.Add(coverageCaption(len(taken), covered, total)).OnClick(reveal)
 					menu.Add("").SetBitmap(strip).OnClick(reveal)
 				}
 			}
@@ -206,6 +213,29 @@ func installTray(app *application.App, status *services.StatusService, win appli
 			render()
 		}
 	}
+}
+
+// coverageCaption says what the strip beneath it means, in the terms someone
+// reading it already has: how many snapshots there are, and how much of the last
+// two days they actually cover.
+//
+// The two numbers are rarely close, and that gap is the thing worth showing. A
+// caption that gave only the window ("Last two days") left the strip looking
+// wrong to anyone who knew their own snapshot count.
+func coverageCaption(snapshots, covered, total int) string {
+	if snapshots == 0 {
+		return "No snapshots in the last two days"
+	}
+	return plural(snapshots, "snapshot") + " covering " +
+		plural(covered, "hour") + " of the last " + strconv.Itoa(total)
+}
+
+// plural is the smallest thing that stops a menu saying "1 snapshots".
+func plural(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return strconv.Itoa(n) + " " + noun + "s"
 }
 
 // trayIcon is the glyph for a level. An unrecognised level is treated as bad

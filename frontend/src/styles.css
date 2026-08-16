@@ -1383,13 +1383,33 @@ pre.log {
   flex: 0 0 auto;
 }
 
-.diff-target label {
-  color: var(--muted);
+/* The left version is fixed, so it is stated rather than offered. Monospaced to
+   line up with the stamp in the dropdown beside it, which is the same kind of
+   thing. */
+.diff-target .version {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.diff-target .arrow {
+  color: var(--muted);
+}
+
+/* Present for anything reading the page aloud, absent for anything looking at
+   it: the arrow already says which side the control changes. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
 }
 
 .diff-target select {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--line);
