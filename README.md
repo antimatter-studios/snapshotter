@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.33.0
+
+The window speaks English, German, Spanish or French, chosen from a picker in the
+header. The choice is written to the settings file, so the menu bar follows it
+too. Some screens are still English — see the changelog.
+
 ### v0.32.0
 
 The compare panel names both versions in its own header instead of in the diff
@@ -385,11 +391,6 @@ stopped it.
 Folder verdicts are remembered while the window is open and forgotten when the
 disk moves under them, so navigating back to a folder no longer re-walks it. An
 unreadable subfolder no longer makes a whole tree unanswerable.
-
-### v0.23.0
-
-Folder verdicts resolve a few at a time rather than all at once, which had the
-application taking six cores for a minute on a home directory listing.
 
 
 ## Design decisions
