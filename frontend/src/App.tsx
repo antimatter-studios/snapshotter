@@ -291,6 +291,7 @@ export default function App() {
             <FileDiff
               snapshot={current.name}
               livePath={diffFile}
+              snapshots={snapshots}
               dark={darkNow()}
               onClose={() => setDiffFile("")}
             />

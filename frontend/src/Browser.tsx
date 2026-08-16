@@ -203,6 +203,14 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
               <td className="num">{status === "onlyInSnapshot" ? "—" : bytes(row.liveSize)}</td>
               <td>{stamp(row.snapModTime || row.liveModTime)}</td>
               <td className="actions">
+                {/* Files only: a folder has no lines to compare. Offered whatever
+                    the verdict, because a file that exists on one side alone is
+                    still worth seeing as a whole side added or removed. */}
+                {!row.isDir && (
+                  <button onClick={() => onDiff(row.absLive)} title="See what is different inside this file">
+                    Compare
+                  </button>
+                )}
                 {status !== "onlyOnDisk" && (
                   <>
                     <button onClick={() => restore(row, false)} title="Copy it back alongside whatever is there now">

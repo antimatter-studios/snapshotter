@@ -45,7 +45,7 @@ func TestBothVersionsOfAnEditedFileComeBack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, live)
+	got, err := svc.FileVersions(browseSnapshot, live, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -55,16 +55,16 @@ func TestBothVersionsOfAnEditedFileComeBack(t *testing.T) {
 	// The fake mount writes its own text rather than copying the seed, so what
 	// matters here is that a snapshot side came back at all and that it is not
 	// the live one.
-	if got.Snapshot == "" {
-		t.Error("no snapshot side was returned")
+	if got.Left == "" {
+		t.Error("no left side was returned")
 	}
-	if got.Snapshot == got.Live {
+	if got.Left == got.Right {
 		t.Error("both sides are identical, so nothing was read from the snapshot")
 	}
-	if !strings.Contains(got.Live, "two CHANGED") {
-		t.Errorf("the live side is wrong: %q", got.Live)
+	if !strings.Contains(got.Right, "two CHANGED") {
+		t.Errorf("the right side is wrong: %q", got.Right)
 	}
-	if !got.InSnapshot || !got.OnDisk {
+	if !got.LeftExists || !got.RightExists {
 		t.Errorf("both sides exist but were not reported: %+v", got)
 	}
 }
@@ -74,7 +74,7 @@ func TestBothVersionsOfAnEditedFileComeBack(t *testing.T) {
 func TestABinaryFileIsNotOfferedAsText(t *testing.T) {
 	svc, seed := fileFixture(t)
 
-	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "picture.bin"))
+	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "picture.bin"), "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestABinaryFileIsNotOfferedAsText(t *testing.T) {
 		t.Error("nothing explained why it cannot be shown")
 	}
 	// The sizes are the only answer left for a file that cannot be diffed.
-	if got.LiveSize == 0 {
+	if got.RightSize == 0 {
 		t.Error("the size was withheld, which is all a binary comparison can offer")
 	}
 }
@@ -100,21 +100,21 @@ func TestAFileCreatedSinceTheSnapshotShowsAsAllAdded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, live)
+	got, err := svc.FileVersions(browseSnapshot, live, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
-	if got.InSnapshot {
+	if got.LeftExists {
 		t.Error("a file that did not exist yet was reported as being in the snapshot")
 	}
-	if !got.OnDisk || !got.Readable {
+	if !got.RightExists || !got.Readable {
 		t.Errorf("the live side was not returned: %+v", got)
 	}
-	if got.Snapshot != "" {
-		t.Errorf("the missing side is not empty: %q", got.Snapshot)
+	if got.Left != "" {
+		t.Errorf("the missing side is not empty: %q", got.Left)
 	}
-	if !strings.Contains(got.Live, "written today") {
-		t.Errorf("the live text is wrong: %q", got.Live)
+	if !strings.Contains(got.Right, "written today") {
+		t.Errorf("the live text is wrong: %q", got.Right)
 	}
 }
 
@@ -122,7 +122,7 @@ func TestAFileCreatedSinceTheSnapshotShowsAsAllAdded(t *testing.T) {
 func TestAFileInNeitherPlaceIsAnError(t *testing.T) {
 	svc, seed := fileFixture(t)
 
-	if _, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "never-existed.md")); err == nil {
+	if _, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "never-existed.md"), ""); err == nil {
 		t.Error("a file that exists nowhere came back without an error")
 	}
 }
@@ -137,7 +137,7 @@ func TestATooLargeFileIsDeclinedRatherThanLoaded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, big)
+	got, err := svc.FileVersions(browseSnapshot, big, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -147,7 +147,41 @@ func TestATooLargeFileIsDeclinedRatherThanLoaded(t *testing.T) {
 	if !strings.Contains(got.Note, "large") {
 		t.Errorf("the note does not say why: %q", got.Note)
 	}
-	if got.LiveSize <= maxDiffableBytes {
-		t.Errorf("the size was not reported: %d", got.LiveSize)
+	if got.RightSize <= maxDiffableBytes {
+		t.Errorf("the size was not reported: %d", got.RightSize)
+	}
+}
+
+// The right side defaults to the live disk but is not fixed to it: any other
+// mounted snapshot is an equally valid thing to compare against, which is what
+// makes "what did this file look like between these two dates" answerable.
+func TestTheRightSideCanBeAnotherSnapshot(t *testing.T) {
+	svc, seed := fileFixture(t)
+
+	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "notes.md"), browseSnapshot)
+	if err == nil {
+		t.Fatal("a snapshot was compared against itself, which has no answer to give")
+	}
+	_ = got
+
+	// An unmounted snapshot has no paths to read, so it is refused rather than
+	// silently falling back to the disk — a fallback would answer a question
+	// nobody asked.
+	if _, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "notes.md"), "com.apple.TimeMachine.2020-01-01-000000.local"); err == nil {
+		t.Error("an unmounted snapshot was accepted as a comparison target")
+	}
+}
+
+// The window says which version the right side turned out to be, rather than
+// restating the rule for working it out.
+func TestTheRightSideIsLabelled(t *testing.T) {
+	svc, seed := fileFixture(t)
+
+	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "notes.md"), "")
+	if err != nil {
+		t.Fatalf("file versions: %v", err)
+	}
+	if got.RightLabel != "the live disk" {
+		t.Errorf("the default target is not named as the disk: %q", got.RightLabel)
 	}
 }

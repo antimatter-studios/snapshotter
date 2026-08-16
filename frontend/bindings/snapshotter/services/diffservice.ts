@@ -64,8 +64,8 @@ export function CompareSnapshots(req: $models.CompareSnapshotsRequest): $Cancell
  * paths that had changed, which tells someone where to look and nothing about
  * what they would find there.
  */
-export function FileVersions(snapshotName: string, livePath: string): $CancellablePromise<$models.FileVersions> {
-    return $Call.ByID(3591362334, snapshotName, livePath).then(($result: any) => {
+export function FileVersions(snapshotName: string, livePath: string, targetSnapshot: string): $CancellablePromise<$models.FileVersions> {
+    return $Call.ByID(3591362334, snapshotName, livePath, targetSnapshot).then(($result: any) => {
         return $$createType2($result);
     });
 }
