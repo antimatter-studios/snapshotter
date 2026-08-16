@@ -172,4 +172,5 @@ export const es: Record<Key, string> = {
   "diff.imageNoPixelChange": "Todos los píxeles son iguales.",
   "diff.imageAdded": "Añadida desde entonces: no está en {version}",
   "diff.imageDeleted": "Eliminada: ya no está en {version}",
+  "diff.nothingToShow": "Este archivo no está en ninguna de las dos versiones, así que no hay nada que comparar.",
 };

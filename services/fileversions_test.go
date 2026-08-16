@@ -121,12 +121,28 @@ func TestAFileCreatedSinceTheSnapshotShowsAsAllAdded(t *testing.T) {
 	}
 }
 
-// A file in neither place is a genuine error, unlike every case above.
-func TestAFileInNeitherPlaceIsAnError(t *testing.T) {
+// A file in neither version has nothing to show, which is not the same as
+// something having gone wrong.
+//
+// It used to be returned as an error, and that was too strong: the case is
+// reachable by ordinary use — open a file that exists only on the live disk, then
+// point the right side at a snapshot taken before it was made — and a red banner
+// is the wrong answer to a question that simply has none.
+func TestAFileInNeitherVersionHasNothingToShow(t *testing.T) {
 	svc, seed := fileFixture(t)
 
-	if _, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "never-existed.md"), ""); err == nil {
-		t.Error("a file that exists nowhere came back without an error")
+	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "never-existed.md"), "")
+	if err != nil {
+		t.Fatalf("a file existing nowhere was reported as a failure: %v", err)
+	}
+	if got.Kind != "absent" {
+		t.Errorf("kind is %q, so the window cannot tell this case apart", got.Kind)
+	}
+	if got.Readable {
+		t.Error("offered as text when there is no text")
+	}
+	if got.Note == "" {
+		t.Error("nothing said why there is nothing to see")
 	}
 }
 

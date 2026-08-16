@@ -7,6 +7,21 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.40.0 — 2026-08-16
+
+**A file in neither version says so, instead of failing.**
+
+Comparing needs one side to have something on it. With both sides empty there is
+nothing to show — but that was returned as an error, which put a red banner over
+a question that was perfectly reasonable to ask.
+
+It is reachable by ordinary use rather than by doing anything strange: open a file
+that exists only on the live disk, then point the right side at a snapshot taken
+before that file was made. Neither version holds it. Nothing has gone wrong, and
+the answer is simply that there is nothing to compare.
+
+One test changed with it, from asserting an error to asserting the explanation.
+
 ## v0.39.0 — 2026-08-16
 
 **The name and the contents both have to say "picture".**

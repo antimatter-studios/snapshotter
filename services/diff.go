@@ -403,7 +403,13 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	rightInfo, rightErr := os.Stat(rightPath)
 	out.LeftExists, out.RightExists = leftErr == nil, rightErr == nil
 	if !out.LeftExists && !out.RightExists {
-		return out, fmt.Errorf("services: %s is in neither version", livePath)
+		// Not an error. It is reachable by ordinary use — open a file that exists
+		// only on the live disk, then point the right side at a snapshot taken
+		// before it was made — and there is nothing wrong with asking. An error
+		// would put a red banner over a question that simply has no answer.
+		out.Kind = "absent"
+		out.Note = "this file is in neither version"
+		return out, nil
 	}
 	if out.LeftExists {
 		out.LeftSize = leftInfo.Size()
