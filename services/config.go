@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"snapshotter/internal/config"
@@ -63,6 +64,25 @@ func (c *ConfigService) SetTheme(theme string) error {
 		return fmt.Errorf("not changing the theme: %w", err)
 	}
 	cfg.Appearance.Theme = theme
+	return config.Save(cfg)
+}
+
+// SetLanguage records which language both surfaces should speak.
+//
+// Written to the settings file rather than only to the window, because the menu
+// bar is drawn in Go and reads the same file: the settings watcher redraws it,
+// so a language chosen in the window reaches the menu bar without a relaunch.
+func (c *ConfigService) SetLanguage(code string) error {
+	if !slices.Contains(config.Languages, code) {
+		return fmt.Errorf("services: %q is not a language this build carries", code)
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		// The same reasoning as the theme: saving over a file that could not be
+		// parsed would destroy whatever is in it, to change which words are shown.
+		return fmt.Errorf("not changing the language: %w", err)
+	}
+	cfg.Appearance.Language = code
 	return config.Save(cfg)
 }
 

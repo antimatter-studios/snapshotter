@@ -7,6 +7,8 @@ import { Schedule } from "./Schedule";
 import { Health } from "./Health";
 import { Search } from "./Search";
 import { ThemeToggle } from "./ThemeToggle";
+import { LanguagePicker } from "./LanguagePicker";
+import { useTranslation } from "./i18n";
 import { useLiveRefresh } from "./live";
 import { useAction } from "./useAction";
 // The same file the application icon and the favicon are built from, reached out
@@ -28,6 +30,7 @@ type Tab = "browse" | "search";
 type View = "home" | "snapshots" | "schedule";
 
 export default function App() {
+  const { t } = useTranslation();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [selected, setSelected] = useState<string>("");
   const [path, setPath] = useState<string>("");
@@ -119,12 +122,13 @@ export default function App() {
           <img className="mark" src={iconUrl} alt="" width={40} height={40} />
           <div className="title">
             <h1>Snapshotter</h1>
-            <span className="subtitle">APFS local snapshots on this Mac</span>
+            <span className="subtitle">{t("app.subtitle")}</span>
           </div>
         </div>
         <div className="header-actions">
           {overview && <DiskSpace free={overview.volumeFreeBytes} total={overview.volumeTotalBytes} />}
-          <ThemeToggle />
+          <LanguagePicker />
+            <ThemeToggle />
         </div>
       </header>
 

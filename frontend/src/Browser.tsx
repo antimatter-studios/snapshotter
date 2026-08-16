@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Browse, Restore, message, type MergedListing, type Change, type SnapshotView } from "./api";
-import { bytes, breadcrumbs, stamp, statusLabel } from "./format";
+import { bytes, breadcrumbs, stamp } from "./format";
 import { FileIcon } from "./FileIcon";
 import { StatusIcon } from "./StatusIcon";
+import { useTranslation } from "./i18n";
+import type { Key } from "./i18n/en";
 
 interface Props {
   snapshot: SnapshotView | null;
@@ -21,6 +23,7 @@ interface Props {
  * brings someone here: what is in this folder that is no longer on disk.
  */
 export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatus }: Props) {
+  const { t } = useTranslation();
   const [listing, setListing] = useState<MergedListing | null>(null);
   const [showIdentical, setShowIdentical] = useState(true);
   const [error, setError] = useState("");
@@ -147,7 +150,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
         <div className="toolbar-actions">
           <label className="check">
             <input type="checkbox" checked={showIdentical} onChange={(e) => setShowIdentical(e.target.checked)} />
-            Show identical
+            {t("browser.showIdentical")}
           </label>
           <button onClick={() => Browse.RevealInFinder(snapshot.name, path).catch((e) => setError(message(e)))}>
             Reveal in Finder
@@ -198,7 +201,10 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
                   ) : (
                     <StatusIcon status={status} />
                   )}
-                  {statusLabel[status] ?? status}
+                  {/* The catalogue is keyed by the same names the service uses, so
+                      a status added in Go needs a key rather than a branch here.
+                      statusLabel remains the English registry the icon test reads. */}
+                  {t(`status.${status}` as Key) ?? status}
                 </span>
               </td>
               <td className="num">{status === "onlyOnDisk" ? "—" : bytes(row.snapSize)}</td>
@@ -209,21 +215,21 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
                     the verdict, because a file that exists on one side alone is
                     still worth seeing as a whole side added or removed. */}
                 {!row.isDir && (
-                  <button onClick={() => onDiff(row.absLive)} title="See what is different inside this file">
-                    Compare
+                  <button onClick={() => onDiff(row.absLive)} title={t("browser.compareTitle")}>
+                    {t("browser.compare")}
                   </button>
                 )}
                 {status !== "onlyOnDisk" && (
                   <>
-                    <button onClick={() => restore(row, false)} title="Copy it back alongside whatever is there now">
-                      Restore a copy
+                    <button onClick={() => restore(row, false)} title={t("browser.restoreCopyTitle")}>
+                      {t("browser.restoreCopy")}
                     </button>
                     {status === "modified" && (
                       <button
                         onClick={() => restore(row, true)}
-                        title="Put it back at the original path; the current file is kept as a .bak copy"
+                        title={t("browser.replaceTitle")}
                       >
-                        Replace
+                        {t("browser.replace")}
                       </button>
                     )}
                   </>
@@ -237,7 +243,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
 
       {!busy && listing && visibleRows.length === 0 && (
         <p className="empty-note">
-          {showIdentical ? "This folder is empty on both sides." : "Nothing has changed in this folder."}
+          {showIdentical ? t("browser.emptyBothSides") : t("browser.nothingChanged")}
         </p>
       )}
     </div>

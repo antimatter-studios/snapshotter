@@ -13,10 +13,28 @@ export class Appearance {
      */
     "theme": string;
 
+    /**
+     * Language is a two-letter code: "en", "de", "es" or "fr".
+     *
+     * It sits here rather than in its own section because it is the same kind of
+     * setting as the theme — how the application presents itself, rather than what
+     * it does. Both surfaces read it: the window translates its own text, and the
+     * menu bar is redrawn through the settings watcher, so switching language
+     * changes both without a relaunch.
+     *
+     * An unrecognised or empty value falls back to English rather than failing.
+     * A settings file written by a later version, or edited by hand, should not
+     * leave someone with an application that will not start.
+     */
+    "language": string;
+
     /** Creates a new Appearance instance. */
     constructor($$source: Partial<Appearance> = {}) {
         if (!("theme" in $$source)) {
             this["theme"] = "";
+        }
+        if (!("language" in $$source)) {
+            this["language"] = "";
         }
 
         Object.assign(this, $$source);

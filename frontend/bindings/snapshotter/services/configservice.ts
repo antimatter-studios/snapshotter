@@ -48,6 +48,17 @@ export function IgnoreFolder(folder: string): $CancellablePromise<$models.Config
 }
 
 /**
+ * SetLanguage records which language both surfaces should speak.
+ *
+ * Written to the settings file rather than only to the window, because the menu
+ * bar is drawn in Go and reads the same file: the settings watcher redraws it,
+ * so a language chosen in the window reaches the menu bar without a relaunch.
+ */
+export function SetLanguage(code: string): $CancellablePromise<void> {
+    return $Call.ByID(1967604466, code);
+}
+
+/**
  * SetTheme stores the appearance choice and nothing else.
  *
  * Narrow on purpose. A general "write this whole config" from the window would

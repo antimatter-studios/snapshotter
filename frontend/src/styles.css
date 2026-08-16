@@ -1374,6 +1374,21 @@ pre.log {
   background: var(--bg);
 }
 
+/* Sits with the theme toggle: both are about how the application presents
+   itself rather than what it is showing. */
+.language-picker select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+.language-picker select:hover {
+  border-color: var(--accent);
+}
+
 /* The target selector sits with the close button rather than beside the file
    name: it changes what is being compared, which is a control, not a label. */
 .diff-target {

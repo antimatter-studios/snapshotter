@@ -83,6 +83,33 @@ type Appearance struct {
 	// the absence of one, because following the system is a choice a person can
 	// return to.
 	Theme string `yaml:"theme" json:"theme"`
+	// Language is a two-letter code: "en", "de", "es" or "fr".
+	//
+	// It sits here rather than in its own section because it is the same kind of
+	// setting as the theme — how the application presents itself, rather than what
+	// it does. Both surfaces read it: the window translates its own text, and the
+	// menu bar is redrawn through the settings watcher, so switching language
+	// changes both without a relaunch.
+	//
+	// An unrecognised or empty value falls back to English rather than failing.
+	// A settings file written by a later version, or edited by hand, should not
+	// leave someone with an application that will not start.
+	Language string `yaml:"language" json:"language"`
+}
+
+// Languages are the codes the application has translations for, in the order a
+// picker should offer them.
+var Languages = []string{"en", "de", "es", "fr"}
+
+// Language returns the configured language, or English if it is unset or is not
+// one this build carries.
+func (c Config) Language() string {
+	for _, code := range Languages {
+		if c.Appearance.Language == code {
+			return code
+		}
+	}
+	return "en"
 }
 
 // Window is the size the window opens at.
@@ -138,7 +165,7 @@ func Defaults() Config {
 				"/.Trash/",
 			},
 		},
-		Appearance: Appearance{Theme: "system"},
+		Appearance: Appearance{Theme: "system", Language: "en"},
 		Logging:    Logging{Verbose: false},
 		Window:     Window{Width: 1180, Height: 780},
 		Refresh:    Refresh{MenuBarSeconds: 60, WindowSeconds: 30},
