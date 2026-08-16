@@ -12,6 +12,7 @@ import {
 import { bytes, stamp } from "./format";
 import { FindingIcon } from "./FindingIcon";
 import { useAction } from "./useAction";
+import type { Warning } from "./api";
 
 /**
  * What the one-click fix installs. Six hours rather than hourly, kept a
@@ -216,6 +217,15 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           <dd>{health.version}</dd>
         </div>
       </dl>
+
+      <BulkDeletionWarnings />
+
+      {/* Written by one person and published by a studio. The macOS About panel
+          says both; nothing in the window did, so someone reading this screen to
+          work out what this thing is had to go to the menu bar for the answer. */}
+      <p className="attribution">
+        Snapshotter — © 2026 Chris Thomas. Published by Antimatter Studios.
+      </p>
     </div>
   );
 }
@@ -225,4 +235,57 @@ function coverage(hours: number): string {
   if (hours >= 48) return `${Math.round(hours / 24)} days`;
   if (hours >= 1) return `${Math.round(hours)} hours`;
   return "under an hour";
+}
+
+/**
+ * The last few bulk deletions the tripwire saw.
+ *
+ * Read from a file rather than held in memory, because the tripwire is a
+ * separate process: it runs under launchd, and by the time anyone opens this
+ * window the process that saw the deletion has exited. The file is how the two
+ * talk.
+ *
+ * Absent entirely when nothing has happened. An empty section headed "Bulk
+ * Deletion Warnings" on a healthy Mac invites someone to wonder what is missing.
+ */
+function BulkDeletionWarnings() {
+  const [warnings, setWarnings] = useState<Warning[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      setWarnings(await Status.RecentWarnings(5));
+    } catch {
+      // Nothing to say. This is history, not state: failing to read it is not
+      // worth a banner over a screen that is otherwise correct.
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  useLiveRefresh(load);
+
+  if (warnings.length === 0) return null;
+
+  return (
+    <section className="warnings">
+      <h3>Bulk deletion warnings</h3>
+      <p className="explain">
+        Times something started deleting a lot of files at once. A snapshot was taken at each, so what
+        was still on disk at that moment can be recovered.
+      </p>
+      <ul>
+        {warnings.map((w, i) => (
+          <li key={i}>
+            <div className="warning-when">{stamp(w.at)}</div>
+            <div className="warning-where">{w.where?.join(", ") || "an unknown location"}</div>
+            {/* No snapshot is the case worth seeing: the deletion happened and
+                nothing was captured. */}
+            <div className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}>
+              {w.snapshot ? `Snapshot ${w.snapshot}` : w.note || "No snapshot was taken"}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }

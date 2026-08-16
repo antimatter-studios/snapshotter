@@ -127,6 +127,17 @@ func (t *Tripwire) render() (string, error) {
 	<key>Label</key>
 	<string>%s</string>
 
+	<!-- Which application these belong to.
+	     Without it, System Settings has nothing to attribute the job to and falls
+	     back to the name on the signing certificate — so "App Background Activity"
+	     listed the developer, "Chris Thomas", rather than Snapshotter. The user
+	     sees a person's name against two background items and no way to tell what
+	     they are. -->
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>%s</string>
+	</array>
+
 	<key>ProgramArguments</key>
 	<array>
 %s	</array>
@@ -147,5 +158,5 @@ func (t *Tripwire) render() (string, error) {
 	<string>%s</string>
 </dict>
 </plist>
-`, TripwireLabel, argXML.String(), logPath, logPath), nil
+`, TripwireLabel, BundleID, argXML.String(), logPath, logPath), nil
 }

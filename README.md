@@ -332,6 +332,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.14.0
+
+The home screen lists recent bulk deletion warnings, read from a file the
+tripwire appends to — the tripwire is a separate process, so nothing it sees can
+be held in memory for the window. Background items in System Settings now say
+Snapshotter rather than the name on the signing certificate.
+
 ### v0.13.0
 
 The bulk-deletion tripwire names the folder files are disappearing from rather
@@ -393,14 +400,6 @@ things rather than writing them: a strip showing one cell per hour across the
 last two days, filled where a snapshot exists — so the gaps are visible, which no
 count can show — and a glyph per finding chosen by what the finding is about
 rather than by how bad it is.
-
-### v0.4.0
-
-The settings file can be found and changed from the command line: `snapshotter
-config` says where it is and what is in it, and `config get` / `config set`
-read and change any single setting by name, which is the scriptable way in. The
-command line tool is no longer published separately — the cask installs the
-application and puts `snapshotter` on PATH beside it.
 
 
 ## Design decisions

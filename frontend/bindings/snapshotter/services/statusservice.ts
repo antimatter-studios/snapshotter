@@ -3,7 +3,7 @@
 
 /**
  * StatusService answers one question: is this Mac actually protected right now.
- * 
+ *
  * Every input already existed, scattered across the other services — the
  * snapshot list, the schedule, Time Machine's state, the free space. Scattered
  * is the problem: a user cannot assemble "I am covered" out of four screens, and
@@ -40,7 +40,7 @@ export function MountHelp(): $CancellablePromise<string> {
 
 /**
  * OpenPrivacySettings reveals the Full Disk Access pane.
- * 
+ *
  * It exists because the mount failure it answers is otherwise a dead end: the
  * error names a permission, and the place to grant it is four levels into
  * System Settings.
@@ -49,5 +49,20 @@ export function OpenPrivacySettings(): $CancellablePromise<void> {
     return $Call.ByID(380811309);
 }
 
+/**
+ * RecentWarnings returns the last few bulk deletions, newest first.
+ *
+ * Never an error: a machine where nothing has happened is the ordinary case, and
+ * a screen that shows a red banner instead of an empty section on a healthy Mac
+ * has made things worse.
+ */
+export function RecentWarnings(limit: number): $CancellablePromise<$models.Warning[]> {
+    return $Call.ByID(3499171618, limit).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.Health.createFrom;
+const $$createType1 = $models.Warning.createFrom;
+const $$createType2 = $Create.Array($$createType1);
