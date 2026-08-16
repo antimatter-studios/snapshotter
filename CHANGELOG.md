@@ -7,6 +7,28 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.35.0 — 2026-08-16
+
+**The text the sweep missed.**
+
+"Open all", "Nothing to act on", "Newest", "Next due", the cover figure, the
+schedule's explanatory paragraphs, the log heading, the search's restore
+confirmation, and the browser's remaining tooltips. They survived the first pass
+because they sit on lines mixing text with an expression, or span several lines,
+and the line-by-line search that found the rest could not see them.
+
+Anything holding a value now uses a named placeholder — `Open all ({count})`,
+`Newest {when}` — so a translator can move it to wherever the sentence needs it.
+
+**Two column headers renamed.** "In snapshot" and "On disk" are now "Snapshot
+Size" and "Disk Size", which say what the figures are rather than where they came
+from, and the header row no longer wraps.
+
+**The bulk-deletion table loses its outcome column.** It read "snapshot taken" on
+every healthy row, which is the expected case stated at length. Its absence was
+the only part carrying information, so that is what remains: a row whose response
+failed says so, and a row that worked says nothing.
+
 ## v0.34.0 — 2026-08-16
 
 **The rest of the window is translated.**

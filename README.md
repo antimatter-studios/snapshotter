@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.35.0
+
+The text the first translation sweep missed, mostly sentences with a value in the
+middle. "In snapshot" and "On disk" become "Snapshot Size" and "Disk Size", and
+the bulk-deletion table drops a column that only ever confirmed success.
+
 ### v0.34.0
 
 The whole window is translated rather than three screens of it. Text produced by
@@ -383,13 +389,6 @@ being worked out no longer reads like the verdict itself.
 The "show unchanged" toggle hides unchanged folders as well as files. Folders
 could not be filtered when the listing was built, because a folder's verdict
 arrives afterwards.
-
-### v0.25.0
-
-Folders show the verdict they resolved, rather than the placeholder the listing
-returned before the walk ran. A `logging.verbose` setting reports what each
-verdict concluded and why, and a folder that could not be checked says what
-stopped it.
 
 
 ## Design decisions

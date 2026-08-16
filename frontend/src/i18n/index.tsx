@@ -56,11 +56,14 @@ export function storedLanguage(): Language {
   return "en";
 }
 
+/** The lookup itself, for helpers that live outside a component. */
+export type Translate = (key: Key, values?: Record<string, string | number>) => string;
+
 interface Translation {
   language: Language;
   setLanguage: (next: Language) => void;
   /** Looks up a key, substituting any {placeholders}. */
-  t: (key: Key, values?: Record<string, string | number>) => string;
+  t: Translate;
 }
 
 const TranslationContext = createContext<Translation | null>(null);

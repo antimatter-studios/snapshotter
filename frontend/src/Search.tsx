@@ -27,7 +27,7 @@ export function Search({ onStatus }: { onStatus: (s: string) => void }) {
   const restore = async (snapshot: string, livePath: string) => {
     try {
       const res = await Restore.Restore({ snapshot, livePath, replace: false });
-      onStatus(`Restored to ${res.destination}`);
+      onStatus(t("search.restoredTo", { path: res.destination }));
     } catch (err) {
       setError(message(err));
     }

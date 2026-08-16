@@ -14,7 +14,7 @@ import { bytes, stamp } from "./format";
 import { FindingIcon } from "./FindingIcon";
 import { useAction } from "./useAction";
 import type { Warning } from "./api";
-import { useTranslation } from "./i18n";
+import { useTranslation, type Translate } from "./i18n";
 
 /**
  * What the one-click fix installs. Six hours rather than hourly, kept a
@@ -74,10 +74,10 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           <h3>{health.headline}</h3>
           <p>
             {health.snapshotCount > 0 && health.newest
-              ? `Newest ${stamp(health.newest)}.`
+              ? t("health.newest", { when: stamp(health.newest) })
               : t("health.nothingRecorded")}
             {health.scheduleInstalled && health.nextDue
-              ? ` Next due ${stamp(health.nextDue)}.`
+              ? " " + t("health.nextDue", { when: stamp(health.nextDue) })
               : ""}
           </p>
         </div>
@@ -126,14 +126,14 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
                 onClick={() =>
                   act(
                     () => Schedule.Install(DEFAULT_INTERVAL_HOURS, DEFAULT_RETENTION_DAYS),
-                    `Snapshots will now be taken every ${DEFAULT_INTERVAL_HOURS} hours`,
+                    t("health.willTakeEvery", { hours: DEFAULT_INTERVAL_HOURS }),
                   )
                 }
                 disabled={busy}
               >
                 {health.scheduleInstalled
                   ? t("health.startIt")
-                  : `Take one every ${DEFAULT_INTERVAL_HOURS} hours`}
+                  : t("health.takeEvery", { hours: DEFAULT_INTERVAL_HOURS })}
               </button>
             )}
 
@@ -179,7 +179,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
         </div>
         <div>
           <dt>{t("health.cover")}</dt>
-          <dd>{coverage(health.coverageHours)}</dd>
+          <dd>{coverage(health.coverageHours, t)}</dd>
         </div>
         <div>
           <dt>{t("health.schedule")}</dt>
@@ -234,10 +234,10 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
 }
 
 /** Words a span in the largest unit that stays honest. */
-function coverage(hours: number): string {
-  if (hours >= 48) return `${Math.round(hours / 24)} days`;
-  if (hours >= 1) return `${Math.round(hours)} hours`;
-  return "under an hour";
+function coverage(hours: number, t: Translate): string {
+  if (hours >= 48) return t("health.days", { n: Math.round(hours / 24) });
+  if (hours >= 1) return t("health.hours", { n: Math.round(hours) });
+  return t("health.underAnHour");
 }
 
 /**
@@ -340,21 +340,11 @@ function BulkDeletionWarnings() {
                     ))}
                   </ul>
                 ) : (
-                  "an unknown location"
+                  t("health.unknownLocation")
                 )}
               </td>
               {/* No snapshot is the row worth seeing from across the room: the
                   deletion happened and nothing was captured. */}
-              {/* Whether a snapshot was taken, not which one. The name is a
-                  date stamp, and the date is already the first column — the only
-                  thing it adds is a way to find that snapshot in the list, which
-                  is what the tooltip is for. */}
-              <td
-                className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}
-                title={w.snapshot ? `Snapshot ${w.snapshot}` : undefined}
-              >
-                {w.snapshot ? "snapshot taken" : w.note || "no snapshot"}
-              </td>
             </tr>
           ))}
         </tbody>

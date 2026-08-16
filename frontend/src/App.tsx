@@ -154,7 +154,7 @@ export default function App() {
       {mountRefused ? (
         <div className="banner error">
           <p>
-            <strong>macOS would not mount the snapshot.</strong> {mountHelp}
+            <strong>{t("app.macosRefused")}</strong> {mountHelp}
           </p>
           <button onClick={() => void Status.OpenPrivacySettings()}>
             {t("app.openFdaSettings")}
@@ -220,7 +220,7 @@ export default function App() {
 
           {snapshots.some((s) => !s.mounted) && (
             <button className="wide" onClick={mountAll} disabled={busy}>
-              Open all ({snapshots.filter((s) => !s.mounted).length})
+              {t("app.openAll", { count: snapshots.filter((s) => !s.mounted).length })}
             </button>
           )}
           {snapshots.some((s) => s.mounted) && (
