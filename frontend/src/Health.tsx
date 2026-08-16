@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { bytes, stamp } from "./format";
 import { FindingIcon } from "./FindingIcon";
+import { useAction } from "./useAction";
 
 /**
  * What the one-click fix installs. Six hours rather than hourly, kept a
@@ -32,8 +33,7 @@ const DEFAULT_RETENTION_DAYS = 14;
  */
 export function Health({ onStatus }: { onStatus: (s: string) => void }) {
   const [health, setHealth] = useState<HealthState | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { busy, error, setError, run } = useAction(onStatus);
   // The scheduled task's log, fetched only when a finding offers it — a
   // schedule that is failing silently is the one case where the raw output is
   // the answer.
@@ -58,18 +58,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
   if (error) return <p className="banner error">{error}</p>;
   if (!health) return <p className="empty">Checking…</p>;
 
-  const act = async (fn: () => Promise<unknown>, done: string) => {
-    setBusy(true);
-    try {
-      await fn();
-      onStatus(done);
-      await refresh();
-    } catch (err) {
-      setError(message(err));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const act = (fn: () => Promise<unknown>, done: string) => run(fn, done, refresh);
 
   return (
     <div className="health">

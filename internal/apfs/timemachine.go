@@ -32,6 +32,16 @@ type TimeMachine struct {
 // releases did behave that way, and the message because this one does. A positive
 // answer needs positive evidence — a Name or an ID in the output — rather than
 // merely the absence of a failure.
+// ThinningWarning is what a configured destination does to local snapshots,
+// stated once.
+//
+// It lives here, beside DestinationInfo, because everything that needs to say it
+// has just called that function to find out whether to say it at all — the
+// window, the menu bar and the command line. It was written out separately in
+// each of them, which is how it came to be worded three different ways.
+const ThinningWarning = "Time Machine has a backup destination configured, and its backup cycle " +
+	"thins local snapshots to roughly 24 hours. A longer retention window will not hold."
+
 func DestinationInfo(ctx context.Context, r Runner) TimeMachine {
 	out, err := r.Run(ctx, "tmutil", "destinationinfo")
 	detail := strings.TrimSpace(out)

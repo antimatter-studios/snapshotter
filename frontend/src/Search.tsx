@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Search as SearchAPI, Restore, message, type SearchResult } from "./api";
 import { bytes, stamp } from "./format";
+import { useAction } from "./useAction";
 
 /**
  * Find a file by name across every open snapshot.
@@ -14,20 +15,11 @@ export function Search({ onStatus }: { onStatus: (s: string) => void }) {
   const [term, setTerm] = useState("");
   const [under, setUnder] = useState("");
   const [result, setResult] = useState<SearchResult | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { busy, error, setError, run: perform } = useAction(onStatus);
 
   const run = async () => {
     if (!term.trim()) return;
-    setBusy(true);
-    setError("");
-    try {
-      setResult(await SearchAPI.Search(term, under));
-    } catch (err) {
-      setError(message(err));
-    } finally {
-      setBusy(false);
-    }
+    await perform(async () => setResult(await SearchAPI.Search(term, under)));
   };
 
   const restore = async (snapshot: string, livePath: string) => {

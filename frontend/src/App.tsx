@@ -8,6 +8,7 @@ import { Health } from "./Health";
 import { Search } from "./Search";
 import { ThemeToggle } from "./ThemeToggle";
 import { useLiveRefresh } from "./live";
+import { useAction } from "./useAction";
 // The same file the application icon and the favicon are built from, reached out
 // of the project's assets/ rather than copied into public/, so the mark has one
 // home. Vite resolves and emits it at build time.
@@ -36,8 +37,7 @@ export default function App() {
   // on home or pretend a snapshot was selected when none was.
   const [beforeOptions, setBeforeOptions] = useState<View>("home");
   const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { busy, error, setError, run } = useAction(setStatus);
   const [faking, setFaking] = useState(false);
   const [scenario, setScenario] = useState("");
   // mountHelp is fetched lazily, because it only means anything once mounting
@@ -83,19 +83,8 @@ export default function App() {
   const snapshots = overview?.snapshots ?? [];
   const current = snapshots.find((s) => s.name === selected) ?? null;
 
-  const act = async (fn: () => Promise<unknown>, done: string) => {
-    setBusy(true);
-    setError("");
-    try {
-      await fn();
-      setStatus(done);
-      await refresh();
-    } catch (err) {
-      setError(message(err));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const act = (fn: () => Promise<unknown>, done: string) => run(fn, done, refresh);
+
 
   const mount = (snapshot: SnapshotView) =>
     act(() => Snapshots.Mount([snapshot.name]), `Opened the snapshot from ${stamp(snapshot.taken)}`);

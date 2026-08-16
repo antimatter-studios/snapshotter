@@ -1,0 +1,97 @@
+// The two things launchd runs: the scheduled task and the bulk-deletion tripwire.
+//
+// Neither opens a window and neither needs privileges — tmutil asks backupd to do
+// the work — and both report to a log nobody reads until something has already
+// been lost.
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"snapshotter/internal/apfs"
+	"snapshotter/internal/notify"
+	"snapshotter/internal/schedule"
+	"snapshotter/internal/watch"
+	"time"
+)
+
+// runScheduledSnapshot is the whole of the scheduled task: take one snapshot,
+// drop the ones past the retention window, and report what happened to the log
+// launchd captures. It needs no privileges, because tmutil asks backupd to do
+// the work.
+func runScheduledSnapshot(ctx context.Context, runner apfs.Runner) error {
+	snap, err := apfs.Create(ctx, runner)
+	if err != nil {
+		// A scheduled run that fails is invisible: launchd keeps the output and
+		// nobody reads a log until something has already been lost.
+		if nerr := notify.Send(ctx, "Scheduled snapshot failed", err.Error()); nerr != nil {
+			log.Printf("could not post a notification: %v", nerr)
+		}
+		return err
+	}
+	log.Printf("created %s", snap.Stamp)
+
+	// The plist carries the policy, so the schedule prunes by whatever it was
+	// installed with rather than by whatever this binary's default happens to be.
+	policy, err := schedule.PolicyFromEnv()
+	if err != nil {
+		// A policy this build cannot read prunes NOTHING rather than pruning on a
+		// guess. Keeping too much is corrected by the next run; deleting too much
+		// is not correctable at all, because a snapshot records a past state of the
+		// disk and cannot be recreated.
+		log.Print(err)
+	}
+	pruned, err := schedule.PruneByPolicy(ctx, runner, apfs.DataVolume, policy, time.Now())
+	for _, p := range pruned {
+		log.Printf("pruned %s", p.Stamp)
+	}
+	if err != nil {
+		return err
+	}
+
+	remaining, err := apfs.List(ctx, runner, apfs.DataVolume)
+	if err != nil {
+		return err
+	}
+	log.Printf("holding %d snapshots, keeping %s", len(remaining), policy.Describe())
+	return nil
+}
+
+// runWatch is the tripwire: it watches the home directory and takes a snapshot
+// as soon as something starts deleting in bulk.
+//
+// It cannot prevent a deletion. FSEvents reports what has already happened, so
+// by the time a removal is seen that file is gone. What it prevents is a
+// deletion running to completion unwitnessed — trip at the two-hundredth file
+// of ten thousand and the rest are still recoverable.
+//
+// Like the scheduled task it needs no privileges, because tmutil asks backupd
+// to do the work.
+func runWatch(ctx context.Context, runner apfs.Runner) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("cannot find the home directory: %w", err)
+	}
+
+	w := watch.New([]string{home}, func(ctx context.Context) error {
+		snap, err := apfs.Create(ctx, runner)
+		if err != nil {
+			if nerr := notify.Send(ctx, "Bulk deletion detected", "Could not take a snapshot: "+err.Error()); nerr != nil {
+				log.Printf("could not post a notification: %v", nerr)
+			}
+			return err
+		}
+		log.Printf("created %s", snap.Stamp)
+		// Worth interrupting for: something is deleting in bulk, and the user
+		// may not have asked for it.
+		if nerr := notify.Send(ctx, "Something is deleting a lot of files",
+			"Took a snapshot at "+snap.Taken.Format("15:04")+". Whatever is still on disk can be restored."); nerr != nil {
+			log.Printf("could not post a notification: %v", nerr)
+		}
+		return nil
+	})
+	w.Log = log.Printf
+	return w.Run(ctx)
+}

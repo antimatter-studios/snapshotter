@@ -224,143 +224,197 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 	var out []Finding
 
 	if h.SnapshotCount == 0 {
-		out = append(out, Finding{
-			Level: LevelBad,
-			Title: "There are no snapshots",
-			Kind:  KindSnapshots,
-			Detail: "Nothing can be rolled back to. Taking one now costs no disk space " +
-				"immediately, because a snapshot only grows as the files it recorded change.",
-			Action: "take-snapshot",
-		})
+		out = append(out, findingNoSnapshots)
 	}
+
 	if !h.ScheduleInstalled {
-		out = append(out, Finding{
-			Level: LevelBad,
-			Title: "Nothing is taking snapshots automatically",
-			Kind:  KindSchedule,
-			Detail: "macOS only schedules local snapshots when Time Machine has a backup " +
-				"destination. Without one, and without this schedule, today's snapshot is the last one.",
-			Action: "install-schedule",
-		})
+		out = append(out, findingNoSchedule)
 	} else if !h.ScheduleRunning {
-		out = append(out, Finding{
-			Level:  LevelWarn,
-			Title:  "The schedule is installed but not running",
-			Kind:   KindSchedule,
-			Detail: "launchd has the job on disk but has not loaded it, so no snapshot will be taken.",
-			Action: "install-schedule",
-		})
+		out = append(out, findingScheduleNotRunning)
 	}
 
 	// Worse than not installed, because it does not look like anything is wrong:
 	// launchd holds the job, reports it loaded, and fails to start a binary that
 	// is not there — once an interval, silently, forever.
 	if h.ScheduleProgramMissing {
-		out = append(out, Finding{
-			Level: LevelBad,
-			Kind:  KindStale,
-			Title: "The schedule points at a copy of Snapshotter that is gone",
-			Detail: "launchd still has the job and still reports it as running, but the " +
-				"program it names (" + h.ScheduleProgram + ") no longer exists, so every " +
-				"run fails and no snapshot is taken. Installing the schedule again points " +
-				"it at this copy.",
-			Action: "install-schedule",
-		})
+		out = append(out, staleProgramFinding(h.ScheduleProgram))
 	}
 
 	// An overdue schedule is the quiet failure this application exists to
 	// prevent: it looks configured and is not working.
 	if h.NextDue != nil && h.IntervalHours > 0 {
-		grace := time.Duration(h.IntervalHours) * time.Hour
-		if now.After(h.NextDue.Add(grace)) {
-			out = append(out, Finding{
-				Level: LevelWarn,
-				Title: "The last snapshot is overdue",
-				Kind:  KindOverdue,
-				Detail: fmt.Sprintf("A snapshot was due at %s and the newest is still from %s. Check the scheduled task's log.",
-					h.NextDue.Format("15:04"), h.Newest.Format("Mon 15:04")),
-				Action: "show-log",
-			})
+		if now.After(h.NextDue.Add(overdueGrace(h.IntervalHours))) {
+			out = append(out, overdueFinding(*h.NextDue, *h.Newest))
 		}
 	}
 
-	// The schedule bounds how much time a mistake can cost. It does nothing
-	// about how much of one deletion gets through, and that is the gap this
-	// application exists for.
 	if !h.TripwireInstalled {
-		out = append(out, Finding{
-			Level: LevelWarn,
-			Title: "Nothing is watching for bulk deletion",
-			Kind:  KindTripwire,
-			Detail: "A schedule limits how far back you can go; it does not stop a deletion " +
-				"finishing. The watcher takes a snapshot as soon as something starts removing files " +
-				"in bulk, so the rest of that deletion stays recoverable.",
-			Action: "install-tripwire",
-		})
+		out = append(out, findingNoTripwire)
 	} else if !h.TripwireRunning {
-		out = append(out, Finding{
-			Level:  LevelWarn,
-			Title:  "The bulk-deletion watcher is not running",
-			Kind:   KindTripwire,
-			Detail: "It is installed but launchd has not loaded it, so nothing is watching.",
-			Action: "install-tripwire",
-		})
+		out = append(out, findingTripwireNotRunning)
 	}
 
 	if hasTMDestination {
-		out = append(out, Finding{
-			Level:  LevelWarn,
-			Title:  "Time Machine will thin these snapshots",
-			Kind:   KindThinning,
-			Detail: timeMachineThinning,
-		})
-	}
-	for _, c := range conflicts {
-		out = append(out, Finding{
-			Level: LevelWarn,
-			Title: "Another agent is also taking snapshots",
-			Kind:  KindConflict,
-			Detail: c + " looks like it takes local snapshots too. Two agents double the rate and " +
-				"apply two retention windows to one shared set. Install one, not both.",
-		})
+		out = append(out, findingTimeMachineThins)
 	}
 
-	// Purgeable is the normal state, so it is only worth saying when the disk is
-	// tight enough for macOS to act on it.
-	if h.FreePercent > 0 && h.FreePercent < 10 {
-		out = append(out, Finding{
-			Level: LevelWarn,
-			Title: "Free space is low, so retention is not guaranteed",
-			Kind:  KindSpace,
-			Detail: fmt.Sprintf("%.0f%% free. Snapshots are purgeable: macOS reclaims the oldest under "+
-				"space pressure rather than failing a write, whatever retention is set.", h.FreePercent),
-		})
+	for _, agent := range conflicts {
+		out = append(out, conflictingAgentFinding(agent))
 	}
 
-	// First, and worded as flatly as possible. Every other finding on this screen
-	// is a fact about a real Mac; under a scenario none of them are, and a reader
-	// who misses that draws conclusions about a machine that does not exist.
+	if h.FreePercent > 0 && h.FreePercent < lowFreeSpacePercent {
+		out = append(out, lowFreeSpaceFinding(h.FreePercent))
+	}
+
+	// Last, and only ever informational: a scenario is not a fault, but nothing
+	// else on screen is true and that has to be said where it will be read.
 	if h.Scenario != "" {
-		out = append(out, Finding{
-			Level: LevelInfo,
-			Title: "These readings are simulated",
-			Kind:  KindSimulated,
-			Detail: "Scenario " + h.Scenario + " is loaded. Every snapshot, schedule and " +
-				"figure on this screen was invented to drive the interface, and none of it " +
-				"describes this Mac.",
-		})
+		out = append(out, simulatedReadingsFinding(h.Scenario))
+	}
+	if h.Faking {
+		out = append(out, findingSimulatedMounts)
 	}
 
-	if h.Faking {
-		out = append(out, Finding{
-			Level: LevelWarn,
-			Title: "Mounts are simulated",
-			Kind:  KindSimulated,
-			Detail: "SNAPSHOTTER_FAKE_MOUNTS is set. Everything inside a snapshot is invented for " +
-				"development, and Replace restores are refused. Nothing shown under a snapshot is real.",
-		})
-	}
 	return out
+}
+
+// lowFreeSpacePercent is when free space is worth mentioning. Snapshots are
+// purgeable, so below this the retention someone configured stops being a
+// promise the system will keep.
+const lowFreeSpacePercent = 10
+
+// overdueGrace is how late a snapshot may be before it is worth reporting.
+//
+// A whole interval, because launchd starts a job late for reasons of its own — a
+// sleeping machine most of all — and a warning that fires on every wake is one
+// nobody reads.
+func overdueGrace(intervalHours float64) time.Duration {
+	return time.Duration(intervalHours) * time.Hour
+}
+
+// The findings this application can report that say the same thing every time.
+//
+// They are values because that is what they are: fixed prose describing a fixed
+// situation. Keeping them out of findings() leaves it a list of the conditions
+// themselves, which is the part worth reading in order.
+var (
+	findingNoSnapshots = Finding{
+		Level: LevelBad,
+		Title: "There are no snapshots",
+		Kind:  KindSnapshots,
+		Detail: "Nothing can be rolled back to. Taking one now costs no disk space " +
+			"immediately, because a snapshot only grows as the files it recorded change.",
+		Action: "take-snapshot",
+	}
+
+	findingNoSchedule = Finding{
+		Level: LevelBad,
+		Title: "Nothing is taking snapshots automatically",
+		Kind:  KindSchedule,
+		Detail: "macOS only schedules local snapshots when Time Machine has a backup " +
+			"destination. Without one, and without this schedule, today's snapshot is the last one.",
+		Action: "install-schedule",
+	}
+
+	findingScheduleNotRunning = Finding{
+		Level:  LevelWarn,
+		Title:  "The schedule is installed but not running",
+		Kind:   KindSchedule,
+		Detail: "launchd has the job on disk but has not loaded it, so no snapshot will be taken.",
+		Action: "install-schedule",
+	}
+
+	findingNoTripwire = Finding{
+		Level: LevelWarn,
+		Title: "Nothing is watching for bulk deletion",
+		Kind:  KindTripwire,
+		Detail: "A schedule limits how far back you can go; it does not stop a deletion " +
+			"finishing. The watcher takes a snapshot as soon as something starts removing files " +
+			"in bulk, so the rest of that deletion stays recoverable.",
+		Action: "install-tripwire",
+	}
+
+	findingTripwireNotRunning = Finding{
+		Level:  LevelWarn,
+		Title:  "The bulk-deletion watcher is not running",
+		Kind:   KindTripwire,
+		Detail: "It is installed but launchd has not loaded it, so nothing is watching.",
+		Action: "install-tripwire",
+	}
+
+	findingTimeMachineThins = Finding{
+		Level:  LevelWarn,
+		Title:  "Time Machine will thin these snapshots",
+		Kind:   KindThinning,
+		Detail: apfs.ThinningWarning,
+	}
+
+	findingSimulatedMounts = Finding{
+		Level: LevelWarn,
+		Title: "Mounts are simulated",
+		Kind:  KindSimulated,
+		Detail: "SNAPSHOTTER_FAKE_MOUNTS is set. Everything inside a snapshot is invented for " +
+			"development, and Replace restores are refused. Nothing shown under a snapshot is real.",
+	}
+)
+
+// The findings that name something specific — which binary has gone, which agent
+// conflicts, how little room is left. Built rather than stored, because the
+// particular is the useful part.
+
+func staleProgramFinding(program string) Finding {
+	return Finding{
+		Level: LevelBad,
+		Kind:  KindStale,
+		Title: "The schedule points at a copy of Snapshotter that is gone",
+		Detail: "launchd still has the job and still reports it as running, but the " +
+			"program it names (" + program + ") no longer exists, so every " +
+			"run fails and no snapshot is taken. Installing the schedule again points " +
+			"it at this copy.",
+		Action: "install-schedule",
+	}
+}
+
+func overdueFinding(dueAt, newest time.Time) Finding {
+	return Finding{
+		Level: LevelWarn,
+		Title: "The last snapshot is overdue",
+		Kind:  KindOverdue,
+		Detail: fmt.Sprintf("A snapshot was due at %s and the newest is still from %s. Check the scheduled task's log.",
+			dueAt.Format("15:04"), newest.Format("Mon 15:04")),
+		Action: "show-log",
+	}
+}
+
+func conflictingAgentFinding(agent string) Finding {
+	return Finding{
+		Level: LevelWarn,
+		Title: "Another agent is also taking snapshots",
+		Kind:  KindConflict,
+		Detail: agent + " looks like it takes local snapshots too. Two agents double the rate and " +
+			"apply two retention windows to one shared set. Install one, not both.",
+	}
+}
+
+func lowFreeSpaceFinding(freePercent float64) Finding {
+	return Finding{
+		Level: LevelWarn,
+		Title: "Free space is low, so retention is not guaranteed",
+		Kind:  KindSpace,
+		Detail: fmt.Sprintf("%.0f%% free. Snapshots are purgeable: macOS reclaims the oldest under "+
+			"space pressure rather than failing a write, whatever retention is set.", freePercent),
+	}
+}
+
+func simulatedReadingsFinding(scenario string) Finding {
+	return Finding{
+		Level: LevelInfo,
+		Title: "These readings are simulated",
+		Kind:  KindSimulated,
+		Detail: "Scenario " + scenario + " is loaded. Every snapshot, schedule and " +
+			"figure on this screen was invented to drive the interface, and none of it " +
+			"describes this Mac.",
+	}
 }
 
 // summarise reduces the findings to one level and one sentence, which is what

@@ -201,8 +201,7 @@ func runStatus(ctx context.Context, e Env, _ []string) error {
 	// A configured Time Machine destination silently changes what retention
 	// means, so it is reported here rather than left to surprise someone.
 	if tm := apfs.DestinationInfo(ctx, e.Runner); tm.HasDestination {
-		fmt.Fprintln(e.Out, "\nTime Machine has a destination configured, so backupd thins these to")
-		fmt.Fprintln(e.Out, "roughly 24 hours. Any longer retention will not hold.")
+		fmt.Fprintln(e.Out, "\n"+apfs.ThinningWarning)
 	}
 	return nil
 }
