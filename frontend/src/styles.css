@@ -16,6 +16,9 @@
      traffic lights sit in. Nothing can make the two share one definition, so a
      test in main_test.go reads these two lines and fails if they drift. */
   --bg: #121418;
+  /* The file listing's own background. Dark deliberately matches --bg — only the
+     light theme's grey was the problem. */
+  --browser-surface: #121418;
   --titlebar-height: 50px;
   --panel: #191c22;
   --panel-2: #1f232b;
@@ -50,6 +53,7 @@
    choice, and the system preference when no choice has been made. */
 :root[data-theme="light"] {
   --bg: #f4f6f9;
+  --browser-surface: #ffffff;
   --panel: #ffffff;
   --panel-2: #eef1f5;
   --line: #d6dbe3;
@@ -84,6 +88,7 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
   --bg: #f4f6f9;
+  --browser-surface: #ffffff;
   --panel: #ffffff;
   --panel-2: #eef1f5;
   --line: #d6dbe3;
@@ -632,6 +637,7 @@ p.progress {
 .compare {
   overflow-y: auto;
   flex: 1;
+  background: var(--browser-surface);
 }
 
 table.rows {
@@ -649,7 +655,7 @@ table.rows th {
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
-  background: var(--bg);
+  background: var(--browser-surface);
 }
 
 table.rows td {
@@ -659,7 +665,7 @@ table.rows td {
 }
 
 table.rows tr:hover td {
-  background: var(--panel);
+  background: var(--hover);
 }
 
 .num {

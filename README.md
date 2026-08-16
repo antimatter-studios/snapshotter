@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.29.0
+
+The file listing has a white background in the light theme rather than the
+window's grey, which was hard to read against small monospaced text. The dark
+theme is unchanged.
+
 ### v0.28.0
 
 Folder verdicts carry a mark as well as a word: a green tick for identical, a
@@ -383,12 +389,6 @@ which is all the browser needs to print one word per row.
 
 The outcome column of a bulk deletion warning says whether a snapshot was taken
 rather than repeating the date already in the first column.
-
-### v0.19.0
-
-Each folder in a bulk deletion warning gets its own line and its own ignore
-button, rather than a comma-separated block and one button that silenced
-whichever folder came first.
 
 
 ## Design decisions

@@ -7,6 +7,22 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.29.0 — 2026-08-16
+
+**The file listing is white in the light theme.**
+
+It used to take the window's own background, a cool grey that made small
+monospaced text harder to read than it needed to be. The listing now paints
+itself, so only it changed: the dark theme is byte-for-byte what it was, because
+only light was the problem.
+
+Two things had to move with it. The sticky column header shared the old
+background and would otherwise have sat as a grey band on white — it follows the
+surface. And row hover was drawn with `--panel`, which is `#ffffff` in the light
+theme and therefore invisible against a white listing; it now uses `--hover`,
+the token that means this. Hover is consequently a little more legible in the
+dark theme too.
+
 ## v0.28.0 — 2026-08-16
 
 **A mark on every folder verdict, and a better word for a match.**
