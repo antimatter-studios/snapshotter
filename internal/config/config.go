@@ -52,6 +52,18 @@ type Schedule struct {
 
 type Tripwire struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
+	// Ignore lists path fragments whose deletions do not count towards a burst.
+	//
+	// Without it the wire is tripped by ordinary machine noise: a browser
+	// clearing its cache deletes hundreds of files in seconds, which is exactly
+	// the shape of the thing being watched for and none of its meaning. A warning
+	// that fires on cache churn is a warning someone learns to dismiss, and then
+	// dismisses the one that mattered.
+	//
+	// Matched as substrings of the full path, after ~ is expanded, so a fragment
+	// like "/Library/Caches/" covers every application's cache without naming any
+	// of them.
+	Ignore []string `yaml:"ignore" json:"ignore"`
 }
 
 type Appearance struct {
@@ -102,7 +114,18 @@ func Defaults() Config {
 		// and it costs nothing until it fires. An existing settings file keeps
 		// whatever it already says, so this only reaches new installations; the
 		// rest are told by a finding, with a button.
-		Tripwire:   Tripwire{Enabled: true},
+		Tripwire: Tripwire{
+			Enabled: true,
+			// Machine-managed churn, not anybody's documents. Deliberately short:
+			// every entry here is a place this application will stay quiet about,
+			// so it holds only things no one would ask to recover.
+			Ignore: []string{
+				"/Library/Caches/",
+				"/Caches/",
+				"/private/var/folders/",
+				"/.Trash/",
+			},
+		},
 		Appearance: Appearance{Theme: "system"},
 		Window:     Window{Width: 1180, Height: 780},
 		Refresh:    Refresh{MenuBarSeconds: 60, WindowSeconds: 30},

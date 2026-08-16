@@ -3,6 +3,7 @@ package services
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func TestGetReportsTheFileItIsEditing(t *testing.T) {
 	if !strings.HasSuffix(view.Path, filepath.Join("snapshotter", "config.yaml")) {
 		t.Errorf("unexpected path %q", view.Path)
 	}
-	if view.Config != config.Defaults() {
+	if !reflect.DeepEqual(view.Config, config.Defaults()) {
 		t.Errorf("want the defaults, got %+v", view.Config)
 	}
 }
@@ -96,7 +97,7 @@ func TestGetSurfacesAnUnreadableFileWithoutFailing(t *testing.T) {
 	if view.Error == "" {
 		t.Error("a broken settings file was not reported")
 	}
-	if view.Config != config.Defaults() {
+	if !reflect.DeepEqual(view.Config, config.Defaults()) {
 		t.Error("want usable defaults alongside the error")
 	}
 	if view.Path == "" {

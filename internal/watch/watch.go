@@ -28,6 +28,14 @@ type Watcher struct {
 	// where names the directories the burst happened in, commonest first, so the
 	// caller can say more than "something is deleting files".
 	Snapshot func(ctx context.Context, where []string) error
+
+	// Ignore lists path fragments whose deletions do not count towards a burst.
+	//
+	// A browser clearing its cache deletes hundreds of files in seconds — the
+	// exact shape of the thing being watched for, and none of its meaning. Left
+	// in, it trips the wire, takes a snapshot nobody needs, and teaches the user
+	// that these warnings are noise.
+	Ignore []string
 	// Log reports what happened. Optional.
 	Log func(format string, args ...any)
 	// Now is swappable for tests.
@@ -97,6 +105,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 			if ev.Event() != notify.Remove && ev.Event() != notify.Rename {
 				continue
 			}
+			if w.ignored(ev.Path()) {
+				continue
+			}
 			tripped, where := w.Trigger.Deletion(w.now(), ev.Path())
 			if !tripped {
 				continue
@@ -128,4 +139,14 @@ func Places(dirs []string) string {
 		out = append(out, dir)
 	}
 	return strings.Join(out, ", ")
+}
+
+// ignored reports whether a path is machine churn rather than anybody's work.
+func (w *Watcher) ignored(path string) bool {
+	for _, fragment := range w.Ignore {
+		if fragment != "" && strings.Contains(path, fragment) {
+			return true
+		}
+	}
+	return false
 }

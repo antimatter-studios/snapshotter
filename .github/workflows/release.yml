@@ -274,8 +274,26 @@ jobs:
           xcrun stapler validate "$staging/Snapshotter.app"
 
           dmg="Snapshotter_${VERSION}_universal.dmg"
-          hdiutil create -volname "Snapshotter" -srcfolder "$staging" \
-            -ov -format UDZO "$dmg"
+
+          # Retried, because hdiutil fails with "Resource busy" on a shared
+          # runner often enough to matter: something else still has a device
+          # attached when it asks for one. It is transient and unrelated to what
+          # is being built — v0.15.0 failed here with the application already
+          # signed, notarized and stapled, and succeeded on a re-run minutes
+          # later. Failing the release for that means a person re-running it by
+          # hand, which is the sort of thing that gets skipped at midnight.
+          for attempt in 1 2 3; do
+            if hdiutil create -volname "Snapshotter" -srcfolder "$staging" \
+                 -ov -format UDZO "$dmg"; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then
+              echo "::error::hdiutil could not create the image after 3 attempts"
+              exit 1
+            fi
+            echo "hdiutil failed (attempt $attempt); waiting and trying again"
+            sleep 15
+          done
 
           # The image is signed too: Gatekeeper checks the container the user
           # actually downloaded, not only the application inside it.

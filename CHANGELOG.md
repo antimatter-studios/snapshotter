@@ -7,6 +7,49 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.16.0 — 2026-08-16
+
+**The tripwire stops crying wolf, and a development build stops hiding.**
+
+### Cache churn is not a bulk deletion
+
+The tripwire fired on this machine because Microsoft Edge cleared its cache:
+several hundred files gone in seconds, which is the exact shape of the thing
+being watched for and none of its meaning. It took a snapshot nobody needed. Left
+alone, that teaches you these warnings are noise — and then the one that mattered
+is dismissed with the rest.
+
+`tripwire.ignore` lists path fragments whose deletions do not count. It defaults
+to `/Library/Caches/`, `/Caches/`, `/private/var/folders/` and `/.Trash/` —
+deliberately short, because every entry is a place this application will stay
+quiet about. It is a setting rather than a constant, so a machine with its own
+noisy directory can say so, and `config set` now accepts comma-separated lists.
+
+Nothing that anyone would ask to recover is on that list, and a test asserts it:
+documents, pictures, source files, and a folder merely *named* cache in someone's
+own work all still reach the trigger.
+
+### A development build refuses to join the installed one
+
+Two copies put two identical icons in the menu bar, and only the one in
+`/Applications` holds the Full Disk Access grant — so the working build looks the
+same and cannot mount anything. Worse, a copy left running is invisible: one sat
+at 300% CPU for nineteen hours on the author's machine before anyone noticed,
+because nothing about it looked different.
+
+An unstamped build now refuses to open a second window while the installed copy
+is running, and says why. `SNAPSHOTTER_ALLOW_SECOND_COPY=1` overrides it. A
+released build never refuses: Homebrew replaces the copy in `/Applications`, so
+two of them cannot happen.
+
+### The release retries hdiutil
+
+v0.15.0 failed with `hdiutil: create failed - Resource busy` — a shared runner
+with something still holding a device — after the application had been built,
+signed, notarized and stapled. It succeeded on a re-run minutes later. Failing a
+release for that means a person re-running it by hand, which is the sort of thing
+that gets skipped at midnight. Three attempts, fifteen seconds apart.
+
 ## v0.15.0 — 2026-08-16
 
 **The health screen stops giving its best space to its least useful content.**

@@ -9,6 +9,7 @@ import (
 
 	"snapshotter/internal/config"
 	"snapshotter/internal/mountmgr"
+	"snapshotter/internal/version"
 	"snapshotter/services"
 )
 
@@ -271,5 +272,35 @@ func TestTrayLabelUnderAScenarioStillCounts(t *testing.T) {
 	got := trayLabel(services.Health{SnapshotCount: 7, Scenario: "healthy"})
 	if !strings.Contains(got, "7") {
 		t.Errorf("the count went missing under a scenario: %q", got)
+	}
+}
+
+// A development build must not quietly join a menu bar that already has the
+// installed one in it. Two identical icons, and only the copy in /Applications
+// holds the Full Disk Access grant — so the working build looks the same and
+// cannot mount anything. One left running consumed three cores for nineteen
+// hours on this machine before anyone noticed it was there.
+func TestADevelopmentBuildRefusesToJoinTheInstalledOne(t *testing.T) {
+	if version.IsRelease() {
+		t.Skip("this binary is stamped, so the guard does not apply to it")
+	}
+
+	// The escape hatch the error message advertises has to work, or the advice is
+	// worse than useless.
+	t.Setenv("SNAPSHOTTER_ALLOW_SECOND_COPY", "1")
+	if err := refuseIfInstalledCopyIsRunning(); err != nil {
+		t.Errorf("the documented override did not let it through: %v", err)
+	}
+}
+
+// A released build never refuses: two released copies cannot happen, because
+// Homebrew replaces the one in /Applications, and refusing to start a binary
+// someone deliberately invoked would be an odd thing for it to do.
+func TestAReleasedBuildNeverRefuses(t *testing.T) {
+	if !version.IsRelease() {
+		t.Skip("this binary is not stamped")
+	}
+	if err := refuseIfInstalledCopyIsRunning(); err != nil {
+		t.Errorf("a released build refused to start: %v", err)
 	}
 }

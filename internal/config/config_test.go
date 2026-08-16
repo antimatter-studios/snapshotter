@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ func TestLoadWithNoFileReturnsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a missing file should not be an error: %v", err)
 	}
-	if cfg != Defaults() {
+	if !reflect.DeepEqual(cfg, Defaults()) {
 		t.Errorf("want the defaults, got %+v", cfg)
 	}
 }
@@ -46,7 +47,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("want %+v, got %+v", want, got)
 	}
 
@@ -120,7 +121,7 @@ func TestCorruptFileReportsAndStillYieldsDefaults(t *testing.T) {
 	if err == nil {
 		t.Error("a file that cannot be parsed should be reported")
 	}
-	if cfg != Defaults() {
+	if !reflect.DeepEqual(cfg, Defaults()) {
 		t.Errorf("want usable defaults alongside the error, got %+v", cfg)
 	}
 
@@ -212,7 +213,7 @@ func TestRefreshIntervalsRefuseNonsense(t *testing.T) {
 
 	cfg := Defaults()
 	cfg.Refresh.WindowSeconds = 0
-	if got, want := cfg.WindowRefresh(), time.Duration(d.Refresh.WindowSeconds)*time.Second; got != want {
+	if got, want := cfg.WindowRefresh(), time.Duration(d.Refresh.WindowSeconds)*time.Second; !reflect.DeepEqual(got, want) {
 		t.Errorf("window: want %v, got %v", want, got)
 	}
 	cfg.Refresh.WindowSeconds = 15

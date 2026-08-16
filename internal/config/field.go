@@ -98,6 +98,23 @@ func Set(cfg *Config, key, value string) error {
 			return fmt.Errorf("config: %s takes a number, not %q", key, value)
 		}
 		field.SetFloat(f)
+	case reflect.Slice:
+		if field.Type().Elem().Kind() != reflect.String {
+			return fmt.Errorf("config: %s is a list of %s, which cannot be set from the command line",
+				key, field.Type().Elem().Kind())
+		}
+		// Comma-separated, because these are lists of short strings — path
+		// fragments — and a shell is a poor place to express anything richer.
+		// Empty means an empty list rather than a list containing "", which is a
+		// distinction that matters: one fragment of "" would match every path.
+		var items []string
+		for _, part := range strings.Split(value, ",") {
+			if part = strings.TrimSpace(part); part != "" {
+				items = append(items, part)
+			}
+		}
+		field.Set(reflect.ValueOf(items))
+
 	default:
 		return fmt.Errorf("config: %s is a %s, which cannot be set from the command line", key, field.Kind())
 	}
@@ -153,6 +170,14 @@ func format(v reflect.Value) string {
 		// -1 so 6 prints as "6" rather than "6.000000": these are hours and days
 		// that people read, and a schedule of "6.000000 hours" reads as a bug.
 		return strconv.FormatFloat(v.Float(), 'f', -1, 64)
+	case reflect.Slice:
+		// Comma-separated, which is what Set accepts, so a value can be read,
+		// edited and written back.
+		items := make([]string, v.Len())
+		for i := range items {
+			items[i] = fmt.Sprint(v.Index(i).Interface())
+		}
+		return strings.Join(items, ",")
 	default:
 		return fmt.Sprint(v.Interface())
 	}
