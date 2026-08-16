@@ -686,6 +686,9 @@ tr:hover td.actions button {
 
 .badge {
   display: inline-block;
+  /* One line, always. A pill that wraps stops looking like a pill and drags the
+     row's height with it, so a listing ends up with rows of differing heights. */
+  white-space: nowrap;
   padding: 1px 7px;
   border-radius: 999px;
   font-size: 11px;

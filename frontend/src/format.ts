@@ -59,7 +59,9 @@ export const statusLabel: Record<string, string> = {
   onlyInSnapshot: "deleted since",
   onlyOnDisk: "new since",
   typeChanged: "type changed",
-  // A folder whose verdict has not arrived yet.
+  // A folder whose verdict has not arrived yet, and one the walk gave up on.
+  // Both read the same because the distinction is ours, not the reader's: either
+  // way the answer is not here.
   detecting: "detecting…",
-  notExamined: "not examined",
+  notExamined: "detecting…",
 };

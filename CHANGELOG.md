@@ -25,7 +25,13 @@ The budget each folder is allowed also came down from fifty thousand entries to
 ten thousand — roughly twenty-five milliseconds of directory reading. Enough to
 answer for anything of ordinary size, and cheap enough that giving up on the ones
 it cannot answer for costs little. A folder past the budget still says it was not
-examined rather than claiming to be unchanged.
+examined rather than claiming to be unchanged, and reads the same as one still
+being worked out — the distinction between "not answered yet" and "given up on"
+is ours rather than the reader's, and either way the answer is not there.
+
+The status pill is held to one line. A wrapping pill stops looking like a pill
+and drags its row's height with it, so a listing ends up with rows of differing
+heights.
 
 ## v0.22.0 — 2026-08-16
 
