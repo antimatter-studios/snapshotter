@@ -59,4 +59,7 @@ export const statusLabel: Record<string, string> = {
   onlyInSnapshot: "deleted since",
   onlyOnDisk: "new since",
   typeChanged: "type changed",
+  // A folder whose verdict has not arrived yet.
+  detecting: "detecting…",
+  notExamined: "not examined",
 };

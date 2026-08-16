@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.22.0
+
+Differences are shown per file, opened from the row, rather than as a separate
+compare view that only listed which paths had changed. Folders in a listing read
+as *detecting…* and resolve one at a time.
+
 ### v0.21.0
 
 Browsing a snapshot no longer reports every folder as unchanged without looking
@@ -387,11 +393,6 @@ The bulk-deletion tripwire names the folder files are disappearing from rather
 than only reporting that they are. Errors no longer vanish before they can be
 read: the window refresh used to clear them on success, which wiped the reason a
 mount failed the moment the authorization dialog handed focus back.
-
-### v0.12.0
-
-Written by Chris Thomas, published by Antimatter Studios — both are now named in
-the bundle and under the health screen, where before only one was.
 
 
 ## Design decisions

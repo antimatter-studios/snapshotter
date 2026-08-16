@@ -8,7 +8,8 @@ interface Props {
   path: string;
   onPathChange: (path: string) => void;
   onMount: () => void;
-  onCompare: () => void;
+  /** Opens the line-by-line view of one file. */
+  onDiff: (livePath: string) => void;
   onStatus: (text: string) => void;
 }
 
@@ -18,18 +19,37 @@ interface Props {
  * Every row carries its own verdict, which is the answer to the question that
  * brings someone here: what is in this folder that is no longer on disk.
  */
-export function Browser({ snapshot, path, onPathChange, onMount, onCompare, onStatus }: Props) {
+export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatus }: Props) {
   const [listing, setListing] = useState<MergedListing | null>(null);
   const [showUnchanged, setShowUnchanged] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Folder verdicts arrive one per call, keyed by absolute path. Held separately
+  // from the listing so a resolved verdict survives the listing being refreshed,
+  // and so a slow folder never delays the rows around it.
+  const [folderStatus, setFolderStatus] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!snapshot?.mounted) return;
     setBusy(true);
     setError("");
     try {
-      setListing(await Browse.Merged(snapshot.name, path, showUnchanged));
+      const merged = await Browse.Merged(snapshot.name, path, showUnchanged);
+      setListing(merged);
+
+      // Each folder is asked about on its own and fills in when it answers. A
+      // folder whose contents are unchanged costs a full walk to prove it, and
+      // waiting for all of them before drawing anything makes the window look
+      // broken over what is usually a few milliseconds per row.
+      for (const row of merged.rows ?? []) {
+        if (!row.isDir) continue;
+        void Browse.DirectoryStatus(snapshot.name, row.absLive)
+          .then((status) => setFolderStatus((current) => ({ ...current, [row.absLive]: status })))
+          .catch(() => {
+            // Left as detecting rather than guessed at.
+          });
+      }
     } catch (err) {
       setError(message(err));
       setListing(null);
@@ -91,7 +111,6 @@ export function Browser({ snapshot, path, onPathChange, onMount, onCompare, onSt
             <input type="checkbox" checked={showUnchanged} onChange={(e) => setShowUnchanged(e.target.checked)} />
             Show unchanged
           </label>
-          <button onClick={onCompare}>Compare this folder…</button>
           <button onClick={() => Browse.RevealInFinder(snapshot.name, path).catch((e) => setError(message(e)))}>
             Reveal in Finder
           </button>
@@ -113,8 +132,12 @@ export function Browser({ snapshot, path, onPathChange, onMount, onCompare, onSt
           </tr>
         </thead>
         <tbody>
-          {(listing?.rows ?? []).map((row) => (
-            <tr key={row.relPath} className={row.status}>
+          {(listing?.rows ?? []).map((row) => {
+            // A folder comes back unexamined and is resolved on its own, so it
+            // reads as detecting until its answer arrives.
+            const status = row.isDir ? folderStatus[row.absLive] ?? "detecting" : row.status;
+            return (
+            <tr key={row.relPath} className={status}>
               <td>
                 <span className="name-cell">
                   <FileIcon name={row.relPath} isDir={row.isDir} />
@@ -151,7 +174,8 @@ export function Browser({ snapshot, path, onPathChange, onMount, onCompare, onSt
                 )}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
 

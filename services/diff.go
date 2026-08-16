@@ -1,11 +1,15 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/diffs"
@@ -286,4 +290,98 @@ func emit(name string, data any) {
 	if app := application.Get(); app != nil {
 		app.Event.Emit(name, data)
 	}
+}
+
+// FileVersions is one file as the snapshot holds it and as it is now, ready to
+// be shown side by side.
+type FileVersions struct {
+	// Snapshot and Live are the two texts. Empty with Readable false means the
+	// file was not returned as text at all, and the reason is in Note.
+	Snapshot string `json:"snapshot"`
+	Live     string `json:"live"`
+	// Readable is false for a file that is binary or too large. Both are ordinary
+	// outcomes rather than errors: a JPEG has no line-by-line difference to show
+	// and a 500MB log would take the window down with it.
+	Readable bool   `json:"readable"`
+	Note     string `json:"note,omitempty"`
+	// The figures are given whatever happens, because "2.1 MB became 2.4 MB" is
+	// still an answer about a file that cannot be diffed.
+	SnapshotSize int64 `json:"snapshotSize"`
+	LiveSize     int64 `json:"liveSize"`
+	// Missing sides are how a file created or deleted since the snapshot appears.
+	InSnapshot bool `json:"inSnapshot"`
+	OnDisk     bool `json:"onDisk"`
+}
+
+// maxDiffableBytes is the largest file each side may be for a text comparison.
+//
+// Both sides are loaded into memory and then into a web view, so this is a limit
+// on what the window can survive rather than on what the disk can supply. A
+// megabyte is far beyond any source file and far below anything that would
+// stall the interface.
+const maxDiffableBytes = 1 << 20
+
+// FileVersions reads one file from both sides so the window can show what
+// changed inside it.
+//
+// This is the question the tree comparison never answered: it produced a list of
+// paths that had changed, which tells someone where to look and nothing about
+// what they would find there.
+func (d *DiffService) FileVersions(snapshotName, livePath string) (FileVersions, error) {
+	var out FileVersions
+
+	_, snapshotPath, err := d.mountedSide(snapshotName, livePath)
+	if err != nil {
+		return out, err
+	}
+	live := filepath.Clean(livePath)
+
+	snapInfo, snapErr := os.Stat(snapshotPath)
+	liveInfo, liveErr := os.Stat(live)
+	out.InSnapshot, out.OnDisk = snapErr == nil, liveErr == nil
+	if !out.InSnapshot && !out.OnDisk {
+		return out, fmt.Errorf("services: %s is in neither the snapshot nor on disk", livePath)
+	}
+	if out.InSnapshot {
+		out.SnapshotSize = snapInfo.Size()
+	}
+	if out.OnDisk {
+		out.LiveSize = liveInfo.Size()
+	}
+
+	if out.SnapshotSize > maxDiffableBytes || out.LiveSize > maxDiffableBytes {
+		out.Note = "too large to compare line by line"
+		return out, nil
+	}
+
+	snapText, okSnap := readableFile(snapshotPath, out.InSnapshot)
+	liveText, okLive := readableFile(live, out.OnDisk)
+	if !okSnap || !okLive {
+		out.Note = "this looks like a binary file, so there are no lines to compare"
+		return out, nil
+	}
+
+	out.Snapshot, out.Live, out.Readable = snapText, liveText, true
+	return out, nil
+}
+
+// readableFile returns a file's text, and whether it is text at all.
+//
+// A side that does not exist reads as empty and readable, which is what makes a
+// created or deleted file show as one whole side added or removed rather than as
+// an error.
+func readableFile(path string, exists bool) (string, bool) {
+	if !exists {
+		return "", true
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	// A NUL byte is the oldest and still the most reliable sign that something is
+	// not text. Rendering a JPEG as lines produces noise, not a comparison.
+	if bytes.IndexByte(data, 0) >= 0 || !utf8.Valid(data) {
+		return "", false
+	}
+	return string(data), true
 }

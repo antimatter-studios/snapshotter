@@ -15,8 +15,24 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * DirectoryStatus answers whether anything under one directory has changed.
+ *
+ * Separate from Merged because the two have opposite costs. A listing is two
+ * directory reads and is instant; a directory's verdict may be a walk of
+ * everything beneath it, and only in the case where nothing has changed — a
+ * difference is found and returned the moment it appears. Asking for them
+ * together would make every listing as slow as its slowest folder.
+ *
+ * The window calls this once per folder row and fills each in as it answers, so
+ * a large untouched tree delays nothing but its own row.
+ */
+export function DirectoryStatus(snapshotName: string, livePath: string): $CancellablePromise<string> {
+    return $Call.ByID(638270053, snapshotName, livePath);
+}
+
+/**
  * Home is the starting point for browsing.
- * 
+ *
  * While mounts are simulated it is the seed directory, because that is the only
  * place a faked snapshot differs from the live disk. Opening on the home folder
  * instead would show a wall of identical rows and look like the comparison was

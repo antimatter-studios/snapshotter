@@ -24,6 +24,7 @@ export {
     CompareRequest,
     CompareSnapshotsRequest,
     ConfigView,
+    FileVersions,
     Finding,
     Health,
     Level,

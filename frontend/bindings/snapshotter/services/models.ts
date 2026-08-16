@@ -171,6 +171,75 @@ export class ConfigView {
     }
 }
 
+/**
+ * FileVersions is one file as the snapshot holds it and as it is now, ready to
+ * be shown side by side.
+ */
+export class FileVersions {
+    /**
+     * Snapshot and Live are the two texts. Empty with Readable false means the
+     * file was not returned as text at all, and the reason is in Note.
+     */
+    "snapshot": string;
+    "live": string;
+
+    /**
+     * Readable is false for a file that is binary or too large. Both are ordinary
+     * outcomes rather than errors: a JPEG has no line-by-line difference to show
+     * and a 500MB log would take the window down with it.
+     */
+    "readable": boolean;
+    "note"?: string;
+
+    /**
+     * The figures are given whatever happens, because "2.1 MB became 2.4 MB" is
+     * still an answer about a file that cannot be diffed.
+     */
+    "snapshotSize": number;
+    "liveSize": number;
+
+    /**
+     * Missing sides are how a file created or deleted since the snapshot appears.
+     */
+    "inSnapshot": boolean;
+    "onDisk": boolean;
+
+    /** Creates a new FileVersions instance. */
+    constructor($$source: Partial<FileVersions> = {}) {
+        if (!("snapshot" in $$source)) {
+            this["snapshot"] = "";
+        }
+        if (!("live" in $$source)) {
+            this["live"] = "";
+        }
+        if (!("readable" in $$source)) {
+            this["readable"] = false;
+        }
+        if (!("snapshotSize" in $$source)) {
+            this["snapshotSize"] = 0;
+        }
+        if (!("liveSize" in $$source)) {
+            this["liveSize"] = 0;
+        }
+        if (!("inSnapshot" in $$source)) {
+            this["inSnapshot"] = false;
+        }
+        if (!("onDisk" in $$source)) {
+            this["onDisk"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FileVersions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FileVersions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FileVersions($$parsedSource as Partial<FileVersions>);
+    }
+}
+
 export class Finding {
     "level": Level;
     "title": string;

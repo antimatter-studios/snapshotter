@@ -154,6 +154,15 @@ export enum Status {
      * instance a directory replaced by a symlink.
      */
     TypeChanged = "typeChanged",
+
+    /**
+     * NotExamined is a directory whose contents were not walked far enough to
+     * say. It exists because the honest answer to "did anything under here
+     * change?" is sometimes "I did not look", and reporting that as unchanged is
+     * how this application would tell somebody their work was safe when it had
+     * not checked.
+     */
+    NotExamined = "notExamined",
 };
 
 // Private type creation functions
