@@ -38,7 +38,7 @@ export const fr: Record<Key, string> = {
   "status.onlyOnDisk": "nouveau depuis",
   "status.typeChanged": "type modifié",
   "status.detecting": "vérification…",
-  "status.notExamined": "vérification impossible",
+  "status.notExamined": "n'a pas pu être vérifié",
 
   "diff.compareWith": "Comparer avec",
   "diff.theLiveDisk": "Le disque actuel",
@@ -70,7 +70,7 @@ export const fr: Record<Key, string> = {
   "app.closedEvery": "Tous les snapshots sont fermés",
   "app.snapshotTaken": "Snapshot créé",
   "app.takeSnapshotNow": "Créer un snapshot maintenant",
-  "app.noneYet": "Aucun pour l'instant. Créez-en un ou configurez une planification",
+  "app.noneYet": "Aucun pour l'instant. Créez-en un ou configurez une planification pour qu'ils soient créés automatiquement.",
   "app.options": "Options",
   "health.checking": "Vérification…",
   "health.recheck": "Revérifier",

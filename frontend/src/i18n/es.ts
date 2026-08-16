@@ -71,7 +71,7 @@ export const es: Record<Key, string> = {
   "app.closedEvery": "Se cerraron todos los snapshots",
   "app.snapshotTaken": "Snapshot creado",
   "app.takeSnapshotNow": "Crear un snapshot ahora",
-  "app.noneYet": "Todavía ninguno. Cree uno ahora o configure una programación",
+  "app.noneYet": "Todavía ninguno. Cree uno ahora o configure una programación para que se creen solos.",
   "app.options": "Opciones",
   "health.checking": "Comprobando…",
   "health.recheck": "Volver a comprobar",
