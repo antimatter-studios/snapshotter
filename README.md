@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.39.0
+
+A file is only shown as a picture when its contents agree with its name, so a zip
+called photo.png is not handed to an image tag.
+
 ### v0.38.0
 
 Images can be compared: side by side, cross-faded, or as a mask of exactly which
@@ -381,12 +386,6 @@ Every file row has a Compare button, which opens the snapshot's version beside
 another. The right-hand side defaults to the live disk and can be switched to any
 other mounted snapshot. The button is new: the panel shipped in v0.22.0 with
 nothing to open it.
-
-### v0.29.0
-
-The file listing has a white background in the light theme rather than the
-window's grey, which was hard to read against small monospaced text. The dark
-theme is unchanged.
 
 
 ## Design decisions

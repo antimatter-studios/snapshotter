@@ -308,3 +308,49 @@ func TestATextFileWellPastTheOldCapStillCompares(t *testing.T) {
 		t.Errorf("a 3MB text file was declined: %q", got.Note)
 	}
 }
+
+// A ZIP called photo.png is not a picture. Trusting the extension alone would
+// base64 it, send it to the window and hand it to an <img> tag, which draws a
+// broken-image icon and explains nothing.
+func TestSomethingElseWearingAnImageExtensionIsNotShownAsOne(t *testing.T) {
+	svc, seed := fileFixture(t)
+	path := filepath.Join(seed, "photo.png")
+
+	// A real ZIP header, which http.DetectContentType identifies by signature.
+	data := append([]byte("PK\x03\x04"), make([]byte, 600)...)
+	for i := 4; i < len(data); i++ {
+		data[i] = byte('a' + i%20)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := svc.FileVersions(browseSnapshot, path, "")
+	if err != nil {
+		t.Fatalf("file versions: %v", err)
+	}
+	if got.Kind == "image" {
+		t.Error("a zip was shown as a picture because of its name")
+	}
+}
+
+// SVG is a picture the standard library cannot identify — it sniffs as text or
+// XML — and the web view draws it perfectly well. The extension has to be
+// allowed to decide when the sniff has no opinion, or this is rejected.
+func TestAFormatTheSnifferCannotNameIsStillShown(t *testing.T) {
+	svc, seed := fileFixture(t)
+	path := filepath.Join(seed, "logo.svg")
+
+	svg := `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>`
+	if err := os.WriteFile(path, []byte(svg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := svc.FileVersions(browseSnapshot, path, "")
+	if err != nil {
+		t.Fatalf("file versions: %v", err)
+	}
+	if got.Kind != "image" {
+		t.Errorf("an SVG came back as %q rather than a picture", got.Kind)
+	}
+}

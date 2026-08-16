@@ -7,6 +7,27 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.39.0 — 2026-08-16
+
+**The name and the contents both have to say "picture".**
+
+Only images were ever shown this way — a zip fell through to "no lines to
+compare" like any other binary — but the decision was made on the file's
+extension alone, and that is wrong in a way worth fixing: a zip renamed
+`photo.png` would have been encoded, sent to the window and handed to an image
+tag, which draws a broken icon and explains nothing.
+
+The contents are sniffed now. Where the sniff recognises a picture it decides,
+because the web view sniffs too and will draw what the file actually is. Where it
+positively identifies something else — a zip, a PDF, an executable — that is not
+a picture whatever it is called.
+
+The extension is allowed to decide only where the sniff has no opinion at all,
+which is not a loophole but the point: HEIC, AVIF and SVG are unknown to the
+standard library and drawn perfectly well by the web view, and HEIC is what this
+Mac's own screenshots and photographs are. Rejecting them would have been the
+worse error.
+
 ## v0.38.0 — 2026-08-16
 
 **Pictures are shown, not described.**
