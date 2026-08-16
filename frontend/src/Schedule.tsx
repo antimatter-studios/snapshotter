@@ -2,21 +2,25 @@ import { useCallback, useEffect, useState } from "react";
 import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView } from "./api";
 import "./Schedule.css";
 import { useAction } from "./useAction";
+import { useTranslation } from "./i18n";
 
+// Keys rather than text: these are module-level, where no translation is in
+// scope, and holding the key defers the lookup to the render that shows it —
+// which is also what makes the list re-read when the language changes.
 const INTERVALS = [
-  { hours: 1, label: "Every hour" },
-  { hours: 3, label: "Every 3 hours" },
-  { hours: 6, label: "Every 6 hours" },
-  { hours: 12, label: "Every 12 hours" },
-  { hours: 24, label: "Once a day" },
-];
+  { hours: 1, key: "schedule.everyHour" },
+  { hours: 3, key: "schedule.every3" },
+  { hours: 6, key: "schedule.every6" },
+  { hours: 12, key: "schedule.every12" },
+  { hours: 24, key: "schedule.daily" },
+] as const;
 
 const RETENTIONS = [
-  { days: 3, label: "3 days" },
-  { days: 7, label: "1 week" },
-  { days: 14, label: "2 weeks" },
-  { days: 30, label: "30 days" },
-];
+  { days: 3, key: "schedule.days3" },
+  { days: 7, key: "schedule.days7" },
+  { days: 14, key: "schedule.days14" },
+  { days: 30, key: "schedule.days30" },
+] as const;
 
 /** The identifier the Go side gives the flat window. */
 const FLAT = "flat";
@@ -37,6 +41,7 @@ type PolicyOption = Awaited<ReturnType<typeof ScheduleAPI.Policies>>[number];
  * when Time Machine has a destination configured.
  */
 export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
+  const { t } = useTranslation();
   const [view, setView] = useState<ScheduleView | null>(null);
   const [interval, setInterval] = useState(6);
   const [retention, setRetention] = useState(14);
@@ -85,19 +90,19 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   const install = () =>
     run(async () => {
       setView(await ScheduleAPI.InstallPolicy(interval, retention, policy));
-    }, "Schedule installed. The first snapshot is taken immediately.");
+    }, t("schedule.installed"));
 
   const uninstall = () =>
     run(async () => {
       setView(await ScheduleAPI.Uninstall());
-    }, "Schedule removed. Existing snapshots were left alone.");
+    }, t("schedule.removed"));
 
   const chosen = options.find((o) => o.id === policy);
 
   return (
     <div className="schedule">
       <section>
-        <h2>Automatic snapshots</h2>
+        <h2>{t("schedule.automatic")}</h2>
         <p className="explain">
           macOS only takes local snapshots on its own when Time Machine has a backup disk configured. This schedule takes
           them without one. It needs no password: creating and deleting snapshots goes through Time Machine's own
@@ -106,22 +111,22 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
 
         <div className="fields">
           <label>
-            How often
+            {t("schedule.howOften")}
             <select value={interval} onChange={(e) => setInterval(Number(e.target.value))}>
               {INTERVALS.map((i) => (
                 <option key={i.hours} value={i.hours}>
-                  {i.label}
+                  {t(i.key)}
                 </option>
               ))}
             </select>
           </label>
 
           <label>
-            Flat window
+            {t("schedule.flatWindow")}
             <select value={retention} onChange={(e) => setRetention(Number(e.target.value))}>
               {RETENTIONS.map((r) => (
                 <option key={r.days} value={r.days}>
-                  {r.label}
+                  {t(r.key)}
                 </option>
               ))}
             </select>
@@ -130,7 +135,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       </section>
 
       <section>
-        <h2>What is kept</h2>
+        <h2>{t("schedule.whatIsKept")}</h2>
         <p className="explain">
           Snapshots can be kept flat — everything inside the window set above — or thinned as they age: everything for
           the last day or two, then one a day, then one a week. Thinning reaches months back for about the count a flat
@@ -140,7 +145,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         {/* Both numbers are computed by planning a history through the same
             function that does the deleting, so what is promised here is what
             happens. */}
-        <div className="policies" role="radiogroup" aria-label="What is kept">
+        <div className="policies" role="radiogroup" aria-label={t("schedule.whatIsKept")}>
           {options.map((option) => (
             <label key={option.id} className={`policy ${option.id === policy ? "chosen" : ""}`}>
               <input
@@ -182,11 +187,11 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
 
         <div className="buttons">
           <button className="primary" onClick={install} disabled={busy || !chosen}>
-            {view?.installed ? "Update schedule" : "Install schedule"}
+            {view?.installed ? t("schedule.update") : t("schedule.install")}
           </button>
           {view?.installed && (
             <button onClick={uninstall} disabled={busy}>
-              Remove schedule
+              {t("schedule.remove")}
             </button>
           )}
         </div>
@@ -201,7 +206,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
                 } snapshots, reaching back ${reach(view.reachDays)} — ${
                   view.loaded ? "running" : "installed but not loaded"
                 }.`
-              : "No schedule installed. Nothing is taking snapshots automatically."}
+              : t("schedule.none")}
           </p>
         )}
 
@@ -216,7 +221,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       <section>
         <h2>Log</h2>
         <p className="explain">Written by the scheduled task at {view?.logPath}</p>
-        <pre className="log">{log || "Nothing logged yet."}</pre>
+        <pre className="log">{log || t("schedule.nothingLogged")}</pre>
       </section>
     </div>
   );

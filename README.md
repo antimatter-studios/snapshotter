@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.34.0
+
+The whole window is translated rather than three screens of it. Text produced by
+the Go side — the health findings, the menu bar, notifications — is still English.
+
 ### v0.33.0
 
 The window speaks English, German, Spanish or French, chosen from a picker in the
@@ -385,12 +390,6 @@ Folders show the verdict they resolved, rather than the placeholder the listing
 returned before the walk ran. A `logging.verbose` setting reports what each
 verdict concluded and why, and a folder that could not be checked says what
 stopped it.
-
-### v0.24.0
-
-Folder verdicts are remembered while the window is open and forgotten when the
-disk moves under them, so navigating back to a folder no longer re-walks it. An
-unreadable subfolder no longer makes a whole tree unanswerable.
 
 
 ## Design decisions

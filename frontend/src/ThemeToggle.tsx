@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { applyTheme, nextTheme, storedTheme, systemIsDark, type Theme } from "./theme";
 import { Config } from "./api";
+import { useTranslation } from "./i18n";
 
 /**
  * Cycles system → light → dark.
@@ -11,6 +12,7 @@ import { Config } from "./api";
  * it honestly.
  */
 export function ThemeToggle() {
+  const { t } = useTranslation();
   // Seeded from the cache so the first paint is right, then corrected from the
   // configuration file, which is what every installation shares.
   const [theme, setTheme] = useState<Theme>(storedTheme);
@@ -38,9 +40,9 @@ export function ThemeToggle() {
   };
 
   const label: Record<Theme, string> = {
-    system: `Following the system (${systemIsDark() ? "dark" : "light"}) — click for light`,
-    light: "Light — click for dark",
-    dark: "Dark — click to follow the system",
+    system: t("theme.followingSystem", { mode: systemIsDark() ? t("theme.modeDark") : t("theme.modeLight") }),
+    light: t("theme.light"),
+    dark: t("theme.dark"),
   };
 
   return (

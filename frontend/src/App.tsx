@@ -56,7 +56,7 @@ export default function App() {
   // A refusal to mount is not an ordinary error: it names a permission, and the
   // place to grant it is four levels into System Settings. Recognising it here
   // is what turns a dead end into something with a next step.
-  const mountRefused = error.includes("Full Disk Access");
+  const mountRefused = error.includes(t("app.fullDiskAccess"));
 
   const refresh = useCallback(async () => {
     try {
@@ -110,7 +110,7 @@ export default function App() {
   const mountAll = () =>
     act(
       () => Snapshots.Mount(snapshots.filter((s) => !s.mounted).map((s) => s.name)),
-      "Opened every snapshot — one password, and now any of them can be searched",
+      t("app.openedEvery"),
     );
 
   return (
@@ -137,14 +137,14 @@ export default function App() {
           this draws conclusions about a machine that does not exist. */}
       {scenario && (
         <p className="banner error">
-          <strong>Simulated machine.</strong> Scenario <code>{scenario}</code> is loaded. Every
+          <strong>{t("app.simulatedLead")}</strong> {t("app.scenario")} <code>{scenario}</code> is loaded. Every
           snapshot, schedule and figure on this screen was invented to drive the interface, and
           none of it describes this Mac.
         </p>
       )}
       {faking && (
         <p className="banner warning">
-          <strong>Mounts are simulated.</strong> Everything shown inside a snapshot was invented for
+          <strong>{t("app.mountsSimulatedLead")}</strong> Everything shown inside a snapshot was invented for
           development, and Replace restores are refused. Unset SNAPSHOTTER_FAKE_MOUNTS for the real
           thing.
         </p>
@@ -157,7 +157,7 @@ export default function App() {
             <strong>macOS would not mount the snapshot.</strong> {mountHelp}
           </p>
           <button onClick={() => void Status.OpenPrivacySettings()}>
-            Open Full Disk Access settings
+            {t("app.openFdaSettings")}
           </button>
         </div>
       ) : (
@@ -179,17 +179,17 @@ export default function App() {
             className={`aside-home ${view === "home" ? "active" : ""}`}
             onClick={() => setView("home")}
           >
-            Home
+            {t("nav.home")}
           </button>
 
           <div className="aside-head">
-            <h2>Snapshots</h2>
+            <h2>{t("nav.snapshots")}</h2>
             <span className="count">{snapshots.length}</span>
           </div>
 
           {snapshots.length === 0 && (
             <p className="aside-empty">
-              None yet. Take one now, or set up a schedule so they are taken for you.
+              {t("app.noneYet")}
             </p>
           )}
 
@@ -201,17 +201,17 @@ export default function App() {
                 onClick={() => (setSelected(snapshot.name), setView("snapshots"))}
               >
                 <div className="when">
-                  <span className="dot" title={snapshot.mounted ? "Open" : "Not open"} />
+                  <span className="dot" title={snapshot.mounted ? "Open" : t("app.notOpen")} />
                   <span>{stamp(snapshot.taken)}</span>
                 </div>
                 <div className="age">{age(snapshot.taken)}</div>
                 <div className="row-actions">
                   {snapshot.mounted ? (
                     <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), "Closed"))}>
-                      Close
+                      {t("app.close")}
                     </button>
                   ) : (
-                    <button onClick={(e) => (e.stopPropagation(), mount(snapshot))}>Open</button>
+                    <button onClick={(e) => (e.stopPropagation(), mount(snapshot))}>{t("app.open")}</button>
                   )}
                 </div>
               </li>
@@ -224,8 +224,8 @@ export default function App() {
             </button>
           )}
           {snapshots.some((s) => s.mounted) && (
-            <button className="wide" onClick={() => act(() => Snapshots.UnmountAll(), "Closed every snapshot")} disabled={busy}>
-              Close all
+            <button className="wide" onClick={() => act(() => Snapshots.UnmountAll(), t("app.closedEvery"))} disabled={busy}>
+              {t("app.closeAll")}
             </button>
           )}
 
@@ -234,10 +234,10 @@ export default function App() {
           <div className="aside-footer">
             <button
               className="wide primary"
-              onClick={() => act(() => Snapshots.TakeNow(), "Snapshot taken")}
+              onClick={() => act(() => Snapshots.TakeNow(), t("app.snapshotTaken"))}
               disabled={busy}
             >
-              Take a snapshot now
+              {t("app.takeSnapshotNow")}
             </button>
             <button
               className={`wide ${view === "schedule" ? "active" : ""}`}
@@ -250,7 +250,7 @@ export default function App() {
                 }
               }}
             >
-              {/* "Options" rather than "Schedule": the panel already holds how often
+              {/* t("app.options") rather than "Schedule": the panel already holds how often
                   snapshots are taken, what is kept, and the log, which is every
                   choice this application has. Naming it after one of them made the
                   other two hard to find. */}
@@ -271,10 +271,10 @@ export default function App() {
           <>
           <nav className="tabs">
             <button className={tab === "browse" ? "active" : ""} onClick={() => setTab("browse")}>
-              Browse
+              {t("nav.browse")}
             </button>
             <button className={tab === "search" ? "active" : ""} onClick={() => setTab("search")}>
-              Search
+              {t("nav.search")}
             </button>
           </nav>
 
