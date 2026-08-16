@@ -7,6 +7,26 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.12.0 — 2026-08-16
+
+**Snapshotter is written by Chris Thomas and published by Antimatter Studios.
+Both are now named.**
+
+The bundle credited one and not the other, so the About panel macOS builds from
+that metadata said only half of it. The copyright line now reads
+`© 2026 Chris Thomas. Published by Antimatter Studios.`, and the company recorded
+in the bundle is the publisher.
+
+The same line appears under the health screen. It was previously only in the
+About panel, which means it was only in the menu bar — someone reading the window
+to work out what this thing is had nowhere to find it.
+
+The bundle identifier is deliberately unchanged. `com.christhomas.snapshotter` is
+what the Full Disk Access grant is attached to, what both launchd agents are
+labelled with, and what the Homebrew cask quits and unloads by name. Renaming it
+to match the publisher would revoke the grant, orphan the agents and break the
+cask, to change a string nobody sees.
+
 ## v0.11.0 — 2026-08-16
 
 **Readability, and one thing users read.**

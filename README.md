@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.12.0
+
+Written by Chris Thomas, published by Antimatter Studios — both are now named in
+the bundle and under the health screen, where before only one was.
+
 ### v0.11.0
 
 Internal tidying: `main.go` split into four files by what they do, `findings()`
@@ -399,10 +404,6 @@ on PATH beside the window. Behind that: a test
 suite over every package, run on every pull request and again before a tag is
 allowed to become a release.
 
-### v0.1.1
-
-Packaging only. The application bundle now carries its own notarization ticket, so
-the copy Homebrew installs opens on a machine with no network.
 
 ## Design decisions
 

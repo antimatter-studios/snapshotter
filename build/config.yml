@@ -5,11 +5,11 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "Chris Thomas" # The name of the company
+  companyName: "Antimatter Studios" # The publisher, shown as the company in bundle metadata
   productName: "Snapshotter" # The name of the application
   productIdentifier: "com.christhomas.snapshotter" # The unique product identifier
   description: "Browse, compare and schedule APFS local snapshots" # The application description
-  copyright: "(c) 2026, Chris Thomas" # Copyright text
+  copyright: "© 2026 Chris Thomas. Published by Antimatter Studios." # Author and publisher: the About panel shows this verbatim
   comments: "Local snapshot browser for macOS" # Comments
   version: "0.1.0" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
