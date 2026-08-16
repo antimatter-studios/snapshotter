@@ -114,6 +114,9 @@ export function ImageDiff({ versions, leftLabel }: { versions: FileVersions; lef
             dims={versions.leftDims}
             size={versions.leftSize}
             exists={versions.leftExists}
+            // Missing on the left means the picture was added after the snapshot
+            // was taken, which is a different fact from the one on the right.
+            missing={t("diff.imageAdded", { version: leftLabel })}
           />
           <ImageSide
             src={versions.rightImage}
@@ -121,6 +124,9 @@ export function ImageDiff({ versions, leftLabel }: { versions: FileVersions; lef
             dims={versions.rightDims}
             size={versions.rightSize}
             exists={versions.rightExists}
+            // Missing on the right means it is gone — the case someone browsing a
+            // snapshot is most often here to find.
+            missing={t("diff.imageDeleted", { version: versions.rightLabel })}
           />
         </div>
       )}
@@ -134,6 +140,7 @@ function ImageSide({
   dims,
   size,
   exists,
+  missing,
 }: {
   // Optional because the service omits them when empty: a side past the cap has
   // no data URI, and a format Go cannot decode has no dimensions.
@@ -142,6 +149,8 @@ function ImageSide({
   dims?: string;
   size: number;
   exists: boolean;
+  /** What to say when there is no picture on this side. */
+  missing: string;
 }) {
   const { t } = useTranslation();
 
@@ -156,7 +165,11 @@ function ImageSide({
       {src ? (
         <img src={src} alt="" />
       ) : (
-        <p className="empty-note">{exists ? t("diff.imageTooLarge") : t("diff.notInThisSnapshot")}</p>
+        // A side with nothing on it says which of the two reasons applies: the
+        // picture is not there, or it is there and too big to show.
+        <p className={exists ? "empty-note" : "empty-note image-absent"}>
+          {exists ? t("diff.imageTooLarge") : missing}
+        </p>
       )}
     </figure>
   );

@@ -28,6 +28,13 @@ standard library and drawn perfectly well by the web view, and HEIC is what this
 Mac's own screenshots and photographs are. Rejecting them would have been the
 worse error.
 
+**And a missing picture says which kind of missing it is.** An empty half of the
+pair read "not in this snapshot" on either side, which is only true on the left.
+Missing on the left means the picture was added after the snapshot was taken;
+missing on the right means it has been deleted — which is the case someone
+browsing a snapshot is most often here to find. Each side now says its own, in
+the frame the picture would have had, so the two still read as a pair.
+
 ## v0.38.0 — 2026-08-16
 
 **Pictures are shown, not described.**

@@ -180,6 +180,8 @@ export const en = {
   "diff.imageDiffersInPixels": "{n}% of pixels differ",
   "diff.imageSizeDiffers": "The two are different sizes, so their pixels cannot be compared.",
   "diff.imageNoPixelChange": "Every pixel is the same.",
+  "diff.imageAdded": "Added since — not in {version}",
+  "diff.imageDeleted": "Deleted — no longer in {version}",
 } as const;
 
 /** Every key the application can ask for. */
