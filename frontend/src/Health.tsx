@@ -83,82 +83,91 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
         </button>
       </div>
 
-      {health.findings.length === 0 && (
-        <p className="empty">
-          Nothing to act on. Snapshots exist, something is taking more, and the retention you set
-          is the retention you will get.
-        </p>
-      )}
+      {/* Everything whose length varies scrolls. The eight figures below it do
+          not: on a healthy Mac this area is nearly empty, on a sick one it is a
+          list that outruns the window, and either way the numbers should stay
+          where the eye last found them. */}
+      <div className="health-body">
 
-      {health.findings.map((f: Finding, i: number) => (
-        <div key={i} className={`finding ${f.level}`}>
-          {/* The shape says what the finding is about, the colour how bad it
-              is — the same split the menu bar makes, so the two agree. */}
-          <h4>
-            <FindingIcon kind={f.kind} />
-            {f.title}
-          </h4>
-          <p>{f.detail}</p>
+        {health.findings.length === 0 && (
+          <p className="empty">
+            Nothing to act on. Snapshots exist, something is taking more, and the retention you set
+            is the retention you will get.
+          </p>
+        )}
 
-          {/* A finding you cannot act on from where you read it is just
-              anxiety, so the fix is offered here rather than named and left
-              in another tab. */}
-          {f.action === "take-snapshot" && (
-            <button
-              onClick={() => act(() => Snapshots.TakeNow(), "Snapshot taken")}
-              disabled={busy}
-            >
-              Take one now
-            </button>
-          )}
+        {health.findings.map((f: Finding, i: number) => (
+          <div key={i} className={`finding ${f.level}`}>
+            {/* The shape says what the finding is about, the colour how bad it
+                is — the same split the menu bar makes, so the two agree. */}
+            <h4>
+              <FindingIcon kind={f.kind} />
+              {f.title}
+            </h4>
+            <p>{f.detail}</p>
 
-          {f.action === "install-schedule" && (
-            <button
-              onClick={() =>
-                act(
-                  () => Schedule.Install(DEFAULT_INTERVAL_HOURS, DEFAULT_RETENTION_DAYS),
-                  `Snapshots will now be taken every ${DEFAULT_INTERVAL_HOURS} hours`,
-                )
-              }
-              disabled={busy}
-            >
-              {health.scheduleInstalled
-                ? "Start it"
-                : `Take one every ${DEFAULT_INTERVAL_HOURS} hours`}
-            </button>
-          )}
+            {/* A finding you cannot act on from where you read it is just
+                anxiety, so the fix is offered here rather than named and left
+                in another tab. */}
+            {f.action === "take-snapshot" && (
+              <button
+                onClick={() => act(() => Snapshots.TakeNow(), "Snapshot taken")}
+                disabled={busy}
+              >
+                Take one now
+              </button>
+            )}
 
-          {f.action === "install-tripwire" && (
-            <button
-              onClick={() =>
-                act(
-                  () => Schedule.InstallTripwire(),
-                  "Watching for bulk deletion — it will keep watching after this window closes",
-                )
-              }
-              disabled={busy}
-            >
-              {health.tripwireInstalled ? "Start watching" : "Watch for bulk deletion"}
-            </button>
-          )}
-
-          {f.action === "show-log" && (
-            <>
+            {f.action === "install-schedule" && (
               <button
                 onClick={() =>
-                  Schedule.Log(serviceChosenTail)
-                    .then(setLog)
-                    .catch((err) => setError(message(err)))
+                  act(
+                    () => Schedule.Install(DEFAULT_INTERVAL_HOURS, DEFAULT_RETENTION_DAYS),
+                    `Snapshots will now be taken every ${DEFAULT_INTERVAL_HOURS} hours`,
+                  )
                 }
                 disabled={busy}
               >
-                {log ? "Refresh the log" : "Show the log"}
+                {health.scheduleInstalled
+                  ? "Start it"
+                  : `Take one every ${DEFAULT_INTERVAL_HOURS} hours`}
               </button>
-              {log && <pre className="log">{log}</pre>}
-            </>
-          )}
-        </div>
-      ))}
+            )}
+
+            {f.action === "install-tripwire" && (
+              <button
+                onClick={() =>
+                  act(
+                    () => Schedule.InstallTripwire(),
+                    "Watching for bulk deletion — it will keep watching after this window closes",
+                  )
+                }
+                disabled={busy}
+              >
+                {health.tripwireInstalled ? "Start watching" : "Watch for bulk deletion"}
+              </button>
+            )}
+
+            {f.action === "show-log" && (
+              <>
+                <button
+                  onClick={() =>
+                    Schedule.Log(serviceChosenTail)
+                      .then(setLog)
+                      .catch((err) => setError(message(err)))
+                  }
+                  disabled={busy}
+                >
+                  {log ? "Refresh the log" : "Show the log"}
+                </button>
+                {log && <pre className="log">{log}</pre>}
+              </>
+            )}
+          </div>
+        ))}
+
+        <BulkDeletionWarnings />
+      </div>
 
       <dl className="facts">
         <div>
@@ -217,15 +226,6 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           <dd>{health.version}</dd>
         </div>
       </dl>
-
-      <BulkDeletionWarnings />
-
-      {/* Written by one person and published by a studio. The macOS About panel
-          says both; nothing in the window did, so someone reading this screen to
-          work out what this thing is had to go to the menu bar for the answer. */}
-      <p className="attribution">
-        Snapshotter — © 2026 Chris Thomas. Published by Antimatter Studios.
-      </p>
     </div>
   );
 }
@@ -269,23 +269,26 @@ function BulkDeletionWarnings() {
   return (
     <section className="warnings">
       <h3>Bulk deletion warnings</h3>
-      <p className="explain">
-        Times something started deleting a lot of files at once. A snapshot was taken at each, so what
-        was still on disk at that moment can be recovered.
-      </p>
-      <ul>
-        {warnings.map((w, i) => (
-          <li key={i}>
-            <div className="warning-when">{stamp(w.at)}</div>
-            <div className="warning-where">{w.where?.join(", ") || "an unknown location"}</div>
-            {/* No snapshot is the case worth seeing: the deletion happened and
-                nothing was captured. */}
-            <div className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}>
-              {w.snapshot ? `Snapshot ${w.snapshot}` : w.note || "No snapshot was taken"}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {/* A row per event rather than a card each: these are a log, and a log is
+          read by scanning down one column. The folder is the column that gets
+          scanned, so it is the one given the room. */}
+      <table>
+        <tbody>
+          {warnings.map((w, i) => (
+            <tr key={i}>
+              <td className="warning-when">{stamp(w.at)}</td>
+              <td className="warning-where" title={w.where?.join(", ")}>
+                {w.where?.join(", ") || "an unknown location"}
+              </td>
+              {/* No snapshot is the row worth seeing from across the room: the
+                  deletion happened and nothing was captured. */}
+              <td className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}>
+                {w.snapshot ? w.snapshot : w.note || "no snapshot"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }

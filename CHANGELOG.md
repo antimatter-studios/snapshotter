@@ -7,6 +7,31 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.15.0 — 2026-08-16
+
+**The health screen stops giving its best space to its least useful content.**
+
+The eight figures are pinned to the foot of the window and everything else
+scrolls behind them. They do not vary in length and they are what someone
+glances at, so they should not move — while the area above them is nearly empty
+on a healthy Mac and a list that outruns the window on a sick one. The pinned
+strip is translucent, so content passing under it stays legible: that is what
+says there is more above rather than the list simply ending.
+
+The "Nothing to act on" message was borrowing a stylesheet class built for
+whole-view empty states — `margin: auto`, `max-width: 420px`, forty pixels of
+padding — so on a healthy machine a block of reassurance sat centred in the
+middle of the window, pushing everything apart, restating three things the
+header had already said one line above it.
+
+Bulk deletion warnings are a compact table, one row per event: when, where, and
+what was taken. A log is read by scanning one column, so the folder gets the
+room and every row stays one line, with the full path in the tooltip. A row where
+no snapshot was taken is red — that is the one worth seeing from across the room.
+
+The copyright line is gone from this screen. It belongs in the About panel, which
+has it.
+
 ## v0.14.0 — 2026-08-16
 
 **The home screen lists recent bulk deletion warnings.**

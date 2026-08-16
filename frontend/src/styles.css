@@ -1006,15 +1006,6 @@ pre.log {
   background: var(--accent);
 }
 
-/* The attribution under the health grid. Quiet on purpose: it is there to be
-   found rather than read, so it takes the muted colour and the smallest size in
-   the palette. */
-.attribution {
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-}
-
 /* Bulk deletion warnings: history, not state, so it is quieter than the findings
    above it. Absent entirely when nothing has happened — an empty section under
    that heading invites someone to wonder what is missing. */
@@ -1025,21 +1016,6 @@ pre.log {
 .warnings h3 {
   margin: 0 0 4px;
   font-size: 13px;
-}
-
-.warnings ul {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-}
-
-.warnings li {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 12px;
-  align-items: baseline;
-  padding: 7px 0;
-  border-top: 1px solid var(--line-soft);
 }
 
 .warning-when {
@@ -1064,6 +1040,97 @@ pre.log {
 }
 
 /* A deletion nobody captured is the one worth seeing from across the room. */
+.warning-outcome.bad {
+  color: var(--deleted);
+}
+
+/* The health screen is a fixed header, a scrolling middle, and eight figures
+   pinned at the foot.
+
+   The figures do not vary in length and are what someone glances at, so they
+   should not move: on a healthy Mac the middle is nearly empty and on a sick one
+   it is a list that outruns the window. Anything that scrolls passes behind
+   them. */
+.health {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.health-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.health .facts {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  /* Translucent so the content scrolling under it stays legible as it goes,
+     which is what tells you there is more above rather than the list simply
+     ending. */
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Bulk deletion warnings: a log, read by scanning one column down. */
+.warnings {
+  margin: 18px 18px 8px;
+}
+
+.warnings h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.warnings table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.warnings td {
+  padding: 5px 8px 5px 0;
+  border-top: 1px solid var(--line-soft);
+  vertical-align: baseline;
+}
+
+.warning-when {
+  color: var(--muted);
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* The folder answers "was that me?", so it takes the room. Long paths are cut
+   rather than wrapped: a row per event only stays scannable if every row is one
+   line, and the full path is in the title. */
+.warning-where {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warning-outcome {
+  white-space: nowrap;
+  width: 1%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.warning-outcome.ok {
+  color: var(--muted);
+}
+
+/* A deletion nobody captured is the row worth seeing from across the room. */
 .warning-outcome.bad {
   color: var(--deleted);
 }
