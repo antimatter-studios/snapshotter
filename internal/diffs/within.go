@@ -20,7 +20,12 @@ import "path/filepath"
 // window while it proved a negative. Past the budget the answer is "not
 // examined", which is a worse answer than "unchanged" and a much better one than
 // a confident wrong answer.
-const examineBudget = 50000
+// Lowered from 50,000 after watching it in practice: a listing of a home
+// directory asks about several folders, and Library or a source tree hits the
+// budget every time. Ten thousand entries is roughly 25ms of directory reading,
+// which is enough to answer for anything of ordinary size and cheap enough that
+// the ones it cannot answer for cost little to give up on.
+const examineBudget = 10000
 
 // DiffersWithin reports whether anything under two directories differs.
 //

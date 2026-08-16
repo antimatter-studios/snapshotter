@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Browse, Restore, message, type MergedListing, type Change, type SnapshotView } from "./api";
 import { bytes, breadcrumbs, stamp, statusLabel } from "./format";
 import { FileIcon } from "./FileIcon";
@@ -29,6 +29,9 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
   // from the listing so a resolved verdict survives the listing being refreshed,
   // and so a slow folder never delays the rows around it.
   const [folderStatus, setFolderStatus] = useState<Record<string, string>>({});
+  // Rises on every listing, so answers from an abandoned one are discarded
+  // rather than landing on the folder that replaced it.
+  const resolveToken = useRef(0);
 
   const load = useCallback(async () => {
     if (!snapshot?.mounted) return;
@@ -38,18 +41,34 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
       const merged = await Browse.Merged(snapshot.name, path, showUnchanged);
       setListing(merged);
 
-      // Each folder is asked about on its own and fills in when it answers. A
-      // folder whose contents are unchanged costs a full walk to prove it, and
-      // waiting for all of them before drawing anything makes the window look
-      // broken over what is usually a few milliseconds per row.
-      for (const row of merged.rows ?? []) {
-        if (!row.isDir) continue;
-        void Browse.DirectoryStatus(snapshot.name, row.absLive)
-          .then((status) => setFolderStatus((current) => ({ ...current, [row.absLive]: status })))
-          .catch(() => {
+      // Each folder is asked about on its own and fills in when it answers, a few
+      // at a time.
+      //
+      // Not all at once: a folder whose contents are unchanged costs a full walk
+      // to prove it, and firing every row together turned a listing of the home
+      // directory — which contains Library and whole source trees — into six
+      // cores of simultaneous walking for the best part of a minute. A small
+      // queue turns the same work into a trickle that finishes just as soon and
+      // leaves the machine usable while it does.
+      const folders = (merged.rows ?? []).filter((row) => row.isDir);
+      const token = ++resolveToken.current;
+      let next = 0;
+      const worker = async () => {
+        while (next < folders.length) {
+          const row = folders[next++];
+          try {
+            const status = await Browse.DirectoryStatus(snapshot.name, row.absLive);
+            // Dropped if the listing moved on: answers about a folder nobody is
+            // looking at any more are worse than useless, because they would
+            // overwrite the ones for the folder they are.
+            if (token !== resolveToken.current) return;
+            setFolderStatus((current) => ({ ...current, [row.absLive]: status }));
+          } catch {
             // Left as detecting rather than guessed at.
-          });
-      }
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(3, folders.length) }, worker));
     } catch (err) {
       setError(message(err));
       setListing(null);

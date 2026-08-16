@@ -7,6 +7,26 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.23.0 — 2026-08-16
+
+**Folder verdicts no longer take the machine with them.**
+
+v0.22.0 resolved every folder in a listing at once. On a home directory — which
+holds Library and whole source trees — that meant several full walks running
+together, and the application took six cores for the best part of a minute
+before settling. It finished, and it was correct, and it was unusable while it
+did.
+
+They are resolved three at a time now, and the same work finishes just as soon
+while leaving the machine alone. Answers for a listing that has been navigated
+away from are discarded rather than landing on the folder that replaced it.
+
+The budget each folder is allowed also came down from fifty thousand entries to
+ten thousand — roughly twenty-five milliseconds of directory reading. Enough to
+answer for anything of ordinary size, and cheap enough that giving up on the ones
+it cannot answer for costs little. A folder past the budget still says it was not
+examined rather than claiming to be unchanged.
+
 ## v0.22.0 — 2026-08-16
 
 **Differences are shown per file, from the row itself. The compare view is gone.**
