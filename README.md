@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.27.0
+
+Folders being examined show a spinner beside "detecting", so a verdict still
+being worked out no longer reads like the verdict itself.
+
 ### v0.26.0
 
 The "show unchanged" toggle hides unchanged folders as well as files. Folders
@@ -383,12 +388,6 @@ whichever folder came first.
 
 The ignore and watch-again actions are proper buttons rather than faint links,
 and folder paths are shown in full rather than truncated.
-
-### v0.17.0
-
-Bulk deletion warnings carry an **ignore** action, so silencing a noisy folder is
-done where the reason for wanting it appears. What has been silenced is listed
-underneath with a way to undo it.
 
 
 ## Design decisions

@@ -7,6 +7,22 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.27.0 — 2026-08-16
+
+**A spinner while a folder's verdict is being worked out.**
+
+The word "detecting" on its own read as an answer rather than as work in
+progress, which is the one thing it is not. A folder can sit there for a moment
+while its walk runs, and nothing on the row said so.
+
+Only "detecting" gets it. "Not examined" shares the same quiet badge colour but
+is a finished answer, and a spinner on it would promise a result that is never
+coming.
+
+This is the first animation in the application, so it also brings the first
+`prefers-reduced-motion` rule: the ring holds still rather than disappearing,
+because it still marks a row as working rather than settled.
+
 ## v0.26.0 — 2026-08-16
 
 **"Show unchanged" hides unchanged folders again.**

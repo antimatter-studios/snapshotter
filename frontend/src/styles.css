@@ -1303,6 +1303,44 @@ pre.log {
   background: var(--panel-2);
 }
 
+/* Quiet is not the same as invisible. A folder can sit here for a moment while
+   its walk runs, and the word alone did not read as work in progress — it read
+   as the answer. The spinner is what distinguishes the two. */
+.badge.detecting {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.spinner {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  /* The gap is what makes the rotation legible: a complete ring turns without
+     appearing to move at all. */
+  border-top-color: transparent;
+  border-radius: 50%;
+  /* currentColor above, so it stays the badge's muted grey in either theme
+     without a second set of variables. */
+  animation: spin 0.7s linear infinite;
+  flex: 0 0 auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Motion is the whole mechanism here, so there is nothing to soften — it simply
+   holds still. The ring remains, which is still a mark that something is running
+   rather than a verdict. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
 /* What changed inside one file, opened from its row and closed again. Over the
    browser rather than beside it, because a diff wants the width. */
 .file-diff {

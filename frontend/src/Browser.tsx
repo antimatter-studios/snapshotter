@@ -189,6 +189,10 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
               </td>
               <td>
                 <span className={`badge ${status}`} title={row.isDir ? folderWhy[row.absLive] : undefined}>
+                  {/* Only while detecting. notExamined shares this badge's quiet
+                      colour but is a finished answer, and a spinner on it would
+                      promise a result that is never coming. */}
+                  {status === "detecting" && <span className="spinner" aria-hidden="true" />}
                   {statusLabel[status] ?? status}
                 </span>
               </td>
