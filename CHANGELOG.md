@@ -7,6 +7,43 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.41.0 — 2026-08-16
+
+**The Go side speaks the four languages too.**
+
+Until now the window was translated and everything the Go side produced was not,
+which meant the Health screen was half German and the menu bar entirely English.
+The health findings, the headline, the menu bar's own text and the notification
+posted when a schedule is restored are now translated.
+
+`internal/i18n` is a second catalogue rather than a shared one. The two key sets
+barely overlap — almost nothing appears on both surfaces — and they share what
+matters, which is the setting. The language is written to the settings file by
+the window; the watcher that was already redrawing the menu bar applies it. So
+choosing a language changes both surfaces without a relaunch.
+
+The findings became functions rather than package-level values. A value is built
+once at startup and keeps whichever language was in force then, which would have
+made the setting need a relaunch to take effect — the one thing it was designed
+not to need.
+
+Go has no equivalent of the frontend's `Record<Key, string>`, which turns a
+missing translation into a compile error, so this carries the same guarantees as
+tests instead: every catalogue must hold every key and no others, nothing blank
+or padded, placeholders preserved, and nothing obviously truncated. A missing key
+returns the key itself, which is deliberately ugly — a missing string should look
+like a fault rather than like a terse label, because the second kind gets shipped.
+
+**Still English:** the schedule's policy descriptions and log notes, the browse
+and search notes, and the two headlines that count things — "12 snapshots, 3 days
+of cover". Those last need plural rules per language rather than a lookup, which
+is a different piece of work from this one.
+
+Also validated all four window catalogues: a Spanish per-cent sign missing its
+space, and "different sizes" where "different dimensions" was meant, in English
+and Spanish both. Three more checks are now tests — per-cent spacing, ellipsis as
+one character, and no whitespace at a string's edges.
+
 ## v0.40.0 — 2026-08-16
 
 **A file in neither version says so, instead of failing.**

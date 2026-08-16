@@ -10,6 +10,7 @@ import (
 	"log"
 	"os/exec"
 	"snapshotter/internal/config"
+	"snapshotter/internal/i18n"
 	"snapshotter/internal/menubar"
 	"snapshotter/internal/version"
 	"snapshotter/services"
@@ -113,7 +114,7 @@ func installTray(app *application.App, status *services.StatusService, win appli
 			tray.SetIcon(trayIconBad)
 			tray.SetLabel(label + "⚠︎")
 			tray.SetTooltip(product + ": " + err.Error())
-			menu.Add("Could not read snapshot state").SetBitmap(trayIconBad).OnClick(reveal)
+			menu.Add(i18n.T("tray.couldNotRead")).SetBitmap(trayIconBad).OnClick(reveal)
 			menu.Add(err.Error()).OnClick(reveal)
 		} else {
 			tray.SetIcon(trayIcon(health.Level))
@@ -145,13 +146,13 @@ func installTray(app *application.App, status *services.StatusService, win appli
 					// point of showing when rather than how many — but without the
 					// unit written down it reads as a strip that has stopped
 					// updating.
-					menu.Add("Last two days (mark represents an hour)").OnClick(reveal)
+					menu.Add(i18n.T("tray.coverageCaption")).OnClick(reveal)
 					menu.Add("").SetBitmap(strip).OnClick(reveal)
 				}
 			}
 
 			if health.Newest != nil {
-				menu.Add("Newest: " + health.Newest.Format("Mon 2 Jan, 15:04")).OnClick(reveal)
+				menu.Add(i18n.T("tray.newest", "when", health.Newest.Format("Mon 2 Jan, 15:04"))).OnClick(reveal)
 			}
 			if health.ScheduleInstalled && health.NextDue != nil {
 				menu.Add("Next due: " + health.NextDue.Format("Mon 2 Jan, 15:04")).OnClick(reveal)

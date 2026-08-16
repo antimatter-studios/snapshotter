@@ -7,6 +7,7 @@ import (
 	"log"
 	"path/filepath"
 	"snapshotter/internal/config"
+	"snapshotter/internal/i18n"
 	"snapshotter/internal/mountmgr"
 	"snapshotter/internal/trace"
 	"snapshotter/internal/verdict"
@@ -46,6 +47,12 @@ func applySettings(cfg config.Config, p paths, deps services.Deps, win applicati
 	// Turned on and off without a relaunch, which is the point: restarting to
 	// look at a problem is how you lose the problem.
 	trace.SetEnabled(cfg.Logging.Verbose)
+
+	// Before the tray is redrawn, so the menu it builds is in the new language
+	// rather than one change behind. This is what makes choosing a language in
+	// the window reach the menu bar without a relaunch: the window writes the
+	// setting, the watcher above notices the file, and this applies it.
+	i18n.SetLanguage(cfg.Language())
 
 	applyToTray(cfg)
 
