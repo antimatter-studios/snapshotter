@@ -164,4 +164,13 @@ export const de: Record<Key, string> = {
   "schedule.cannotRecreate": "Ein Snapshot lässt sich nicht neu erstellen: er hält einen vergangenen Zustand der Festplatte fest. Alles außerhalb der Richtlinie wird beim nächsten geplanten Lauf gelöscht, und macOS kann bei Speicherdruck noch mehr freigeben — diese Zahlen sind Obergrenzen, keine Zusicherungen.",
   "schedule.conflict": "Eine weitere geplante Aufgabe erstellt ebenfalls Snapshots: {tasks}. Zwei davon verdoppeln die Rate und wenden zwei verschiedene Aufbewahrungszeiträume auf denselben Satz an. Entfernen Sie eine.",
   "health.responseFailed": "Daraufhin wurde kein Snapshot erstellt.",
+  "diff.imageSideBySide": "Nebeneinander",
+  "diff.imageOverlay": "Überlagert",
+  "diff.imageIdentical": "Diese beiden sind Byte für Byte identisch.",
+  "diff.imageTooLarge": "Dieses Bild ist zu groß zum Anzeigen.",
+  "diff.fade": "Zwischen beiden überblenden",
+  "diff.imageDifference": "Unterschied",
+  "diff.imageDiffersInPixels": "{n} % der Pixel unterscheiden sich",
+  "diff.imageSizeDiffers": "Die beiden haben unterschiedliche Maße, ihre Pixel lassen sich daher nicht vergleichen.",
+  "diff.imageNoPixelChange": "Jedes Pixel ist gleich.",
 };

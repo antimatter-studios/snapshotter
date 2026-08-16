@@ -160,4 +160,13 @@ export const fr: Record<Key, string> = {
   "schedule.cannotRecreate": "Un snapshot ne peut pas être recréé : il enregistre un état du disque qui appartient au passé. Tout ce qui sort de la politique est supprimé lors de la prochaine exécution planifiée, et macOS peut en récupérer davantage sous pression disque — ces chiffres sont des maximums, pas des réservations.",
   "schedule.conflict": "Une autre tâche planifiée crée aussi des snapshots : {tasks}. Deux d'entre elles doubleront la cadence et appliqueront deux fenêtres de rétention différentes au même ensemble. Supprimez-en une.",
   "health.responseFailed": "Aucun snapshot n'a été créé en réponse.",
+  "diff.imageSideBySide": "Côte à côte",
+  "diff.imageOverlay": "Superposé",
+  "diff.imageIdentical": "Ces deux fichiers sont identiques octet pour octet.",
+  "diff.imageTooLarge": "Cette image est trop grande pour être affichée.",
+  "diff.fade": "Fondu entre les deux",
+  "diff.imageDifference": "Différence",
+  "diff.imageDiffersInPixels": "{n} % des pixels diffèrent",
+  "diff.imageSizeDiffers": "Les deux ont des dimensions différentes ; leurs pixels ne peuvent donc pas être comparés.",
+  "diff.imageNoPixelChange": "Chaque pixel est identique.",
 };

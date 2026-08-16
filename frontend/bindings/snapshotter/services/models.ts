@@ -216,6 +216,37 @@ export class FileVersions {
      */
     "rightLabel": string;
 
+    /**
+     * Kind is how the window should show this: "text", "image" or "binary".
+     *
+     * Readable stays what it was — true only for text — so nothing that already
+     * checks it starts rendering an image into a line-by-line view.
+     */
+    "kind": string;
+
+    /**
+     * The two pictures, as data URIs, when Kind is "image". Inlined rather than
+     * served from a URL because a snapshot's mountpoint is not reachable from the
+     * web view, and an image the window cannot fetch is no better than none.
+     */
+    "leftImage"?: string;
+    "rightImage"?: string;
+
+    /**
+     * Pixel dimensions, when they could be read. Empty for a format the Go side
+     * has no decoder for — the web view can still draw several of those, and a
+     * picture without its dimensions beats no picture.
+     */
+    "leftDims"?: string;
+    "rightDims"?: string;
+
+    /**
+     * Identical says the two sides are byte-for-byte the same. Worth stating for
+     * an image, where two versions can look alike on screen and a diff of lines
+     * is not available to settle it.
+     */
+    "identical": boolean;
+
     /** Creates a new FileVersions instance. */
     constructor($$source: Partial<FileVersions> = {}) {
         if (!("left" in $$source)) {
@@ -241,6 +272,12 @@ export class FileVersions {
         }
         if (!("rightLabel" in $$source)) {
             this["rightLabel"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("identical" in $$source)) {
+            this["identical"] = false;
         }
 
         Object.assign(this, $$source);

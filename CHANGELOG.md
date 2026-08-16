@@ -7,6 +7,40 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.38.0 — 2026-08-16
+
+**Pictures are shown, not described.**
+
+A screenshot used to report "this looks like a binary file, so there are no lines
+to compare", which is true and useless. Both versions are now put on screen, in
+three modes.
+
+*Side by side* answers "what are these", and is the default because it never
+misleads. *Overlay* cross-dissolves between the two in one box, which is how a
+shifted button or a changed colour becomes obvious — laid side by side those are
+nearly impossible to spot, because the eye has to carry a memory across the gap.
+*Difference* walks every pixel and paints what moved in magenta over a dimmed
+copy of the original, and says what fraction of the picture changed.
+
+The pixel comparison is written here rather than taken from a package. It is
+forty lines against a canvas the browser already provides, and it has a tolerance
+below which a pixel counts as unchanged — without one, anti-aliasing and JPEG
+ringing report a re-save as a change to everything. Two pictures of different
+shapes are refused rather than compared, because overlaying a 1200-wide picture
+on an 800-wide one produces a confident, meaningless answer.
+
+The diff viewer already in use cannot do any of this, and no component does both:
+its inputs are strings and it virtualises by line, so the split view is two
+columns of text rows rather than a general two-pane layout. Feeding it a data URI
+would run a word-level comparison across eleven million characters of base64 and
+draw line numbers around a photograph. GitHub, GitLab and Kaleidoscope all keep
+these as separate views for the same reason.
+
+Dimensions are read where Go has a decoder — PNG, JPEG and GIF — because "was it
+resized" is a question the byte size cannot answer: a recompressed picture changes
+size without changing shape. Formats without a decoder are still drawn, since the
+web view renders more than the standard library reads.
+
 ## v0.37.0 — 2026-08-16
 
 **The comparison limit was 1 MiB. It is now 16 MiB.**

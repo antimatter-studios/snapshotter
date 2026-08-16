@@ -1439,3 +1439,133 @@ pre.log {
   overflow: auto;
   font-size: 12px;
 }
+
+/* Two versions of a picture ------------------------------------------------ */
+
+.image-diff {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.image-diff-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.image-modes {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.image-modes button {
+  border: 0;
+  border-radius: 0;
+  background: var(--panel-2);
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+/* The mode you are in, rather than the one you would get. A two-state pair reads
+   as a position, unlike the theme toggle's three. */
+.image-modes button.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.image-fade {
+  flex: 1;
+  max-width: 320px;
+  display: flex;
+}
+
+.image-fade input {
+  width: 100%;
+}
+
+.image-identical {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.image-pair {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--line-soft);
+}
+
+.image-side {
+  margin: 0;
+  padding: 12px 18px 18px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.image-side figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.image-side figcaption strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 500;
+}
+
+.image-side figcaption span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* A chequerboard, so a transparent PNG reads as transparent rather than as
+   whatever the theme happens to be behind it. */
+.image-side img,
+.image-stack img {
+  max-width: 100%;
+  object-fit: contain;
+  background-color: var(--panel-2);
+  background-image:
+    linear-gradient(45deg, var(--line-soft) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--line-soft) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--line-soft) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--line-soft) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+/* Both in the same box. A resized picture then fails to line up, which is itself
+   the answer to what changed. */
+.image-stack {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.image-stack img {
+  grid-area: 1 / 1;
+  max-height: 100%;
+}
+
+/* The changed pixels, painted over a dimmed copy of the original. Drawn on a
+   dark ground so magenta reads, whatever the picture behind it was. */
+.pixel-mask {
+  background: #101014;
+  max-height: 100%;
+}

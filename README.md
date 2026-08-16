@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.38.0
+
+Images can be compared: side by side, cross-faded, or as a mask of exactly which
+pixels changed.
+
 ### v0.37.0
 
 Files up to 16 MiB can be compared, rather than 1 MiB, and a large binary now
@@ -382,12 +387,6 @@ nothing to open it.
 The file listing has a white background in the light theme rather than the
 window's grey, which was hard to read against small monospaced text. The dark
 theme is unchanged.
-
-### v0.28.0 (released as part of v0.29.0)
-
-Folder verdicts carry a mark as well as a word: a green tick for identical, a
-red cross for one that could not be read. "Identical" replaces "unchanged",
-since what was compared is two versions rather than a history.
 
 
 ## Design decisions

@@ -3,6 +3,7 @@ import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { Diff, message, type FileVersions, type SnapshotView } from "./api";
 import { bytes } from "./format";
 import { useTranslation } from "./i18n";
+import { ImageDiff } from "./ImageDiff";
 
 /**
  * What changed inside one file, between two chosen versions of it.
@@ -108,7 +109,11 @@ export function FileDiff({
       {error && <p className="error">{error}</p>}
       {!versions && !error && <p className="empty-note">{t("diff.reading")}</p>}
 
-      {versions && !versions.readable && (
+      {versions?.kind === "image" && (
+        <ImageDiff versions={versions} leftLabel={left?.stamp ?? t("diff.theSnapshot")} />
+      )}
+
+      {versions && !versions.readable && versions.kind !== "image" && (
         <p className="empty-note">
           {versions.note || t("diff.cannotCompare")}{" "}
           {/* The sizes are what is left to say, and they are worth saying. */}
@@ -117,7 +122,7 @@ export function FileDiff({
         </p>
       )}
 
-      {versions?.readable && (!versions.leftExists || !versions.rightExists) && (
+      {versions?.readable && versions.kind !== "image" && (!versions.leftExists || !versions.rightExists) && (
         <p className="empty-note">
           {!versions.leftExists
             ? t("diff.addedWhole", { version: left?.stamp ?? t("diff.theSnapshot") })
