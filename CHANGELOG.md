@@ -42,6 +42,19 @@ is running, and says why. `SNAPSHOTTER_ALLOW_SECOND_COPY=1` overrides it. A
 released build never refuses: Homebrew replaces the copy in `/Applications`, so
 two of them cannot happen.
 
+### Free space reads at a glance
+
+The space indicator in the header is a bar and a number rather than a sentence.
+Snapshots are purgeable — macOS reclaims the oldest under space pressure rather
+than failing a write — so a disk filling up is how a retention setting quietly
+stops being kept, and that is worth seeing without reading.
+
+The bar fills with what is used rather than what is free, because a bar that
+empties as things get worse reads backwards: a full bar looks like a full disk.
+It is green, then amber below a fifth free, then red below a tenth — the same
+threshold the health screen calls low, so the two cannot disagree about whether
+this Mac is running out. The text only takes the colour once it matters.
+
 ### The release retries hdiutil
 
 v0.15.0 failed with `hdiutil: create failed - Resource busy` — a shared runner

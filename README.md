@@ -334,8 +334,9 @@ Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
 ### v0.16.0
 
-The bulk-deletion tripwire ignores cache and temporary directories, so a browser
-clearing its cache no longer trips it. A development build refuses to join a menu
+The header shows free space as a coloured bar and a number rather than a
+sentence. The bulk-deletion tripwire ignores cache and temporary directories, so
+a browser clearing its cache no longer trips it. A development build refuses to join a menu
 bar that already has the installed copy in it. The release retries `hdiutil`,
 which fails transiently on shared runners.
 
