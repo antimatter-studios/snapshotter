@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Search as SearchAPI, Restore, message, type SearchResult } from "./api";
 import { bytes, stamp } from "./format";
 import { useAction } from "./useAction";
-import { useTranslation } from "./i18n";
+import { useTranslation } from "react-i18next";
 
 /**
  * Find a file by name across every open snapshot.

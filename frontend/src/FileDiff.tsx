@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { Diff, message, type FileVersions, type SnapshotView } from "./api";
 import { bytes } from "./format";
-import { useTranslation } from "./i18n";
+import { useTranslation } from "react-i18next";
 import { ImageDiff } from "./ImageDiff";
 
 /**

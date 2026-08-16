@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.42.0
+
+Translation is handled by i18next and go-i18n, and image comparison by pixelmatch,
+in place of hand-written versions. Plurals now follow each language's own rules.
+
 ### v0.41.0
 
 The health findings, the menu bar and notifications are translated, so the whole
@@ -378,12 +383,6 @@ the Go side — the health findings, the menu bar, notifications — is still En
 The window speaks English, German, Spanish or French, chosen from a picker in the
 header. The choice is written to the settings file, so the menu bar follows it
 too. Some screens are still English — see the changelog.
-
-### v0.32.0
-
-The compare panel names both versions in its own header instead of in the diff
-viewer's column titles, which were clipping them. The menu bar's coverage strip
-now names its unit — one mark is an hour — so it stops looking stuck.
 
 
 ## Design decisions

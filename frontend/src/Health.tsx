@@ -14,7 +14,8 @@ import { bytes, stamp } from "./format";
 import { FindingIcon } from "./FindingIcon";
 import { useAction } from "./useAction";
 import type { Warning } from "./api";
-import { useTranslation, type Translate } from "./i18n";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 /**
  * What the one-click fix installs. Six hours rather than hourly, kept a
@@ -234,7 +235,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
 }
 
 /** Words a span in the largest unit that stays honest. */
-function coverage(hours: number, t: Translate): string {
+function coverage(hours: number, t: TFunction): string {
   if (hours >= 48) return t("health.days", { n: Math.round(hours / 24) });
   if (hours >= 1) return t("health.hours", { n: Math.round(hours) });
   return t("health.underAnHour");

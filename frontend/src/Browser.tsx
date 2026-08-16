@@ -3,8 +3,8 @@ import { Browse, Restore, message, type MergedListing, type Change, type Snapsho
 import { bytes, breadcrumbs, stamp } from "./format";
 import { FileIcon } from "./FileIcon";
 import { StatusIcon } from "./StatusIcon";
-import { useTranslation } from "./i18n";
-import type { Key } from "./i18n/en";
+import { useTranslation } from "react-i18next";
+
 
 interface Props {
   snapshot: SnapshotView | null;
@@ -204,7 +204,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
                   {/* The catalogue is keyed by the same names the service uses, so
                       a status added in Go needs a key rather than a branch here.
                       statusLabel remains the English registry the icon test reads. */}
-                  {t(`status.${status}` as Key) ?? status}
+                  {t(`status.${status}` as never) ?? status}
                 </span>
               </td>
               <td className="num">{status === "onlyOnDisk" ? "—" : bytes(row.snapSize)}</td>

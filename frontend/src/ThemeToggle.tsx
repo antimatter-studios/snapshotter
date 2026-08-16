@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { applyTheme, nextTheme, storedTheme, systemIsDark, type Theme } from "./theme";
 import { Config } from "./api";
-import { useTranslation } from "./i18n";
+import { useTranslation } from "react-i18next";
 
 /**
  * Cycles system → light → dark.

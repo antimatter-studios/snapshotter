@@ -1,17 +1,40 @@
 package i18n
 
 import (
+	"encoding/json"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
 )
 
-// Go has no equivalent of the frontend's Record<Key, string>, which turns a
-// missing translation into a compile error. These tests are that guarantee,
-// written out.
+// go-i18n owns lookup, fallback, template data and plural selection, so none of
+// that is tested here.
+//
+// What remains is the message files themselves, which no library can check: a
+// dropped clause, a placeholder that did not survive translation, a language
+// carrying a message nothing will ever ask for.
 
-func keysOf(m map[string]string) []string {
+type message struct {
+	One   string `json:"one"`
+	Other string `json:"other"`
+}
+
+func load(t *testing.T, code string) map[string]message {
+	t.Helper()
+
+	data, err := locales.ReadFile("locales/" + code + ".json")
+	if err != nil {
+		t.Fatalf("reading %s: %v", code, err)
+	}
+	var out map[string]message
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("parsing %s: %v", code, err)
+	}
+	return out
+}
+
+func ids(m map[string]message) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
@@ -20,89 +43,86 @@ func keysOf(m map[string]string) []string {
 	return out
 }
 
-func TestEveryCatalogueCarriesEveryKey(t *testing.T) {
-	want := keysOf(en)
-	for code, catalogue := range catalogues {
+func TestEveryLanguageCarriesEveryMessage(t *testing.T) {
+	english := load(t, "en")
+	for _, code := range Languages {
 		if code == "en" {
 			continue
 		}
-		got := keysOf(catalogue)
-		if len(got) != len(want) {
-			t.Errorf("%s has %d keys, English has %d", code, len(got), len(want))
-		}
-		for _, key := range want {
-			if _, ok := catalogue[key]; !ok {
-				t.Errorf("%s is missing %q, which would show in English mid-sentence", code, key)
+		other := load(t, code)
+		if strings.Join(ids(other), ",") != strings.Join(ids(english), ",") {
+			for _, id := range ids(english) {
+				if _, ok := other[id]; !ok {
+					t.Errorf("%s is missing %q", code, id)
+				}
 			}
-		}
-		for _, key := range got {
-			if _, ok := en[key]; !ok {
-				t.Errorf("%s has %q, which English does not — nothing will ever ask for it", code, key)
-			}
-		}
-	}
-}
-
-func TestNothingIsBlank(t *testing.T) {
-	for code, catalogue := range catalogues {
-		for key, text := range catalogue {
-			if strings.TrimSpace(text) == "" {
-				t.Errorf("%s/%s is empty, which shows as a gap rather than as a fault", code, key)
-			}
-			if text != strings.TrimSpace(text) {
-				t.Errorf("%s/%s is padded with whitespace", code, key)
+			for _, id := range ids(other) {
+				if _, ok := english[id]; !ok {
+					t.Errorf("%s has %q, which English does not", code, id)
+				}
 			}
 		}
 	}
 }
 
-var placeholder = regexp.MustCompile(`\{(\w+)\}`)
+func TestNothingIsBlankOrPadded(t *testing.T) {
+	for _, code := range Languages {
+		for id, m := range load(t, code) {
+			if strings.TrimSpace(m.Other) == "" {
+				t.Errorf("%s/%s is empty, which shows as a gap rather than a fault", code, id)
+			}
+			if m.Other != strings.TrimSpace(m.Other) {
+				t.Errorf("%s/%s is padded with whitespace", code, id)
+			}
+		}
+	}
+}
+
+var templateAction = regexp.MustCompile(`\{\{\.(\w+)\}\}`)
 
 // A dropped placeholder renders a sentence with its value silently missing, which
 // reads as finished text. The window's catalogue had exactly that fault.
 func TestPlaceholdersSurviveTranslation(t *testing.T) {
-	for code, catalogue := range catalogues {
+	english := load(t, "en")
+	for _, code := range Languages {
 		if code == "en" {
 			continue
 		}
-		for key, want := range en {
-			got := catalogue[key]
-			a := placeholder.FindAllString(want, -1)
-			b := placeholder.FindAllString(got, -1)
+		other := load(t, code)
+		for id, want := range english {
+			a := templateAction.FindAllString(want.Other, -1)
+			b := templateAction.FindAllString(other[id].Other, -1)
 			sort.Strings(a)
 			sort.Strings(b)
-			// Order is not checked: a translator has to be able to move a
-			// placeholder to where the sentence needs it.
+			// Order is not checked: a translator must be free to move a value to
+			// where the sentence needs it.
 			if strings.Join(a, ",") != strings.Join(b, ",") {
-				t.Errorf("%s/%s has placeholders %v, English has %v", code, key, b, a)
+				t.Errorf("%s/%s has %v, English has %v", code, id, b, a)
 			}
 		}
 	}
 }
 
-// The same truncation guard the window's catalogue needed, for the same reason:
-// a translation that stops short of the full stop has usually stopped short of a
-// clause, and what remains is still a grammatical sentence.
+// The same truncation guard the window's catalogue needed: a translation that
+// stops short of the full stop has usually stopped short of a clause, and what
+// remains is still a grammatical sentence.
 func TestNothingIsObviouslyTruncated(t *testing.T) {
-	ending := func(s string) string {
-		if strings.HasSuffix(s, ".") || strings.HasSuffix(s, "…") {
-			return s[len(s)-len("."):]
-		}
-		return ""
-	}
-	for code, catalogue := range catalogues {
+	ends := func(s string) bool { return strings.HasSuffix(s, ".") || strings.HasSuffix(s, "…") }
+
+	english := load(t, "en")
+	for _, code := range Languages {
 		if code == "en" {
 			continue
 		}
-		for key, want := range en {
-			got := catalogue[key]
-			if (ending(want) == "") != (ending(got) == "") {
-				t.Errorf("%s/%s ends %q, English ends %q", code, key, got[max(0, len(got)-12):], want[max(0, len(want)-12):])
+		other := load(t, code)
+		for id, want := range english {
+			got := other[id].Other
+			if ends(want.Other) != ends(got) {
+				t.Errorf("%s/%s ends differently from English: %q", code, id, got)
 			}
-			// German runs longer than English rather than shorter, so a
-			// translation under half the length is nearly always a lost clause.
-			if len(want) > 30 && len(got) < len(want)/2 {
-				t.Errorf("%s/%s is %d characters against English's %d", code, key, len(got), len(want))
+			// German runs longer than English rather than shorter.
+			if len(want.Other) > 30 && len(got) < len(want.Other)/2 {
+				t.Errorf("%s/%s is %d characters against English's %d", code, id, len(got), len(want.Other))
 			}
 		}
 	}
@@ -120,12 +140,12 @@ func TestAnUnknownLanguageIsIgnoredRatherThanObeyed(t *testing.T) {
 	}
 }
 
-func TestPlaceholdersAreFilledByName(t *testing.T) {
+func TestTemplateDataArrives(t *testing.T) {
 	t.Cleanup(func() { SetLanguage("en") })
 	SetLanguage("en")
 
 	got := T("status.overdue.detail", "due", "09:00", "newest", "Tuesday")
-	if strings.Contains(got, "{") {
+	if strings.Contains(got, "{{") {
 		t.Errorf("a placeholder was left unfilled: %q", got)
 	}
 	if !strings.Contains(got, "09:00") || !strings.Contains(got, "Tuesday") {
@@ -133,9 +153,61 @@ func TestPlaceholdersAreFilledByName(t *testing.T) {
 	}
 }
 
-// A key with no entry returns itself, which is meant to look like a fault.
-func TestAMissingKeyLooksWrongRatherThanTerse(t *testing.T) {
+func TestATranslationIsActuallyUsed(t *testing.T) {
+	t.Cleanup(func() { SetLanguage("en") })
+
+	SetLanguage("en")
+	english := T("status.covered")
+	SetLanguage("de")
+	german := T("status.covered")
+
+	if english == german {
+		t.Errorf("the language did not change the answer: %q", german)
+	}
+	if german == "status.covered" {
+		t.Error("the German message was not found, so the id came back instead")
+	}
+}
+
+// A message id with no entry returns itself, which is meant to look like a fault.
+func TestAMissingMessageLooksWrongRatherThanTerse(t *testing.T) {
 	if got := T("status.nothing.like.this"); got != "status.nothing.like.this" {
-		t.Errorf("a missing key produced %q, which could pass for a label", got)
+		t.Errorf("a missing id produced %q, which could pass for a label", got)
+	}
+}
+
+// The reason for the whole library: Spanish and English pluralise differently,
+// and a rule per language is not something to reimplement.
+func TestPluralFormsAreChosenPerLanguage(t *testing.T) {
+	t.Cleanup(func() { SetLanguage("en") })
+
+	for _, c := range []struct{ code, one, many string }{
+		{"en", "1 snapshot", "5 snapshots"},
+		{"de", "1 Snapshot", "5 Snapshots"},
+		{"es", "1 snapshot", "5 snapshots"},
+		{"fr", "1 snapshot", "5 snapshots"},
+	} {
+		SetLanguage(c.code)
+		if got := N("count.snapshots", 1); got != c.one {
+			t.Errorf("%s singular: got %q, want %q", c.code, got, c.one)
+		}
+		if got := N("count.snapshots", 5); got != c.many {
+			t.Errorf("%s plural: got %q, want %q", c.code, got, c.many)
+		}
+	}
+}
+
+// Zero takes the plural form in English and German, and the singular in French —
+// the kind of rule that made hand-rolling this a mistake.
+func TestZeroFollowsTheLanguageRatherThanEnglish(t *testing.T) {
+	t.Cleanup(func() { SetLanguage("en") })
+
+	SetLanguage("en")
+	if got := N("count.days", 0); got != "0 days" {
+		t.Errorf("English zero: got %q", got)
+	}
+	SetLanguage("fr")
+	if got := N("count.days", 0); got != "0 jour" {
+		t.Errorf("French treats zero as singular; got %q", got)
 	}
 }

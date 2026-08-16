@@ -1,0 +1,124 @@
+{
+  "count.days": {
+    "one": "{{.Count}} día",
+    "other": "{{.Count}} días"
+  },
+  "count.hours": {
+    "one": "{{.Count}} hora",
+    "other": "{{.Count}} horas"
+  },
+  "count.snapshots": {
+    "one": "{{.Count}} snapshot",
+    "other": "{{.Count}} snapshots"
+  },
+  "count.underAnHour": {
+    "other": "menos de una hora"
+  },
+  "notify.scheduleRestored.body": {
+    "other": "Algo había eliminado {{.what}}, probablemente una actualización. Vuelve a estar activo."
+  },
+  "notify.scheduleRestored.title": {
+    "other": "Snapshotter restauró su programación"
+  },
+  "notify.what.both": {
+    "other": "la programación y el vigilante de borrados masivos"
+  },
+  "notify.what.schedule": {
+    "other": "la programación"
+  },
+  "notify.what.tripwire": {
+    "other": "el vigilante de borrados masivos"
+  },
+  "status.conflict.title": {
+    "other": "Otro agente también crea snapshots"
+  },
+  "status.covered": {
+    "other": "Está protegido"
+  },
+  "status.fdaWarning": {
+    "other": "Conceder Acceso total al disco a esta aplicación puede no bastar: la tarea programada se ejecuta como un programa aparte y también lo necesita."
+  },
+  "status.headline.covered": {
+    "one": "{{.Count}} snapshot, {{.Cover}} de cobertura",
+    "other": "{{.Count}} snapshots, {{.Cover}} de cobertura"
+  },
+  "status.headline.nothingTakingMore": {
+    "one": "{{.Count}} snapshot, pero nada crea más",
+    "other": "{{.Count}} snapshots, pero nada crea más"
+  },
+  "status.lowSpace.title": {
+    "other": "Queda poco espacio libre, así que la retención no está garantizada"
+  },
+  "status.noSchedule.detail": {
+    "other": "macOS solo programa snapshots locales cuando Time Machine tiene un destino de copia. Sin él, y sin esta programación, el snapshot de hoy es el último."
+  },
+  "status.noSchedule.title": {
+    "other": "Nada crea snapshots automáticamente"
+  },
+  "status.noSnapshots.detail": {
+    "other": "No hay nada a lo que volver. Crear uno ahora no ocupa espacio de inmediato, porque un snapshot solo crece a medida que cambian los archivos que registró."
+  },
+  "status.noSnapshots.title": {
+    "other": "No hay snapshots"
+  },
+  "status.noSnapshotsShort": {
+    "other": "Sin snapshots: no hay nada a lo que volver"
+  },
+  "status.noTripwire.detail": {
+    "other": "Una programación limita hasta dónde puede retroceder; no impide que un borrado termine. El vigilante crea un snapshot en cuanto algo empieza a eliminar archivos en masa, de modo que el resto de ese borrado sigue siendo recuperable."
+  },
+  "status.noTripwire.title": {
+    "other": "Nada vigila los borrados masivos"
+  },
+  "status.overdue.detail": {
+    "other": "Se esperaba un snapshot a las {{.due}} y el más reciente sigue siendo de {{.newest}}. Revise el registro de la tarea programada."
+  },
+  "status.overdue.title": {
+    "other": "El último snapshot está atrasado"
+  },
+  "status.scheduleMissingBinary.title": {
+    "other": "La programación apunta a una copia de Snapshotter que ya no existe"
+  },
+  "status.scheduleNotRunning.detail": {
+    "other": "launchd tiene el trabajo en disco pero no lo ha cargado, así que no se creará ningún snapshot."
+  },
+  "status.scheduleNotRunning.title": {
+    "other": "La programación está instalada pero no se ejecuta"
+  },
+  "status.simulated.title": {
+    "other": "Estas lecturas son simuladas"
+  },
+  "status.simulatedMounts.detail": {
+    "other": "SNAPSHOTTER_FAKE_MOUNTS está definido. Todo lo que hay dentro de un snapshot es inventado para el desarrollo y las restauraciones de tipo Reemplazar se rechazan. Nada de lo que se muestra bajo un snapshot es real."
+  },
+  "status.simulatedMounts.title": {
+    "other": "Los montajes son simulados"
+  },
+  "status.timeMachineThins.title": {
+    "other": "Time Machine reducirá estos snapshots"
+  },
+  "status.tripwireNotRunning.detail": {
+    "other": "Está instalado pero launchd no lo ha cargado, así que no se vigila nada."
+  },
+  "status.tripwireNotRunning.title": {
+    "other": "El vigilante de borrados masivos no se está ejecutando"
+  },
+  "tray.couldNotRead": {
+    "other": "No se pudo leer el estado de los snapshots"
+  },
+  "tray.coverageCaption": {
+    "other": "Últimos dos días (cada marca es una hora)"
+  },
+  "tray.newest": {
+    "other": "Más reciente: {{.when}}"
+  },
+  "tray.openWindow": {
+    "other": "Abrir Snapshotter"
+  },
+  "tray.quit": {
+    "other": "Salir"
+  },
+  "tray.takeSnapshot": {
+    "other": "Crear un snapshot ahora"
+  }
+}
