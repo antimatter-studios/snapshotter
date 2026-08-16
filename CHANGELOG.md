@@ -7,6 +7,38 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.23.0 — 2026-08-16
+
+**Folder verdicts no longer take the machine with them.**
+
+v0.22.0 resolved every folder in a listing at once. On a home directory — which
+holds Library and whole source trees — that meant several full walks running
+together, and the application took six cores for the best part of a minute
+before settling. It finished, and it was correct, and it was unusable while it
+did.
+
+They are resolved three at a time now, and the same work finishes just as soon
+while leaving the machine alone. Answers for a listing that has been navigated
+away from are discarded rather than landing on the folder that replaced it.
+
+The budget each folder was allowed turned out to be the wrong instrument
+entirely. At fifty thousand entries, Library and any real source tree passed it
+immediately, so every folder worth asking about answered "not examined" — a
+refusal dressed up as a result. On a real machine that was every large folder in
+the home directory, and none of them ever resolved.
+
+The cost of a walk was never the problem: 192,635 files take 456ms, about 2.4
+microseconds an entry, because size and modification time both arrive with the
+directory read. What made the machine unusable was running every folder's walk at
+once, and that is fixed where it belongs. The budget is now half a million
+entries — a backstop against something pathological rather than a limit on
+ordinary use — and a folder that does exceed it says "too large to check" rather
+than pretending to still be working.
+
+The status pill is held to one line. A wrapping pill stops looking like a pill
+and drags its row's height with it, so a listing ends up with rows of differing
+heights.
+
 ## v0.22.0 — 2026-08-16
 
 **Differences are shown per file, from the row itself. The compare view is gone.**

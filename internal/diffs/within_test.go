@@ -132,31 +132,32 @@ func TestAChangedFolderIsNotHiddenAsUnchanged(t *testing.T) {
 func TestRunningOutOfBudgetIsNotAClaimOfSameness(t *testing.T) {
 	snap, live := t.TempDir(), t.TempDir()
 
-	// More entries than the walk is allowed to look at, all identical, so it can
-	// only end by exhausting the budget.
+	// A tiny budget rather than a vast tree: the real one is half a million
+	// entries, and building that to prove a boundary would make this test take
+	// eight minutes, which it once did.
+	const tiny = 3
 	files := map[string]string{}
-	for i := 0; i < examineBudget+50; i++ {
+	for i := 0; i < tiny+20; i++ {
 		files[filepath.Join("many", "f"+itoa(i))] = "x"
 	}
 	writeTree(t, snap, files)
 	writeTree(t, live, files)
 
-	differs, answered := DiffersWithin(snap, live, Options{})
+	differs, answered := differsWithinBudget(snap, live, Options{}, tiny)
 	if answered {
-		t.Skip("the budget was not reached; nothing to assert")
+		t.Fatal("a budget of three examined a folder of twenty without giving up")
 	}
 	if differs {
 		t.Error("an unanswered question reported a difference")
 	}
+}
 
-	rows, err := Level(snap, live, Options{IncludeSame: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, r := range rows {
-		if r.RelPath == "many" && r.Status == Same {
-			t.Error("a folder that was not examined was reported as unchanged")
-		}
+// The backstop must be far above anything ordinary, or it becomes a refusal to
+// answer dressed up as a result — which is what it was, with every large folder
+// in a home directory reporting "not examined" and nothing else.
+func TestTheBudgetIsABackstopRatherThanALimit(t *testing.T) {
+	if examineBudget < 100000 {
+		t.Errorf("the budget is %d, low enough that ordinary folders will hit it", examineBudget)
 	}
 }
 

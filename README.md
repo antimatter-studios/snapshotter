@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.23.0
+
+Folder verdicts resolve a few at a time rather than all at once, which had the
+application taking six cores for a minute on a home directory listing.
+
 ### v0.22.0
 
 Differences are shown per file, opened from the row, rather than as a separate
@@ -386,13 +391,6 @@ The home screen lists recent bulk deletion warnings, read from a file the
 tripwire appends to — the tripwire is a separate process, so nothing it sees can
 be held in memory for the window. Background items in System Settings now say
 Snapshotter rather than the name on the signing certificate.
-
-### v0.13.0
-
-The bulk-deletion tripwire names the folder files are disappearing from rather
-than only reporting that they are. Errors no longer vanish before they can be
-read: the window refresh used to clear them on success, which wiped the reason a
-mount failed the moment the authorization dialog handed focus back.
 
 
 ## Design decisions
