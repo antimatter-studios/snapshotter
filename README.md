@@ -336,8 +336,7 @@ Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
 The compare panel names both versions in its own header instead of in the diff
 viewer's column titles, which were clipping them. The menu bar's coverage strip
-now says how many snapshots there are and how many hours they cover, so it stops
-looking stuck.
+now names its unit — one mark is an hour — so it stops looking stuck.
 
 ### v0.31.0
 

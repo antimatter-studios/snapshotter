@@ -27,9 +27,9 @@ three marks. That is the entire point of showing when rather than how many, but
 the caption said only "Last two days", which left the strip looking stuck to
 anyone who knew their own snapshot count.
 
-It now reads, for example, "22 snapshots covering 3 hours of the last 48". The
-rule that fills the marks and the rule the caption describes are one function, so
-they cannot drift apart.
+It now reads "Last two days (mark represents an hour)", which names the unit the
+strip is drawn in. The rule that fills the marks lives in one function, so the
+drawing and any future description of it cannot drift apart.
 
 ## v0.31.0 — 2026-08-16
 
