@@ -172,3 +172,56 @@ func itoa(n int) string {
 	}
 	return string(b)
 }
+
+// A folder that cannot be read must not decide the answer for everything around
+// it. One protected subfolder used to abort the entire walk, and the interface
+// then reported that as "too large to check" — which was not what had happened.
+func TestAnUnreadableSubfolderDoesNotAbortTheWholeAnswer(t *testing.T) {
+	snap, live := t.TempDir(), t.TempDir()
+	writeTree(t, snap, map[string]string{
+		"locked/secret.txt": "hidden",
+		"visible/thing.txt": "before",
+	})
+	writeTree(t, live, map[string]string{
+		"locked/secret.txt": "hidden",
+		"visible/thing.txt": "after and longer",
+	})
+
+	// Unreadable on one side only, which is what a privacy-protected folder
+	// looks like from here.
+	locked := filepath.Join(live, "locked")
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Skipf("cannot make a directory unreadable here: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+	differs, answered := DiffersWithin(snap, live, Options{})
+	if !answered {
+		t.Fatal("one unreadable folder made the whole tree unanswerable")
+	}
+	if !differs {
+		t.Error("the change in the readable folder was missed")
+	}
+}
+
+// But when the only thing that could have differed was unreadable, saying
+// "unchanged" would be a guess dressed as a fact.
+func TestAnUnreadableFolderWithNothingElseIsUnanswered(t *testing.T) {
+	snap, live := t.TempDir(), t.TempDir()
+	writeTree(t, snap, map[string]string{"locked/secret.txt": "hidden"})
+	writeTree(t, live, map[string]string{"locked/secret.txt": "hidden"})
+
+	locked := filepath.Join(live, "locked")
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Skipf("cannot make a directory unreadable here: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+	differs, answered := DiffersWithin(snap, live, Options{})
+	if answered {
+		t.Error("a tree whose only folder could not be read was answered for")
+	}
+	if differs {
+		t.Error("an unanswered question reported a difference")
+	}
+}

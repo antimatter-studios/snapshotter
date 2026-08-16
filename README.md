@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.24.0
+
+Folder verdicts are remembered while the window is open and forgotten when the
+disk moves under them, so navigating back to a folder no longer re-walks it. An
+unreadable subfolder no longer makes a whole tree unanswerable.
+
 ### v0.23.0
 
 Folder verdicts resolve a few at a time rather than all at once, which had the
@@ -384,13 +390,6 @@ which fails transiently on shared runners.
 The health screen pins its eight figures to the foot of the window and scrolls
 everything else behind them, so the space goes to whatever actually has something
 to say. Bulk deletion warnings are a compact table, one row per event.
-
-### v0.14.0
-
-The home screen lists recent bulk deletion warnings, read from a file the
-tripwire appends to — the tripwire is a separate process, so nothing it sees can
-be held in memory for the window. Background items in System Settings now say
-Snapshotter rather than the name on the signing certificate.
 
 
 ## Design decisions

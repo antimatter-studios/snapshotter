@@ -61,8 +61,11 @@ export const statusLabel: Record<string, string> = {
   typeChanged: "type changed",
   // A folder whose verdict has not arrived yet.
   detecting: "detecting…",
-  // One so large the walk gave up. Rare now that the budget is a backstop rather
-  // than a limit, and it must not read as "detecting…" — that would leave a row
-  // looking like it is still working when it has stopped for good.
-  notExamined: "too large to check",
+  // The walk finished without an answer — either something inside could not be
+  // read, or the folder was vast enough to hit the backstop. The label does not
+  // guess which: it said "too large to check" for a while, which was confidently
+  // wrong whenever the real reason was a folder it could not open. It must also
+  // not read as "detecting…", which would leave a row looking like it is still
+  // working when it has stopped for good.
+  notExamined: "could not check",
 };

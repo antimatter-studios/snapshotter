@@ -9,6 +9,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/mountmgr"
+	"snapshotter/internal/verdict"
 )
 
 // Browsing is the screen someone reaches when they have already lost something,
@@ -235,5 +236,56 @@ func TestAChangedFolderResolvesToChanged(t *testing.T) {
 	}
 	if status != "modified" {
 		t.Errorf("a folder with an edited file inside resolved to %q", status)
+	}
+}
+
+// Browsing asks for the same folder's verdict over and over — open it, look
+// inside, come back — and each answer costs a walk. The answer only stops being
+// true when the live disk moves, which is what the cache is keyed on.
+func TestAFolderVerdictIsRememberedUntilTheDiskMoves(t *testing.T) {
+	svc, seed := browseFixture(t)
+	svc.Verdicts = verdict.New()
+	folder := seed + "/Documents"
+
+	first, err := svc.DirectoryStatus(browseSnapshot, folder)
+	if err != nil {
+		t.Fatalf("directory status: %v", err)
+	}
+	if svc.Verdicts.Len() == 0 {
+		t.Fatal("the answer was not remembered")
+	}
+
+	// Changed on disk, but nothing has told the cache — so the remembered answer
+	// is deliberately still returned. This is what makes it a cache rather than a
+	// second implementation of the walk.
+	if err := os.WriteFile(folder+"/notes.md", []byte("edited, and quite a bit longer"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	again, err := svc.DirectoryStatus(browseSnapshot, folder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again != first {
+		t.Errorf("the remembered answer was not used: %q then %q", first, again)
+	}
+
+	// Once told, it walks again and sees the change.
+	svc.Verdicts.Touched(folder + "/notes.md")
+	after, err := svc.DirectoryStatus(browseSnapshot, folder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after != "modified" {
+		t.Errorf("after being told the disk moved, the folder is %q", after)
+	}
+}
+
+// A nil cache means compute every time, which is what the command line does.
+func TestNoCacheStillAnswers(t *testing.T) {
+	svc, seed := browseFixture(t)
+	svc.Verdicts = nil
+
+	if _, err := svc.DirectoryStatus(browseSnapshot, seed+"/Documents"); err != nil {
+		t.Errorf("without a cache: %v", err)
 	}
 }
