@@ -992,3 +992,12 @@ pre.log {
 .verdict.info .verdict-mark {
   background: var(--accent);
 }
+
+/* The attribution under the health grid. Quiet on purpose: it is there to be
+   found rather than read, so it takes the muted colour and the smallest size in
+   the palette. */
+.attribution {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
