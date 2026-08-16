@@ -21,13 +21,19 @@ They are resolved three at a time now, and the same work finishes just as soon
 while leaving the machine alone. Answers for a listing that has been navigated
 away from are discarded rather than landing on the folder that replaced it.
 
-The budget each folder is allowed also came down from fifty thousand entries to
-ten thousand — roughly twenty-five milliseconds of directory reading. Enough to
-answer for anything of ordinary size, and cheap enough that giving up on the ones
-it cannot answer for costs little. A folder past the budget still says it was not
-examined rather than claiming to be unchanged, and reads the same as one still
-being worked out — the distinction between "not answered yet" and "given up on"
-is ours rather than the reader's, and either way the answer is not there.
+The budget each folder was allowed turned out to be the wrong instrument
+entirely. At fifty thousand entries, Library and any real source tree passed it
+immediately, so every folder worth asking about answered "not examined" — a
+refusal dressed up as a result. On a real machine that was every large folder in
+the home directory, and none of them ever resolved.
+
+The cost of a walk was never the problem: 192,635 files take 456ms, about 2.4
+microseconds an entry, because size and modification time both arrive with the
+directory read. What made the machine unusable was running every folder's walk at
+once, and that is fixed where it belongs. The budget is now half a million
+entries — a backstop against something pathological rather than a limit on
+ordinary use — and a folder that does exceed it says "too large to check" rather
+than pretending to still be working.
 
 The status pill is held to one line. A wrapping pill stops looking like a pill
 and drags its row's height with it, so a listing ends up with rows of differing

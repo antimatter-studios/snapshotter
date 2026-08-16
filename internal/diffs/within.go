@@ -20,12 +20,23 @@ import "path/filepath"
 // window while it proved a negative. Past the budget the answer is "not
 // examined", which is a worse answer than "unchanged" and a much better one than
 // a confident wrong answer.
-// Lowered from 50,000 after watching it in practice: a listing of a home
-// directory asks about several folders, and Library or a source tree hits the
-// budget every time. Ten thousand entries is roughly 25ms of directory reading,
-// which is enough to answer for anything of ordinary size and cheap enough that
-// the ones it cannot answer for cost little to give up on.
-const examineBudget = 10000
+// Large enough that it almost never decides the answer.
+//
+// It was 50,000, and that was the wrong instrument: Library and any real source
+// tree pass it immediately, so every folder worth asking about came back "not
+// examined" — a refusal to answer dressed up as a result. Watching it on a real
+// machine, every large folder in a home directory reported that and nothing else.
+//
+// The cost of a walk was never the problem. Measured on a tree of 192,635 files
+// it takes 456ms, about 2.4 microseconds per entry, because size and
+// modification time both arrive with the directory read. What made the machine
+// unusable was running every folder's walk at once, and that is fixed where it
+// belongs — the caller resolves a few at a time.
+//
+// So this is now a backstop against something pathological rather than a limit
+// on ordinary use: half a million entries is a second or so, and a folder that
+// large is one where "not examined" is a fair thing to say.
+const examineBudget = 500000
 
 // DiffersWithin reports whether anything under two directories differs.
 //
@@ -34,7 +45,13 @@ const examineBudget = 10000
 // is unchanged — the whole reason this exists is that Level used to make exactly
 // that claim without looking.
 func DiffersWithin(snapshotDir, liveDir string, opt Options) (differs, answered bool) {
-	remaining := examineBudget
+	return differsWithinBudget(snapshotDir, liveDir, opt, examineBudget)
+}
+
+// differsWithinBudget is DiffersWithin with the backstop as a parameter, so a
+// test can reach it without creating half a million files to do so.
+func differsWithinBudget(snapshotDir, liveDir string, opt Options, budget int) (differs, answered bool) {
+	remaining := budget
 	differs, answered = differsWithin(snapshotDir, liveDir, opt, &remaining)
 	return differs, answered
 }

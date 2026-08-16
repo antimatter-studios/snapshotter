@@ -59,9 +59,10 @@ export const statusLabel: Record<string, string> = {
   onlyInSnapshot: "deleted since",
   onlyOnDisk: "new since",
   typeChanged: "type changed",
-  // A folder whose verdict has not arrived yet, and one the walk gave up on.
-  // Both read the same because the distinction is ours, not the reader's: either
-  // way the answer is not here.
+  // A folder whose verdict has not arrived yet.
   detecting: "detecting…",
-  notExamined: "detecting…",
+  // One so large the walk gave up. Rare now that the budget is a backstop rather
+  // than a limit, and it must not read as "detecting…" — that would leave a row
+  // looking like it is still working when it has stopped for good.
+  notExamined: "too large to check",
 };
