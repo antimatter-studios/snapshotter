@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -326,9 +327,11 @@ type FileVersions struct {
 //
 // Both sides are loaded into memory and then into a web view, so this is a limit
 // on what the window can survive rather than on what the disk can supply. A
-// megabyte is far beyond any source file and far below anything that would
-// stall the interface.
-const maxDiffableBytes = 1 << 20
+// Sixteen megabytes takes in large logs and generated files as well as source.
+// It was one megabyte, which turned out to be the wrong instrument for the same
+// reason the folder-walk budget was: it declined things people actually wanted
+// to look at.
+const maxDiffableBytes = 16 << 20
 
 // FileVersions reads one file from both sides so the window can show what
 // changed inside it.
@@ -374,6 +377,18 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		out.RightSize = rightInfo.Size()
 	}
 
+	// Binary is asked first, and deliberately. The size gate used to come first,
+	// so a 1.5MB PNG was told it was "too large to compare line by line" — which
+	// implies a smaller PNG would diff, and it would not. The message named the
+	// first gate it hit rather than the reason, which is the same fault as a
+	// folder reporting "too large to check" when it was really unreadable.
+	//
+	// This costs one small read of each side rather than a full one.
+	if looksBinary(leftPath, out.LeftExists) || looksBinary(rightPath, out.RightExists) {
+		out.Note = "this looks like a binary file, so there are no lines to compare"
+		return out, nil
+	}
+
 	if out.LeftSize > maxDiffableBytes || out.RightSize > maxDiffableBytes {
 		out.Note = "too large to compare line by line"
 		return out, nil
@@ -382,12 +397,59 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	leftText, okLeft := readableFile(leftPath, out.LeftExists)
 	rightText, okRight := readableFile(rightPath, out.RightExists)
 	if !okLeft || !okRight {
+		// The prefix said text and the whole file disagreed: a NUL a long way in,
+		// or invalid UTF-8 past the sample.
 		out.Note = "this looks like a binary file, so there are no lines to compare"
 		return out, nil
 	}
 
 	out.Left, out.Right, out.Readable = leftText, rightText, true
 	return out, nil
+}
+
+// binarySniffBytes is how much of a file is read to decide whether it is text.
+//
+// Enough to catch any real binary format — every one of them carries a NUL or an
+// invalid sequence in its header — and small enough that asking costs nothing
+// next to reading a file that may be sixteen megabytes.
+const binarySniffBytes = 8 << 10
+
+// looksBinary reports whether a file's opening bytes say it is not text.
+//
+// A side that does not exist is not binary: a created or deleted file has one
+// empty side, and that must still diff as a whole side added or removed.
+func looksBinary(path string, exists bool) bool {
+	if !exists {
+		return false
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		// Unreadable is not the same as binary. The full read below will produce
+		// the honest error rather than this guessing at one.
+		return false
+	}
+	defer f.Close()
+
+	buf := make([]byte, binarySniffBytes)
+	n, err := f.Read(buf)
+	if n == 0 || (err != nil && !errors.Is(err, io.EOF)) {
+		return false
+	}
+	sample := buf[:n]
+
+	if bytes.IndexByte(sample, 0) >= 0 {
+		return true
+	}
+	// A sample cut mid-character would fail a UTF-8 check for a reason that says
+	// nothing about the file, so the trailing partial rune is dropped first.
+	for len(sample) > 0 && !utf8.Valid(sample) {
+		if utf8.RuneStart(sample[len(sample)-1]) || len(sample) < 2 {
+			sample = sample[:len(sample)-1]
+			break
+		}
+		sample = sample[:len(sample)-1]
+	}
+	return !utf8.Valid(sample)
 }
 
 // readableFile returns a file's text, and whether it is text at all.

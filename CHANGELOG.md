@@ -7,6 +7,32 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.37.0 — 2026-08-16
+
+**The comparison limit was 1 MiB. It is now 16 MiB.**
+
+One megabyte was the wrong instrument for the same reason the folder-walk budget
+was: it declined things people actually wanted to look at. Sixteen takes in large
+logs and generated files as well as source.
+
+**And a large image now says it is an image.**
+
+The size check ran before the binary check, so a 1.5 MB screenshot was told it
+was "too large to compare line by line" — which implies a smaller screenshot
+would diff, and it would not. The message named the first gate it hit rather than
+the reason, which is the same fault as a folder reporting "too large to check"
+when it was really unreadable.
+
+Binary is decided first now, from the opening 8 KB rather than the whole file, so
+asking costs almost nothing against a file that may be sixteen megabytes. A
+sample cut mid-character has its trailing partial rune dropped before the UTF-8
+check, so a valid file is not called binary for where the read happened to stop.
+
+One existing test was fixed rather than adapted: it filled its oversized file
+with zero bytes, which are NULs, so it would have proved the file was binary
+rather than that it was large. Its fixture never matched its intent, and
+reordering the checks made that visible.
+
 ## v0.36.0 — 2026-08-16
 
 **A sentence that lost its ending in every language but English.**

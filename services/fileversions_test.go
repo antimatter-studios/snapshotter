@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -131,13 +132,17 @@ func TestAFileInNeitherPlaceIsAnError(t *testing.T) {
 // about what the window survives rather than what the disk can supply.
 func TestATooLargeFileIsDeclinedRatherThanLoaded(t *testing.T) {
 	svc, seed := fileFixture(t)
-	big := filepath.Join(seed, "huge.log")
+	bigPath := filepath.Join(seed, "huge.log")
 
-	if err := os.WriteFile(big, make([]byte, maxDiffableBytes+1), 0o600); err != nil {
+	// Text, not zero bytes. A file of NULs is binary, and binary is now decided
+	// before size — so the old fixture proved the wrong thing the moment the
+	// order changed. What this test is about is a genuinely large *text* file.
+	big := bytes.Repeat([]byte("a"), maxDiffableBytes+1)
+	if err := os.WriteFile(bigPath, big, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, big, "")
+	got, err := svc.FileVersions(browseSnapshot, bigPath, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -183,5 +188,63 @@ func TestTheRightSideIsLabelled(t *testing.T) {
 	}
 	if got.RightLabel != "the live disk" {
 		t.Errorf("the default target is not named as the disk: %q", got.RightLabel)
+	}
+}
+
+// A PNG that is also over the cap must say it is an image, not that it is large.
+//
+// The size gate used to run first, so a 1.5MB screenshot was told it was "too
+// large to compare line by line" — which implies a smaller one would diff, and
+// it would not. The message named the first gate it hit rather than the reason.
+func TestALargeBinaryFileSaysItIsBinaryRatherThanLarge(t *testing.T) {
+	svc, seed := fileFixture(t)
+	big := filepath.Join(seed, "screenshot.png")
+
+	// A PNG header, then enough padding to clear the cap.
+	data := append([]byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01}, make([]byte, maxDiffableBytes+1)...)
+	if err := os.WriteFile(big, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := svc.FileVersions(browseSnapshot, big, "")
+	if err != nil {
+		t.Fatalf("file versions: %v", err)
+	}
+	if got.Readable {
+		t.Error("a PNG was offered as text")
+	}
+	if strings.Contains(got.Note, "large") {
+		t.Errorf("the note blames the size of an image: %q", got.Note)
+	}
+	if !strings.Contains(got.Note, "binary") {
+		t.Errorf("the note does not say what it actually is: %q", got.Note)
+	}
+	// The figures are all a binary comparison has to offer, so they must survive.
+	if got.RightSize == 0 {
+		t.Error("the size was withheld")
+	}
+}
+
+// Text a long way under the new cap must still diff — the point of raising it.
+func TestATextFileWellPastTheOldCapStillCompares(t *testing.T) {
+	svc, seed := fileFixture(t)
+	big := filepath.Join(seed, "large.log")
+
+	// Comfortably past the old 1MiB limit and inside the new one.
+	line := "a line of perfectly ordinary log output\n"
+	var sb strings.Builder
+	for sb.Len() < 3<<20 {
+		sb.WriteString(line)
+	}
+	if err := os.WriteFile(big, []byte(sb.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := svc.FileVersions(browseSnapshot, big, "")
+	if err != nil {
+		t.Fatalf("file versions: %v", err)
+	}
+	if !got.Readable {
+		t.Errorf("a 3MB text file was declined: %q", got.Note)
 	}
 }

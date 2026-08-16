@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.37.0
+
+Files up to 16 MiB can be compared, rather than 1 MiB, and a large binary now
+reports that it is binary instead of blaming its size.
+
 ### v0.36.0
 
 Fixes a sentence that was cut short in German, Spanish and French, and adds tests
@@ -383,11 +388,6 @@ theme is unchanged.
 Folder verdicts carry a mark as well as a word: a green tick for identical, a
 red cross for one that could not be read. "Identical" replaces "unchanged",
 since what was compared is two versions rather than a history.
-
-### v0.27.0
-
-Folders being examined show a spinner beside "detecting", so a verdict still
-being worked out no longer reads like the verdict itself.
 
 
 ## Design decisions
