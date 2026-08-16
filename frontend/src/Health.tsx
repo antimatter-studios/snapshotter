@@ -322,9 +322,11 @@ function BulkDeletionWarnings() {
               <td className="warning-where">
                 {w.where?.length ? (
                   <ul>
-                    {w.where.map((folder) => (
+                    {w.where.map((folder, n) => (
                       <li key={folder}>
-                        <span className="folder">{folder}</span>
+                        {/* Shown short, ignored long: "~" is for reading and
+                            means nothing to a path comparison. */}
+                        <span className="folder">{w.labels?.[n] ?? folder}</span>
                         <button
                           title={`Stop warning about ${folder}`}
                           onClick={() => void ignore(folder)}

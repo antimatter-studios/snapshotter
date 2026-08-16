@@ -1127,11 +1127,19 @@ export class Warning {
     "at": string;
 
     /**
-     * Where names the folders the files went from, commonest first. This is the
-     * part worth reading — "something is deleting a lot of files" tells you to
-     * worry, and "from ~/Documents/Invoices" tells you whether to.
+     * Where names the folders the files went from, commonest first, as full
+     * paths. This is what an ignore rule is built from: "~" means nothing to a
+     * comparison against a path the filesystem reported.
      */
     "where": string[];
+
+    /**
+     * Labels is the same list written the way a person writes it, with the home
+     * directory as "~". Both are sent because the interface shows one and acts on
+     * the other, and deriving either in the window would mean teaching it where
+     * home is.
+     */
+    "labels": string[];
 
     /**
      * Snapshot is the restore point taken in response. Empty means none was, and
@@ -1148,6 +1156,9 @@ export class Warning {
         if (!("where" in $$source)) {
             this["where"] = [];
         }
+        if (!("labels" in $$source)) {
+            this["labels"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -1157,9 +1168,13 @@ export class Warning {
      */
     static createFrom($$source: any = {}): Warning {
         const $$createField1_0 = $$createType11;
+        const $$createField2_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("where" in $$parsedSource) {
             $$parsedSource["where"] = $$createField1_0($$parsedSource["where"]);
+        }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
         }
         return new Warning($$parsedSource as Partial<Warning>);
     }

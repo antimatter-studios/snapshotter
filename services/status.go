@@ -14,6 +14,7 @@ import (
 	"snapshotter/internal/mountmgr"
 	"snapshotter/internal/text"
 	"snapshotter/internal/version"
+	"snapshotter/internal/watch"
 )
 
 // openURL hands a URL to the system to open. System Settings panes are
@@ -501,10 +502,15 @@ func (s *StatusService) MountHelp() string {
 // the deletion has long exited.
 type Warning struct {
 	At time.Time `json:"at"`
-	// Where names the folders the files went from, commonest first. This is the
-	// part worth reading — "something is deleting a lot of files" tells you to
-	// worry, and "from ~/Documents/Invoices" tells you whether to.
+	// Where names the folders the files went from, commonest first, as full
+	// paths. This is what an ignore rule is built from: "~" means nothing to a
+	// comparison against a path the filesystem reported.
 	Where []string `json:"where"`
+	// Labels is the same list written the way a person writes it, with the home
+	// directory as "~". Both are sent because the interface shows one and acts on
+	// the other, and deriving either in the window would mean teaching it where
+	// home is.
+	Labels []string `json:"labels"`
 	// Snapshot is the restore point taken in response. Empty means none was, and
 	// Note says why.
 	Snapshot string `json:"snapshot,omitempty"`
@@ -531,7 +537,14 @@ func (s *StatusService) RecentWarnings(limit int) []Warning {
 		if e.Kind != events.KindBulkDeletion {
 			continue
 		}
-		out = append(out, Warning{At: e.At, Where: e.Where, Snapshot: e.Snapshot, Note: e.Note})
+		labels := make([]string, len(e.Where))
+		for i, dir := range e.Where {
+			labels[i] = watch.Shorten(dir)
+		}
+		out = append(out, Warning{
+			At: e.At, Where: e.Where, Labels: labels,
+			Snapshot: e.Snapshot, Note: e.Note,
+		})
 	}
 	return out
 }

@@ -22,6 +22,12 @@ folders and often only one of them is the noisy one. The browser burst that
 started all this touched two cache directories and one holding actual browser
 state, and silencing all three because you clicked once would have been wrong.
 
+Paths are also written the way people write them, with the home directory as
+`~`. Twenty characters of `/Users/somebody` carry no information on the machine
+they describe. The full path is still what an ignore rule is built from — `~`
+means nothing to a comparison against a path the filesystem reported — so both
+are sent, and the window shows one while acting on the other.
+
 ## v0.18.0 — 2026-08-16
 
 **The buttons look like buttons, and paths are shown whole.**
