@@ -29,7 +29,7 @@ func TestTheTripwireFiresOnRealDeletions(t *testing.T) {
 	var taken atomic.Int32
 	fired := make(chan struct{}, 1)
 
-	w := New([]string{dir}, func(context.Context) error {
+	w := New([]string{dir}, func(context.Context, []string) error {
 		taken.Add(1)
 		select {
 		case fired <- struct{}{}:

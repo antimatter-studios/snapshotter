@@ -439,6 +439,19 @@ button.wide {
 
 /* Banners ----------------------------------------------------------------- */
 
+/* Both banners are click-to-dismiss. The error one persists until something
+   replaces it — it is the reason an action failed, and it used to be wiped by a
+   background refresh before it could be read — so it needs a way out that is not
+   "go and do something else". */
+.banner {
+  cursor: default;
+}
+
+.banner.error,
+.banner.ok {
+  cursor: pointer;
+}
+
 .banner {
   margin: 0;
   padding: 8px 18px;

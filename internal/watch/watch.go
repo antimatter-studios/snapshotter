@@ -3,7 +3,9 @@ package watch
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/rjeczalik/notify"
@@ -23,7 +25,9 @@ type Watcher struct {
 	// Snapshot is called when a burst trips the wire. It is called from the
 	// watch loop, so a slow implementation delays detection of the next burst;
 	// tmutil takes a second or so, which is well inside the cooldown.
-	Snapshot func(context.Context) error
+	// where names the directories the burst happened in, commonest first, so the
+	// caller can say more than "something is deleting files".
+	Snapshot func(ctx context.Context, where []string) error
 	// Log reports what happened. Optional.
 	Log func(format string, args ...any)
 	// Now is swappable for tests.
@@ -31,7 +35,7 @@ type Watcher struct {
 }
 
 // New builds a Watcher with the default thresholds.
-func New(roots []string, snapshot func(context.Context) error) *Watcher {
+func New(roots []string, snapshot func(ctx context.Context, where []string) error) *Watcher {
 	return &Watcher{
 		Roots:    roots,
 		Trigger:  NewTrigger(0, 0, 0),
@@ -93,15 +97,35 @@ func (w *Watcher) Run(ctx context.Context) error {
 			if ev.Event() != notify.Remove && ev.Event() != notify.Rename {
 				continue
 			}
-			if !w.Trigger.Deletion(w.now()) {
+			tripped, where := w.Trigger.Deletion(w.now(), ev.Path())
+			if !tripped {
 				continue
 			}
-			w.logf("bulk deletion detected near %s — taking a snapshot", ev.Path())
-			if err := w.Snapshot(ctx); err != nil {
+			w.logf("bulk deletion in %s — taking a snapshot", Places(where))
+			if err := w.Snapshot(ctx, where); err != nil {
 				w.logf("snapshot after bulk deletion failed: %v", err)
 				continue
 			}
 			w.logf("snapshot taken; whatever is still on disk is now recoverable")
 		}
 	}
+}
+
+// Places words a list of directories for a person: home-relative where it can be,
+// because "~/Documents/Invoices" is read at a glance and the absolute path is
+// not, and joined with commas because a burst is usually in one place and
+// occasionally in two.
+func Places(dirs []string) string {
+	if len(dirs) == 0 {
+		return "an unknown location"
+	}
+	home, err := os.UserHomeDir()
+	out := make([]string, 0, len(dirs))
+	for _, dir := range dirs {
+		if err == nil && strings.HasPrefix(dir, home+string(os.PathSeparator)) {
+			dir = "~" + strings.TrimPrefix(dir, home)
+		}
+		out = append(out, dir)
+	}
+	return strings.Join(out, ", ")
 }

@@ -75,10 +75,11 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 		return fmt.Errorf("cannot find the home directory: %w", err)
 	}
 
-	w := watch.New([]string{home}, func(ctx context.Context) error {
+	w := watch.New([]string{home}, func(ctx context.Context, where []string) error {
 		snap, err := apfs.Create(ctx, runner)
 		if err != nil {
-			if nerr := notify.Send(ctx, "Bulk deletion detected", "Could not take a snapshot: "+err.Error()); nerr != nil {
+			if nerr := notify.Send(ctx, "Files are being deleted from "+watch.Places(where),
+				"Could not take a snapshot: "+err.Error()); nerr != nil {
 				log.Printf("could not post a notification: %v", nerr)
 			}
 			return err
@@ -86,7 +87,10 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 		log.Printf("created %s", snap.Stamp)
 		// Worth interrupting for: something is deleting in bulk, and the user
 		// may not have asked for it.
-		if nerr := notify.Send(ctx, "Something is deleting a lot of files",
+		// The location is the point. "Something is deleting a lot of files" tells
+		// someone to worry; naming the folder tells them whether it is the build
+		// directory they just cleaned out or the one with their invoices in it.
+		if nerr := notify.Send(ctx, "Files are being deleted from "+watch.Places(where),
 			"Took a snapshot at "+snap.Taken.Format("15:04")+". Whatever is still on disk can be restored."); nerr != nil {
 			log.Printf("could not post a notification: %v", nerr)
 		}

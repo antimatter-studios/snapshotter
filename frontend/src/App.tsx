@@ -54,7 +54,16 @@ export default function App() {
       const next = await Snapshots.Overview();
       setOverview(next);
       setSelected((current) => current || next.snapshots[0]?.name || "");
-      setError("");
+      // Deliberately does NOT clear the error.
+      //
+      // This runs on a timer and whenever the window is looked at again, and
+      // mounting raises an authorization dialog — so dismissing that dialog hands
+      // focus back, this succeeds, and the reason the mount failed was wiped
+      // before it could be read. It flashed red and vanished.
+      //
+      // A background read succeeding says nothing about whether the thing the
+      // user asked for worked. The error stays until they start another action or
+      // dismiss it.
     } catch (err) {
       setError(message(err));
     }

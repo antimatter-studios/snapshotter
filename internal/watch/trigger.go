@@ -19,6 +19,8 @@
 package watch
 
 import (
+	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 )
@@ -47,9 +49,19 @@ type Trigger struct {
 	// Cooldown is the shortest gap between two triggered snapshots.
 	Cooldown time.Duration
 
-	mu     sync.Mutex
-	events []time.Time
+	mu sync.Mutex
+	// events holds the burst still inside the window. Each carries the directory
+	// it happened in, not the file: the file is gone and its name is of no use,
+	// whereas "two hundred things vanished from Documents/Invoices" is the whole
+	// of what someone needs to decide whether they did it on purpose.
+	events []deletion
 	last   time.Time
+}
+
+// deletion is one disappearance: when, and which directory it was in.
+type deletion struct {
+	at  time.Time
+	dir string
 }
 
 // NewTrigger builds a Trigger, filling in any zero field with its default.
@@ -66,35 +78,71 @@ func NewTrigger(threshold int, window, cooldown time.Duration) *Trigger {
 	return &Trigger{Threshold: threshold, Window: window, Cooldown: cooldown}
 }
 
-// Deletion records one observed deletion and reports whether it completes a
-// burst that should be snapshotted.
+// Deletion records one observed deletion, in the directory the file was in, and
+// reports whether it completes a burst that should be snapshotted.
 //
 // Returning true also starts the cooldown, so a caller that ignores the result
-// still gets correct rate limiting on the next call.
-func (t *Trigger) Deletion(now time.Time) bool {
+// still gets correct rate limiting on the next call. When it returns true it also
+// returns where the burst happened, commonest place first — the burst is cleared
+// on the way out, so this is the only chance to ask.
+func (t *Trigger) Deletion(now time.Time, path string) (bool, []string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	cutoff := now.Add(-t.Window)
 	kept := t.events[:0]
-	for _, at := range t.events {
-		if at.After(cutoff) {
-			kept = append(kept, at)
+	for _, e := range t.events {
+		if e.at.After(cutoff) {
+			kept = append(kept, e)
 		}
 	}
-	t.events = append(kept, now)
+	t.events = append(kept, deletion{at: now, dir: filepath.Dir(path)})
 
 	if len(t.events) < t.Threshold {
-		return false
+		return false, nil
 	}
 	if !t.last.IsZero() && now.Sub(t.last) < t.Cooldown {
-		return false
+		return false, nil
 	}
 	t.last = now
+	where := placesLocked(t.events)
 	// The burst is spent: a snapshot now covers everything still on disk, and
 	// the next one should need a fresh burst rather than the tail of this one.
 	t.events = t.events[:0]
-	return true
+	return true, where
+}
+
+// maxPlacesReported is how many directories are worth naming.
+//
+// A burst usually happens in one place, sometimes two. Past a handful the list
+// stops being a description and becomes a wall of paths in a notification, which
+// is read as noise and dismissed.
+const maxPlacesReported = 3
+
+// placesLocked returns the directories in a burst, commonest first. The caller
+// holds the lock.
+func placesLocked(events []deletion) []string {
+	counts := map[string]int{}
+	for _, e := range events {
+		counts[e.dir]++
+	}
+	dirs := make([]string, 0, len(counts))
+	for dir := range counts {
+		dirs = append(dirs, dir)
+	}
+	// By count, then by name: a stable order matters because this ends up in a
+	// notification and a log, and two runs over the same burst should read the
+	// same way.
+	sort.Slice(dirs, func(i, j int) bool {
+		if counts[dirs[i]] != counts[dirs[j]] {
+			return counts[dirs[i]] > counts[dirs[j]]
+		}
+		return dirs[i] < dirs[j]
+	})
+	if len(dirs) > maxPlacesReported {
+		dirs = dirs[:maxPlacesReported]
+	}
+	return dirs
 }
 
 // Pending reports how many deletions are currently inside the window, which is
@@ -105,8 +153,8 @@ func (t *Trigger) Pending(now time.Time) int {
 
 	cutoff := now.Add(-t.Window)
 	n := 0
-	for _, at := range t.events {
-		if at.After(cutoff) {
+	for _, e := range t.events {
+		if e.at.After(cutoff) {
 			n++
 		}
 	}

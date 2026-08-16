@@ -7,6 +7,43 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.13.0 — 2026-08-16
+
+**The tripwire says where, and errors stop vanishing before they can be read.**
+
+### Where the deletion is happening
+
+"Something is deleting a lot of files" tells you to worry. It does not tell you
+whether it is the build directory you just cleaned out or the folder with your
+invoices in it, which is the only thing you actually want to know at that moment.
+
+The notification now names the place: **Files are being deleted from
+~/Documents/Invoices**. The tripwire records the folder each disappearance was
+in — the folder, not the file, because the file is gone and its name helps
+nobody — and reports the busiest first when the wire trips. Home is written the
+way people write it. At most three are named: past a handful the list stops
+describing anything and gets dismissed unread.
+
+### Errors that flashed red and vanished
+
+Trying to open a snapshot and failing showed the reason for a fraction of a
+second. This was reliable rather than intermittent, and the cause is worth
+writing down: mounting raises an authorization dialog, the window refreshes
+whenever it is looked at again, and that refresh cleared the error on success.
+Dismissing the password prompt handed focus back, the refresh succeeded, and the
+explanation was wiped before it could be read.
+
+A background read succeeding says nothing about whether the thing you asked for
+worked. The error is held state now: neither the overview nor the health refresh
+clears it, and it survives every refresh until something replaces it. The clears
+that happen at the *start* of an action are kept, because a new attempt genuinely
+does start with a clean slate.
+
+Because it persists, it can also be dismissed — clicking it clears it, which is
+what the status banner beside it has always done. An error that cannot be got rid
+of except by doing something else is a worse thing to leave on screen than the
+one that vanished too fast.
+
 ## v0.12.0 — 2026-08-16
 
 **Snapshotter is written by Chris Thomas and published by Antimatter Studios.
