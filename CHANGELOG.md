@@ -7,6 +7,31 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.36.0 — 2026-08-16
+
+**A sentence that lost its ending in every language but English.**
+
+"None yet. Take one now, or set up a schedule so they are taken for you." ended in
+German, Spanish and French at "…or set up a schedule". The clause saying what the
+schedule is *for* was missing, and so was the full stop. What remained was a
+grammatical sentence, which is why it read as finished text rather than as a
+fault.
+
+The cause was mine and mechanical: when the English string gained its full stop,
+the edit that added it was written to apply to English only.
+
+Two tests now cover the shape of a translation rather than its presence: one
+requires the sentence-ending punctuation English has, and one rejects a
+translation under half the length of a sentence-long original. Both were checked
+against the actual bug — they fail on it and pass once it is fixed.
+
+**Three German wordings corrected as well.** "Container wird belegt" read as the
+container being occupied by something else, when the subject is the snapshots and
+what they do is hold space; it is now "Belegt den Container". And "nicht prüfbar"
+claimed a folder was inherently uncheckable, when what happened is that one
+attempt got no answer — "konnte nicht geprüft werden". French carried the same
+overreach in "vérification impossible".
+
 ## v0.35.0 — 2026-08-16
 
 **The text the sweep missed.**

@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.36.0
+
+Fixes a sentence that was cut short in German, Spanish and French, and adds tests
+for the shape of a translation rather than merely its presence.
+
 ### v0.35.0
 
 The text the first translation sweep missed, mostly sentences with a value in the
@@ -383,12 +388,6 @@ since what was compared is two versions rather than a history.
 
 Folders being examined show a spinner beside "detecting", so a verdict still
 being worked out no longer reads like the verdict itself.
-
-### v0.26.0
-
-The "show unchanged" toggle hides unchanged folders as well as files. Folders
-could not be filtered when the listing was built, because a folder's verdict
-arrives afterwards.
 
 
 ## Design decisions
