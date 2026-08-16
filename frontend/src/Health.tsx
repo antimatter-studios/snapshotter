@@ -342,8 +342,15 @@ function BulkDeletionWarnings() {
               </td>
               {/* No snapshot is the row worth seeing from across the room: the
                   deletion happened and nothing was captured. */}
-              <td className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}>
-                {w.snapshot ? w.snapshot : w.note || "no snapshot"}
+              {/* Whether a snapshot was taken, not which one. The name is a
+                  date stamp, and the date is already the first column — the only
+                  thing it adds is a way to find that snapshot in the list, which
+                  is what the tooltip is for. */}
+              <td
+                className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}
+                title={w.snapshot ? `Snapshot ${w.snapshot}` : undefined}
+              >
+                {w.snapshot ? "snapshot taken" : w.note || "no snapshot"}
               </td>
             </tr>
           ))}
