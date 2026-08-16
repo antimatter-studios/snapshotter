@@ -35,6 +35,13 @@ const (
 	// TypeChanged means a name now refers to a different kind of object, for
 	// instance a directory replaced by a symlink.
 	TypeChanged Status = "typeChanged"
+
+	// NotExamined is a directory whose contents were not walked far enough to
+	// say. It exists because the honest answer to "did anything under here
+	// change?" is sometimes "I did not look", and reporting that as unchanged is
+	// how this application would tell somebody their work was safe when it had
+	// not checked.
+	NotExamined Status = "notExamined"
 )
 
 // Change is one difference between the snapshot and the live filesystem.
