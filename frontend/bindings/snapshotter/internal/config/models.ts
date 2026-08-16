@@ -222,10 +222,28 @@ export class Schedule {
 export class Tripwire {
     "enabled": boolean;
 
+    /**
+     * Ignore lists path fragments whose deletions do not count towards a burst.
+     *
+     * Without it the wire is tripped by ordinary machine noise: a browser
+     * clearing its cache deletes hundreds of files in seconds, which is exactly
+     * the shape of the thing being watched for and none of its meaning. A warning
+     * that fires on cache churn is a warning someone learns to dismiss, and then
+     * dismisses the one that mattered.
+     *
+     * Matched as substrings of the full path, after ~ is expanded, so a fragment
+     * like "/Library/Caches/" covers every application's cache without naming any
+     * of them.
+     */
+    "ignore": string[];
+
     /** Creates a new Tripwire instance. */
     constructor($$source: Partial<Tripwire> = {}) {
         if (!("enabled" in $$source)) {
             this["enabled"] = false;
+        }
+        if (!("ignore" in $$source)) {
+            this["ignore"] = [];
         }
 
         Object.assign(this, $$source);
@@ -235,7 +253,11 @@ export class Tripwire {
      * Creates a new Tripwire instance from a string or object.
      */
     static createFrom($$source: any = {}): Tripwire {
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ignore" in $$parsedSource) {
+            $$parsedSource["ignore"] = $$createField1_0($$parsedSource["ignore"]);
+        }
         return new Tripwire($$parsedSource as Partial<Tripwire>);
     }
 }
@@ -275,3 +297,4 @@ const $$createType2 = Appearance.createFrom;
 const $$createType3 = Window.createFrom;
 const $$createType4 = Refresh.createFrom;
 const $$createType5 = Paths.createFrom;
+const $$createType6 = $Create.Array($Create.Any);

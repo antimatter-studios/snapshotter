@@ -1183,3 +1183,70 @@ pre.log {
 .warning-outcome.bad {
   color: var(--deleted);
 }
+
+/* The ignore action sits on the row because that is where the wish to use it
+   occurs: someone is looking at a warning they did not want. */
+.warning-action {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+  padding-left: 10px;
+}
+
+.warning-action button {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.warning-action button:hover {
+  color: var(--accent);
+}
+
+/* What has been silenced, shown and undoable. A list nobody can see grows until
+   the tripwire watches nothing, and that failure is silent by construction. */
+.ignored {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.ignored h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ignored ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ignored li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.ignored code {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ignored button {
+  font-size: 11px;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.ignored button:hover {
+  color: var(--accent);
+}

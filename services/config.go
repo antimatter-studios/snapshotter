@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 
 	"snapshotter/internal/config"
 )
@@ -63,4 +64,80 @@ func (c *ConfigService) SetTheme(theme string) error {
 	}
 	cfg.Appearance.Theme = theme
 	return config.Save(cfg)
+}
+
+// IgnoreFolder stops the bulk-deletion tripwire counting deletions in a folder.
+//
+// The reason for wanting this arrives while looking at a warning that should not
+// have happened — a browser clearing its cache, a build directory being emptied —
+// so the interface offers it there rather than in a settings screen someone would
+// have to go and find.
+//
+// The folder is stored with separators around it, which is what makes it a
+// fragment rather than a prefix: "/Caches/" matches that folder wherever it
+// appears, and a folder given here matches itself and anything under it without
+// matching a sibling whose name merely starts the same way.
+func (c *ConfigService) IgnoreFolder(folder string) (ConfigView, error) {
+	fragment := asFragment(folder)
+	if fragment == "" {
+		return c.Get(), fmt.Errorf("services: %q is not a folder", folder)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		// Same reasoning as the theme: writing over a file that will not parse
+		// destroys whatever someone wrote there, to add one line.
+		return c.Get(), fmt.Errorf("not changing what is ignored: %w", err)
+	}
+	for _, existing := range cfg.Tripwire.Ignore {
+		if existing == fragment {
+			return c.Get(), nil // already silenced; not an error
+		}
+	}
+	cfg.Tripwire.Ignore = append(cfg.Tripwire.Ignore, fragment)
+	if err := config.Save(cfg); err != nil {
+		return c.Get(), err
+	}
+	return c.Get(), nil
+}
+
+// WatchFolder undoes IgnoreFolder.
+//
+// Removing is as important as adding: an ignore list nobody can see or shorten is
+// a list that quietly grows until the tripwire watches nothing, and the failure
+// is silent by construction.
+func (c *ConfigService) WatchFolder(fragment string) (ConfigView, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return c.Get(), fmt.Errorf("not changing what is ignored: %w", err)
+	}
+
+	kept := make([]string, 0, len(cfg.Tripwire.Ignore))
+	for _, existing := range cfg.Tripwire.Ignore {
+		if existing != fragment {
+			kept = append(kept, existing)
+		}
+	}
+	cfg.Tripwire.Ignore = kept
+	if err := config.Save(cfg); err != nil {
+		return c.Get(), err
+	}
+	return c.Get(), nil
+}
+
+// asFragment turns a folder into the form the watcher matches against.
+func asFragment(folder string) string {
+	folder = strings.TrimSpace(folder)
+	if folder == "" || folder == "/" {
+		// "/" would match every path and silence the tripwire entirely, which is
+		// not something a button should be able to do by accident.
+		return ""
+	}
+	if !strings.HasPrefix(folder, "/") {
+		folder = "/" + folder
+	}
+	if !strings.HasSuffix(folder, "/") {
+		folder += "/"
+	}
+	return folder
 }

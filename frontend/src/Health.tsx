@@ -4,6 +4,7 @@ import {
   Status,
   Snapshots,
   Schedule,
+  Config,
   message,
   serviceChosenTail,
   type Health as HealthState,
@@ -250,6 +251,17 @@ function coverage(hours: number): string {
  */
 function BulkDeletionWarnings() {
   const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [ignored, setIgnored] = useState<string[]>([]);
+  const [problem, setProblem] = useState("");
+
+  const loadIgnored = useCallback(async () => {
+    try {
+      const view = await Config.Get();
+      setIgnored(view.config?.tripwire?.ignore ?? []);
+    } catch {
+      // The list is an aid, not the state of the machine.
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -261,10 +273,33 @@ function BulkDeletionWarnings() {
   }, []);
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadIgnored();
+  }, [load, loadIgnored]);
   useLiveRefresh(load);
 
-  if (warnings.length === 0) return null;
+  const ignore = async (folder: string) => {
+    setProblem("");
+    try {
+      const view = await Config.IgnoreFolder(folder);
+      setIgnored(view.config?.tripwire?.ignore ?? []);
+    } catch (err) {
+      setProblem(message(err));
+    }
+  };
+
+  const watchAgain = async (fragment: string) => {
+    setProblem("");
+    try {
+      const view = await Config.WatchFolder(fragment);
+      setIgnored(view.config?.tripwire?.ignore ?? []);
+    } catch (err) {
+      setProblem(message(err));
+    }
+  };
+
+  // Nothing has happened and nothing is silenced: an empty section under that
+  // heading only invites someone to wonder what is missing.
+  if (warnings.length === 0 && ignored.length === 0) return null;
 
   return (
     <section className="warnings">
@@ -285,10 +320,44 @@ function BulkDeletionWarnings() {
               <td className={w.snapshot ? "warning-outcome ok" : "warning-outcome bad"}>
                 {w.snapshot ? w.snapshot : w.note || "no snapshot"}
               </td>
+              {/* The moment someone wants this is while looking at a warning
+                  they did not want, so the button is on the row rather than in a
+                  settings screen they would have to go and find. */}
+              <td className="warning-action">
+                {w.where?.[0] && (
+                  <button
+                    className="link"
+                    title={`Stop warning about ${w.where[0]}`}
+                    onClick={() => void ignore(w.where[0])}
+                  >
+                    ignore
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {problem && <p className="error">{problem}</p>}
+
+      {ignored.length > 0 && (
+        // Shown, and removable. A list nobody can see or shorten grows until the
+        // tripwire watches nothing, and that failure is silent by construction.
+        <div className="ignored">
+          <h4>Not warning about</h4>
+          <ul>
+            {ignored.map((fragment) => (
+              <li key={fragment}>
+                <code>{fragment}</code>
+                <button className="link" title="Watch this again" onClick={() => void watchAgain(fragment)}>
+                  watch again
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
