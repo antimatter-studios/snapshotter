@@ -16,8 +16,11 @@ import (
 // new. It is two directory reads, so it stays instant on a folder of any size,
 // unlike Compare which walks the whole tree.
 //
-// Directories present on both sides are reported as Same: what changed inside
-// them is a question for Compare, or for opening them.
+// A directory present on both sides is walked only until the first difference
+// is found, because the browser shows one word per row and "changed" is that
+// word whether one file differs or ten thousand. Stopping at the first is what
+// makes this affordable; proving the opposite is the expensive direction, and it
+// is bounded, with the row reported as NotExamined if the bound is reached.
 func Level(snapshotDir, liveDir string, opt Options) ([]Change, error) {
 	// A missing directory on one side is meaningful rather than fatal: it is
 	// how a folder created or deleted since the snapshot presents itself. With
@@ -52,8 +55,19 @@ func Level(snapshotDir, liveDir string, opt Options) ([]Change, error) {
 			c.SnapModTime, c.LiveModTime = snapInfo.ModTime(), liveInfo.ModTime()
 
 		case snapInfo.IsDir():
-			c.Status, c.IsDir = Same, true
+			c.IsDir = true
 			c.SnapModTime, c.LiveModTime = snapInfo.ModTime(), liveInfo.ModTime()
+			// This used to be an unconditional Same, which told anyone browsing
+			// that a folder was untouched without looking inside it once.
+			differs, answered := DiffersWithin(snapPath, livePath, opt)
+			switch {
+			case !answered:
+				c.Status = NotExamined
+			case differs:
+				c.Status = Modified
+			default:
+				c.Status = Same
+			}
 
 		default:
 			status, err := (&walker{opt: opt, res: &Result{}}).compareFiles(snapPath, livePath, snapInfo, liveInfo)

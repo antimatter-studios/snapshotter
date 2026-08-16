@@ -7,6 +7,34 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.21.0 — 2026-08-16
+
+**A folder is no longer reported as unchanged without being looked at.**
+
+Browsing a snapshot, every directory present on both sides was reported as
+unchanged. Not computed — hard-coded. A home folder with thirteen thousand
+modified files under `~/projects` said "no changes", and with unchanged rows
+hidden the folder disappeared from the listing entirely.
+
+That is the one thing this application must never get wrong. It exists to answer
+"what changed", and for directories it was answering without looking.
+
+A directory is now walked until the first difference is found, and then stopped.
+The browser prints one word per row, and that word is "changed" whether one file
+differs or ten thousand — so counting them is work with nothing to show for it.
+
+The asymmetry is what makes this affordable, and it is worth stating plainly: a
+changed folder is answered almost immediately, because the walk stops at the
+first thing it finds. An unchanged one costs the full walk, because proving a
+negative means looking everywhere. Measured on a real tree of 192,635 files: the
+first difference found in 11ms, the full walk in 456ms. The comparison itself is
+free — size and modification time both arrive with the directory read, so no
+extra call is made per file.
+
+Where a directory is too large to answer within a fixed budget, the row says so
+rather than claiming the tree is unchanged. Not knowing and nothing having
+changed are different answers, and only one of them is safe to guess.
+
 ## v0.20.0 — 2026-08-16
 
 **The outcome column says whether, not which.**

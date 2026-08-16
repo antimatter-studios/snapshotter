@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.21.0
+
+Browsing a snapshot no longer reports every folder as unchanged without looking
+inside it. A directory is walked until the first difference and then stopped,
+which is all the browser needs to print one word per row.
+
 ### v0.20.0
 
 The outcome column of a bulk deletion warning says whether a snapshot was taken
@@ -386,13 +392,6 @@ mount failed the moment the authorization dialog handed focus back.
 
 Written by Chris Thomas, published by Antimatter Studios — both are now named in
 the bundle and under the health screen, where before only one was.
-
-### v0.11.0
-
-Internal tidying: `main.go` split into four files by what they do, `findings()`
-reduced from 145 lines to 56, one wording of the Time Machine warning instead of
-two, and one implementation of the window's busy/error handling instead of five.
-The settings file header now names what a running application cannot change.
 
 
 ## Design decisions
