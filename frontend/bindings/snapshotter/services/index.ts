@@ -26,6 +26,7 @@ export {
     ConfigView,
     FileVersions,
     Finding,
+    FolderVerdict,
     Health,
     Level,
     Listing,

@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"snapshotter/internal/trace"
+	"time"
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/diffs"
@@ -242,7 +244,18 @@ func parentOf(path string) string {
 //
 // The window calls this once per folder row and fills each in as it answers, so
 // a large untouched tree delays nothing but its own row.
-func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (string, error) {
+// FolderVerdict is what was concluded about one folder, and why not, when it
+// could not be concluded.
+type FolderVerdict struct {
+	Status string `json:"status"`
+	// Why is empty unless the walk gave up. It is carried back rather than only
+	// logged, because somebody looking at "could not check" wants to know why
+	// without going to find a log file — and because the application knowing and
+	// discarding it is what made three wrong guesses possible.
+	Why string `json:"why,omitempty"`
+}
+
+func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (FolderVerdict, error) {
 	// Remembered from last time unless the disk has been touched since.
 	//
 	// Browsing asks this constantly: open a folder, look inside, come back, and
@@ -251,23 +264,33 @@ func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (string, 
 	// the filesystem is what says when that stops being true.
 	if b.Verdicts != nil {
 		if v, ok := b.Verdicts.Get(snapshotName, livePath); ok {
-			return string(v), nil
+			return FolderVerdict{Status: string(v)}, nil
 		}
 	}
 
 	mountPoint, err := b.mountPointOf(snapshotName)
 	if err != nil {
-		return string(diffs.NotExamined), err
+		return FolderVerdict{Status: string(diffs.NotExamined), Why: err.Error()}, err
 	}
 	// vfs.ToSnapshot, not string surgery: it is the same mapping Merged uses, and
 	// a hand-rolled one here would compare a different directory than the one the
 	// row came from.
 	snapshotDir, err := vfs.ToSnapshot(mountPoint, livePath)
 	if err != nil {
-		return string(diffs.NotExamined), err
+		return FolderVerdict{Status: string(diffs.NotExamined), Why: err.Error()}, err
 	}
 
-	differs, answered := diffs.DiffersWithin(snapshotDir, filepath.Clean(livePath), diffs.Options{})
+	started := time.Now()
+	differs, answered, why := diffs.Explain(snapshotDir, filepath.Clean(livePath), diffs.Options{})
+	trace.Printf("verdict for %s: differs=%v answered=%v in %s%s",
+		livePath, differs, answered, time.Since(started).Round(time.Millisecond),
+		func() string {
+			if why == "" {
+				return ""
+			}
+			return " — " + why
+		}())
+
 	var status diffs.Status
 	switch {
 	case !answered:
@@ -281,5 +304,5 @@ func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (string, 
 	if b.Verdicts != nil {
 		b.Verdicts.Put(snapshotName, livePath, verdict.Verdict(status))
 	}
-	return string(status), nil
+	return FolderVerdict{Status: string(status), Why: why}, nil
 }

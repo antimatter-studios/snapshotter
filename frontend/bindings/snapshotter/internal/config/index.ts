@@ -4,6 +4,7 @@
 export {
     Appearance,
     Config,
+    Logging,
     Paths,
     Refresh,
     Schedule,

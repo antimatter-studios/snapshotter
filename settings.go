@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"snapshotter/internal/config"
 	"snapshotter/internal/mountmgr"
+	"snapshotter/internal/trace"
 	"snapshotter/internal/verdict"
 	"snapshotter/services"
 
@@ -42,6 +43,10 @@ func watchSettings(ctx context.Context, p paths, deps services.Deps, win applica
 //     from what was asked for, and a file being saved is not the same as a
 //     request to start taking snapshots.
 func applySettings(cfg config.Config, p paths, deps services.Deps, win application.Window, applyToTray func(config.Config)) {
+	// Turned on and off without a relaunch, which is the point: restarting to
+	// look at a problem is how you lose the problem.
+	trace.SetEnabled(cfg.Logging.Verbose)
+
 	applyToTray(cfg)
 
 	width, height := cfg.WindowSize()

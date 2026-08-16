@@ -45,18 +45,34 @@ const examineBudget = 500000
 // is unchanged — the whole reason this exists is that Level used to make exactly
 // that claim without looking.
 func DiffersWithin(snapshotDir, liveDir string, opt Options) (differs, answered bool) {
-	return differsWithinBudget(snapshotDir, liveDir, opt, examineBudget)
+	differs, answered, _ = Explain(snapshotDir, liveDir, opt)
+	return differs, answered
+}
+
+// Explain is DiffersWithin with the reason it could not answer, when it could
+// not.
+//
+// It exists because "could not check" told nobody anything, including me: three
+// separate explanations for one report of it were all wrong, and each was a
+// guess because the application had the answer and was throwing it away.
+func Explain(snapshotDir, liveDir string, opt Options) (differs, answered bool, why string) {
+	remaining := examineBudget
+	differs, answered, why = differsWithin(snapshotDir, liveDir, opt, &remaining)
+	if !answered && why == "" {
+		why = "the folder is too large to walk within the time allowed"
+	}
+	return differs, answered, why
 }
 
 // differsWithinBudget is DiffersWithin with the backstop as a parameter, so a
 // test can reach it without creating half a million files to do so.
 func differsWithinBudget(snapshotDir, liveDir string, opt Options, budget int) (differs, answered bool) {
 	remaining := budget
-	differs, answered = differsWithin(snapshotDir, liveDir, opt, &remaining)
+	differs, answered, _ = differsWithin(snapshotDir, liveDir, opt, &remaining)
 	return differs, answered
 }
 
-func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (differs, answered bool) {
+func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (differs, answered bool, why string) {
 	snapEntries, snapErr := readDirMap(snapshotDir)
 	liveEntries, liveErr := readDirMap(liveDir)
 	if snapErr != nil || liveErr != nil {
@@ -68,7 +84,14 @@ func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (di
 		// anywhere beneath a directory made the whole thing unanswerable — and the
 		// interface then reported that as "too large to check", which was not what
 		// had happened at all.
-		return false, false
+		// Which side, and what the system said. On macOS this is usually
+		// "operation not permitted", which is privacy protection rather than a
+		// permission bit — and knowing that is the difference between fixing it
+		// and guessing at it.
+		if snapErr != nil {
+			return false, false, "cannot read " + snapshotDir + ": " + snapErr.Error()
+		}
+		return false, false, "cannot read " + liveDir + ": " + liveErr.Error()
 	}
 
 	// Set when a subtree could not be read. It only matters if nothing else
@@ -77,7 +100,7 @@ func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (di
 
 	for _, name := range mergedNames(snapEntries, liveEntries) {
 		if *remaining <= 0 {
-			return false, false
+			return false, false, ""
 		}
 		*remaining--
 
@@ -87,22 +110,25 @@ func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (di
 		// Something added or removed is a difference, and the cheapest one to
 		// find: no stat of the contents is needed at all.
 		if inSnapshot != onDisk {
-			return true, true
+			return true, true, ""
 		}
 
 		switch {
 		case snapInfo.IsDir() != liveInfo.IsDir():
-			return true, true
+			return true, true, ""
 
 		case snapInfo.IsDir():
 			snapPath := filepath.Join(snapshotDir, name)
 			livePath := filepath.Join(liveDir, name)
-			childDiffers, childAnswered := differsWithin(snapPath, livePath, opt, remaining)
+			childDiffers, childAnswered, childWhy := differsWithin(snapPath, livePath, opt, remaining)
 			if childDiffers {
 				// A difference anywhere is the answer, whatever else was skipped.
-				return true, true
+				return true, true, ""
 			}
 			if !childAnswered {
+				if why == "" {
+					why = childWhy
+				}
 				// Carry on rather than giving up: another subtree may hold a
 				// difference, and finding one answers the question outright. Only
 				// if nothing is found does the skip matter, and that is remembered
@@ -115,15 +141,15 @@ func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (di
 				filepath.Join(snapshotDir, name), filepath.Join(liveDir, name), snapInfo, liveInfo)
 			if err != nil {
 				// A file that cannot be compared is not evidence either way.
-				return false, false
+				return false, false, "cannot compare " + name + ": " + err.Error()
 			}
 			if status != Same {
-				return true, true
+				return true, true, ""
 			}
 		}
 	}
 
 	// Nothing differed in what could be read. If something could not be, that is
 	// the honest answer rather than "unchanged".
-	return false, !skipped
+	return false, !skipped, why
 }

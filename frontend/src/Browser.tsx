@@ -29,6 +29,10 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
   // from the listing so a resolved verdict survives the listing being refreshed,
   // and so a slow folder never delays the rows around it.
   const [folderStatus, setFolderStatus] = useState<Record<string, string>>({});
+  // Why a folder could not be answered for, keyed the same way. Shown in the
+  // row's tooltip so "could not check" says what stopped it without anyone
+  // having to find a log.
+  const [folderWhy, setFolderWhy] = useState<Record<string, string>>({});
   // Rises on every listing, so answers from an abandoned one are discarded
   // rather than landing on the folder that replaced it.
   const resolveToken = useRef(0);
@@ -57,12 +61,15 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
         while (next < folders.length) {
           const row = folders[next++];
           try {
-            const status = await Browse.DirectoryStatus(snapshot.name, row.absLive);
+            const verdict = await Browse.DirectoryStatus(snapshot.name, row.absLive);
             // Dropped if the listing moved on: answers about a folder nobody is
             // looking at any more are worse than useless, because they would
             // overwrite the ones for the folder they are.
             if (token !== resolveToken.current) return;
-            setFolderStatus((current) => ({ ...current, [row.absLive]: status }));
+            setFolderStatus((current) => ({ ...current, [row.absLive]: verdict.status }));
+            if (verdict.why) {
+              setFolderWhy((current) => ({ ...current, [row.absLive]: verdict.why! }));
+            }
           } catch {
             // Left as detecting rather than guessed at.
           }
@@ -170,18 +177,20 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
                 </span>
               </td>
               <td>
-                <span className={`badge ${row.status}`}>{statusLabel[row.status] ?? row.status}</span>
+                <span className={`badge ${status}`} title={row.isDir ? folderWhy[row.absLive] : undefined}>
+                  {statusLabel[status] ?? status}
+                </span>
               </td>
-              <td className="num">{row.status === "onlyOnDisk" ? "—" : bytes(row.snapSize)}</td>
-              <td className="num">{row.status === "onlyInSnapshot" ? "—" : bytes(row.liveSize)}</td>
+              <td className="num">{status === "onlyOnDisk" ? "—" : bytes(row.snapSize)}</td>
+              <td className="num">{status === "onlyInSnapshot" ? "—" : bytes(row.liveSize)}</td>
               <td>{stamp(row.snapModTime || row.liveModTime)}</td>
               <td className="actions">
-                {row.status !== "onlyOnDisk" && (
+                {status !== "onlyOnDisk" && (
                   <>
                     <button onClick={() => restore(row, false)} title="Copy it back alongside whatever is there now">
                       Restore a copy
                     </button>
-                    {row.status === "modified" && (
+                    {status === "modified" && (
                       <button
                         onClick={() => restore(row, true)}
                         title="Put it back at the original path; the current file is kept as a .bak copy"

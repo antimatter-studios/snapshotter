@@ -287,6 +287,49 @@ export class Finding {
 }
 
 /**
+ * DirectoryStatus answers whether anything under one directory has changed.
+ *
+ * Separate from Merged because the two have opposite costs. A listing is two
+ * directory reads and is instant; a directory's verdict may be a walk of
+ * everything beneath it, and only in the case where nothing has changed — a
+ * difference is found and returned the moment it appears. Asking for them
+ * together would make every listing as slow as its slowest folder.
+ *
+ * The window calls this once per folder row and fills each in as it answers, so
+ * a large untouched tree delays nothing but its own row.
+ * FolderVerdict is what was concluded about one folder, and why not, when it
+ * could not be concluded.
+ */
+export class FolderVerdict {
+    "status": string;
+
+    /**
+     * Why is empty unless the walk gave up. It is carried back rather than only
+     * logged, because somebody looking at "could not check" wants to know why
+     * without going to find a log file — and because the application knowing and
+     * discarding it is what made three wrong guesses possible.
+     */
+    "why"?: string;
+
+    /** Creates a new FolderVerdict instance. */
+    constructor($$source: Partial<FolderVerdict> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FolderVerdict instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FolderVerdict {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FolderVerdict($$parsedSource as Partial<FolderVerdict>);
+    }
+}
+
+/**
  * Health is the whole answer, shaped for one panel and one menu.
  */
 export class Health {
