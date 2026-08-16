@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"snapshotter/internal/apfs"
@@ -473,10 +474,16 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 			}
 		}
 
-		installTray(app, status, win, scenarioName)
+		applyToTray := installTray(app, status, win, scenarioName)
 		if deps.Faking {
 			openEveryFakeMount(deps)
 		}
+
+		// Editing the settings file and being told to relaunch is a poor answer
+		// when nothing about the change requires it. Everything that can be
+		// applied to a running application is applied here; what cannot is named
+		// in applySettings so the limit is written down rather than discovered.
+		go watchSettings(context.Background(), s.paths, deps, win, applyToTray)
 	})
 	return app.Run()
 }
@@ -559,11 +566,20 @@ const trayRefreshDefault = time.Minute
 // scenarioName is empty in the ordinary case; when it is not, the menu says so
 // before it says anything else. The menu bar is the surface that stays visible
 // with the window closed, so it is the one most able to mislead.
-func installTray(app *application.App, status *services.StatusService, win application.Window, scenarioName string) {
-	// Read once when the tray is built rather than on every tick: a person editing
-	// the file expects the next launch to honour it, not the next minute.
+// installTray returns a function that applies changed settings to the running
+// tray, so editing the interval takes effect without a relaunch.
+func installTray(app *application.App, status *services.StatusService, win application.Window, scenarioName string) func(config.Config) {
 	cfg, _ := config.Load()
+
+	// Guarded because the watcher writes it from its own goroutine while the
+	// refresh loop below reads it.
+	var mu sync.Mutex
 	trayRefresh := cfg.MenuBarRefresh()
+	interval := func() time.Duration {
+		mu.Lock()
+		defer mu.Unlock()
+		return trayRefresh
+	}
 
 	tray := app.SystemTray.New()
 	// No icon is set here: every render sets one to match the level it just read,
@@ -682,10 +698,26 @@ func installTray(app *application.App, status *services.StatusService, win appli
 
 	render()
 	go func() {
-		for range time.Tick(trayRefresh) {
+		// A timer read fresh each round rather than a fixed ticker: the interval
+		// is a setting, and a setting that only applies at the next launch is a
+		// setting someone has to be told about.
+		for {
+			time.Sleep(interval())
 			render()
 		}
 	}()
+
+	return func(next config.Config) {
+		mu.Lock()
+		changed := trayRefresh != next.MenuBarRefresh()
+		trayRefresh = next.MenuBarRefresh()
+		mu.Unlock()
+		if changed {
+			// Redrawn immediately so the new interval is visibly in force rather
+			// than starting after one more wait at the old one.
+			render()
+		}
+	}
 }
 
 // trayIcon is the glyph for a level. An unrecognised level is treated as bad
@@ -721,4 +753,56 @@ func findingPrefix(level services.Level) string {
 	default:
 		return "○"
 	}
+}
+
+// watchSettings applies changes to the settings file as they are made.
+func watchSettings(ctx context.Context, p paths, deps services.Deps, win application.Window, applyToTray func(config.Config)) {
+	changes, err := config.Watch(ctx)
+	if err != nil {
+		// Not fatal. Everything already read at startup stays in force; the only
+		// loss is that a later edit needs a relaunch, which is where this began.
+		log.Printf("settings are not being watched, so changes need a relaunch: %v", err)
+		return
+	}
+	for cfg := range changes {
+		applySettings(cfg, p, deps, win, applyToTray)
+	}
+}
+
+// applySettings pushes one set of settings into the running application.
+//
+// What is applied here, and what is not:
+//
+//   - the window's size, the refresh intervals and the theme take effect at once;
+//   - paths take effect for work that has not started yet. A mount already
+//     attached stays where it is, because a mounted filesystem cannot be moved by
+//     editing a file, and an installed agent keeps writing to the log its plist
+//     names until the agent is installed again;
+//   - nothing here installs or removes an agent. Restore does that at startup
+//     from what was asked for, and a file being saved is not the same as a
+//     request to start taking snapshots.
+func applySettings(cfg config.Config, p paths, deps services.Deps, win application.Window, applyToTray func(config.Config)) {
+	applyToTray(cfg)
+
+	width, height := cfg.WindowSize()
+	win.SetSize(width, height)
+
+	// The manager holds the root it was built with; changing it here means the
+	// next mount lands in the new place. Only the concrete type has a root to
+	// change — a fake mounter has its own and is not configurable.
+	if m, ok := deps.Mounts.(*mountmgr.Manager); ok {
+		m.Root = config.ResolvePath(cfg.Paths.MountRoot, p.mountRoot)
+	}
+
+	// Where a future install will point launchd. The plist already on disk keeps
+	// naming the old log until it is written again.
+	if deps.Agent != nil {
+		deps.Agent.LogPath = config.ResolvePath(cfg.Paths.Log, p.logPath)
+	}
+	if deps.Tripwire != nil {
+		deps.Tripwire.LogPath = config.ResolvePath(cfg.Paths.TripwireLog, p.tripwireLogPath)
+	}
+
+	log.Printf("settings reloaded: window %dx%d, menu bar every %s, window every %s",
+		width, height, cfg.MenuBarRefresh(), cfg.WindowRefresh())
 }
