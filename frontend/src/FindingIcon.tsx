@@ -1,20 +1,45 @@
+import {
+  CalendarX,
+  Camera,
+  ChartColumnDecreasing,
+  Clock,
+  ClockAlert,
+  Copy,
+  FlaskConical,
+  Gauge,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+
 /**
- * The picture beside a finding, chosen by what the finding is about.
+ * The icon beside a finding, chosen by what the finding is about.
  *
- * The menu bar draws the same eight shapes in Go, because macOS wants PNG bytes
- * for a menu item. These are the web half of that vocabulary: same shapes, so a
- * cross means the same thing in the window as it does in the menu, and someone
- * who learns one has learned the other.
+ * These are Lucide (lucide.dev, ISC), the same pack the menu bar uses — it takes
+ * the same icons rendered to PNG, because macOS wants image bytes for a menu
+ * item and a web view wants components. Nothing can be shared across that line
+ * except the list of kinds, and each side has a test that reads the other's.
  *
- * They are not the same code and cannot be — one produces pixels, the other
- * produces SVG — so the thing holding them together is the list of kinds, which
- * comes from the Go service and is checked by a test in both places.
- *
- * Colour comes from `currentColor`, so the level's colour is applied by the CSS
- * that already tints the card rather than being decided here.
+ * An earlier version of this file drew nine shapes by hand. They were worse than
+ * the pack's and cost more to keep.
  */
 
-/** The kinds the status service assigns. Keep in step with services.Kind*. */
+/** Kind -> icon. Mirrors the map in build/icons/findings.sh. */
+const icons: Record<string, LucideIcon> = {
+  snapshots: Camera,
+  schedule: Clock,
+  overdue: ClockAlert,
+  // A cross rather than a picture of a tripwire: the finding says something is
+  // absent, and an absence is what a cross means. Drawing the thing itself
+  // produced something that read as a sunset.
+  tripwire: X,
+  stale: CalendarX,
+  thinning: ChartColumnDecreasing,
+  conflict: Copy,
+  space: Gauge,
+  simulated: FlaskConical,
+};
+
+/** The kinds the window can draw. Keep in step with services.Kind*. */
 export const findingKinds = [
   "snapshots",
   "schedule",
@@ -29,106 +54,16 @@ export const findingKinds = [
 
 export type FindingKind = (typeof findingKinds)[number];
 
-/**
- * A cross always reads red, whatever the card's level colour is. It marks
- * something absent, which is the one state worth breaking the palette for — the
- * same exception the menu bar makes.
- */
-const crossRed = "var(--deleted)";
-
 export function FindingIcon({ kind }: { kind: string }) {
-  return (
-    <svg
-      className="finding-icon"
-      viewBox="0 0 32 32"
-      width="18"
-      height="18"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      {shape(kind)}
-    </svg>
-  );
-}
+  // A kind this build has not heard of still gets an icon: findings are added in
+  // the service, and a blank where the icon should be reads as a rendering fault
+  // rather than as a new kind of finding.
+  const Icon = icons[kind] ?? Camera;
 
-function shape(kind: string) {
-  switch (kind) {
-    case "snapshots":
-      // A restore point: the thing there are none of.
-      return <circle cx="16" cy="16" r="6" fill="currentColor" stroke="none" />;
+  // The cross is red at every level, which is the one place the level's colour
+  // is overridden. It marks something absent, and that is worth breaking a
+  // palette for. Everything else inherits the colour the card already sets.
+  const style = kind === "tripwire" ? { color: "var(--deleted)" } : undefined;
 
-    case "schedule":
-      return (
-        <>
-          <circle cx="16" cy="16" r="9" />
-          <path d="M16 16 V9 M16 16 L20 18" />
-        </>
-      );
-
-    case "overdue":
-      // The same clock with its hands past the hour, so "late" is a shape.
-      return (
-        <>
-          <circle cx="16" cy="16" r="9" />
-          <path d="M16 16 V23 M16 16 L22 14" />
-        </>
-      );
-
-    case "tripwire":
-      // Absent. Always red, and smaller than the rest: it is the strongest
-      // shape here and at full size it shouts over rows that are not
-      // emergencies.
-      return <path d="M11 11 L21 21 M21 11 L11 21" stroke={crossRed} strokeWidth="2.6" />;
-
-    case "stale":
-      // A clock with a cross through it: present and broken, which is a
-      // different thing from missing.
-      return (
-        <>
-          <circle cx="16" cy="16" r="9" />
-          <path d="M10 10 L22 22" stroke={crossRed} strokeWidth="2.6" />
-        </>
-      );
-
-    case "thinning":
-      // Bars getting shorter: history being thinned out.
-      return (
-        <path
-          d="M9.5 10 V24 M15.5 14 V24 M21.5 18 V24"
-          strokeWidth="3"
-          strokeLinecap="butt"
-        />
-      );
-
-    case "conflict":
-      // Two things overlapping, which is exactly the complaint.
-      return (
-        <>
-          <circle cx="13" cy="16" r="6" />
-          <circle cx="19" cy="16" r="6" />
-        </>
-      );
-
-    case "space":
-      // A gauge close to full.
-      return (
-        <>
-          <circle cx="16" cy="16" r="9" />
-          <path d="M16 10 A6 6 0 0 1 16 22 Z" fill="currentColor" stroke="none" />
-        </>
-      );
-
-    case "simulated":
-      // Present, but not real.
-      return <circle cx="16" cy="16" r="9" strokeDasharray="3.5 3.5" />;
-
-    default:
-      // A kind this build has not heard of still gets something: findings are
-      // added in the service, and an empty space reads as a rendering fault.
-      return <circle cx="16" cy="16" r="5" fill="currentColor" stroke="none" />;
-  }
+  return <Icon className="finding-icon" size={18} aria-hidden="true" style={style} />;
 }

@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.9.0
+
+Finding icons come from Lucide rather than being drawn by hand — the window uses
+`lucide-react`, the menu bar the same icons rendered to PNG. 340 lines of drawing
+code and its tests deleted.
+
 ### v0.8.0
 
 The Health panel draws each finding with the shape that says what it is about,

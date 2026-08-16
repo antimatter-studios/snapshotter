@@ -8,35 +8,29 @@ import (
 	"testing"
 )
 
-// The complaint this exists to answer: a menu of findings drawn with one
+// The complaint these exist to answer: a menu of findings drawn with one
 // repeated icon says only that there are several. Every subject must look
-// different from every other.
+// different from every other, and every one must actually be there — an icon
+// that fails to load is a blank space in a menu row, which reads as a broken
+// application rather than a missing picture.
 
-func allKinds() []string {
-	return []string{
-		KindSnapshots, KindSchedule, KindOverdue, KindTripwire,
-		KindThinning, KindConflict, KindSpace, KindSimulated, KindStale,
-	}
-}
-
-func TestEveryKindLooksDifferent(t *testing.T) {
+func TestEveryKindHasItsOwnIcon(t *testing.T) {
 	seen := map[string]string{}
-	for _, kind := range allKinds() {
+	for _, kind := range Kinds() {
 		data, err := Glyph(kind, LevelWarn)
 		if err != nil {
 			t.Fatalf("%s: %v", kind, err)
 		}
-		key := string(data)
-		if other, clash := seen[key]; clash {
-			t.Errorf("%s is drawn identically to %s", kind, other)
+		if other, clash := seen[string(data)]; clash {
+			t.Errorf("%s and %s are the same image", kind, other)
 		}
-		seen[key] = kind
+		seen[string(data)] = kind
 	}
 }
 
-// Severity still has to be visible, or the shapes have traded one lost
-// distinction for another.
-func TestLevelStillChangesTheColour(t *testing.T) {
+// Severity still has to be visible, or the icons have traded one lost
+// distinction for another. The cross is the exception and has its own test.
+func TestLevelChangesTheColour(t *testing.T) {
 	ok, err := Glyph(KindSchedule, LevelOK)
 	if err != nil {
 		t.Fatal(err)
@@ -45,159 +39,116 @@ func TestLevelStillChangesTheColour(t *testing.T) {
 	bad, _ := Glyph(KindSchedule, LevelBad)
 
 	if bytes.Equal(ok, warn) || bytes.Equal(warn, bad) || bytes.Equal(ok, bad) {
-		t.Error("two levels are drawn the same")
+		t.Error("two levels render the same image")
 	}
 }
 
-// macOS is handed these directly and shows nothing at all if they will not
-// decode, which reads as a broken menu rather than as a missing icon.
-func TestEveryGlyphIsAPNGWithSomethingInIt(t *testing.T) {
-	for _, kind := range append(allKinds(), "something-added-later") {
-		data, err := Glyph(kind, LevelWarn)
-		if err != nil {
-			t.Fatalf("%s: %v", kind, err)
-		}
-		img, err := png.Decode(bytes.NewReader(data))
-		if err != nil {
-			t.Fatalf("%s is not a PNG: %v", kind, err)
-		}
-		if img.Bounds().Dx() != glyphPx || img.Bounds().Dy() != glyphPx {
-			t.Errorf("%s is %v, want %dx%d", kind, img.Bounds(), glyphPx, glyphPx)
-		}
+// macOS is handed these bytes directly and shows nothing at all if they will not
+// decode.
+func TestEveryIconIsAUsablePNG(t *testing.T) {
+	for _, kind := range Kinds() {
+		for _, level := range []Level{LevelOK, LevelWarn, LevelBad} {
+			data, err := Glyph(kind, level)
+			if err != nil {
+				t.Fatalf("%s/%s: %v", kind, level, err)
+			}
+			img, err := png.Decode(bytes.NewReader(data))
+			if err != nil {
+				t.Fatalf("%s/%s is not a PNG: %v", kind, level, err)
+			}
+			b := img.Bounds()
+			if b.Dx() != 32 || b.Dy() != 32 {
+				t.Errorf("%s/%s is %dx%d, want 32x32", kind, level, b.Dx(), b.Dy())
+			}
 
-		// An empty image is the failure that looks like success: it encodes, it
-		// decodes, and the menu shows a blank space where the icon should be.
-		var painted int
-		for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
-			for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
-				if _, _, _, a := img.At(x, y).RGBA(); a > 0 {
-					painted++
+			// An empty image is the failure that looks like success: it decodes,
+			// it renders, and the menu shows a gap.
+			var painted int
+			for y := b.Min.Y; y < b.Max.Y; y++ {
+				for x := b.Min.X; x < b.Max.X; x++ {
+					if _, _, _, a := img.At(x, y).RGBA(); a > 0 {
+						painted++
+					}
 				}
 			}
-		}
-		if painted == 0 {
-			t.Errorf("%s drew nothing", kind)
-		}
-		// Nor should it be a solid block, which is what a runaway fill looks like.
-		if painted == glyphPx*glyphPx {
-			t.Errorf("%s filled the whole square", kind)
+			if painted == 0 {
+				t.Errorf("%s/%s is blank", kind, level)
+			}
 		}
 	}
 }
 
-// A kind this build has never heard of still gets an icon, because findings are
-// added in the service and this must not be the thing that breaks.
-func TestAnUnknownKindStillDrawsSomething(t *testing.T) {
-	data, err := Glyph("invented-later", LevelWarn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(data) == 0 {
-		t.Error("no image for an unknown kind")
-	}
-}
-
-// The cross is the one glyph whose colour is fixed rather than taken from the
-// level. Anything reading colour as severity has to know that.
+// The cross marks something absent, which is the one state worth breaking the
+// palette for. It is red at every level.
 func TestTheCrossIsAlwaysRed(t *testing.T) {
 	first, err := Glyph(KindTripwire, LevelWarn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, level := range []Level{LevelOK, LevelBad} {
-		other, err := Glyph(KindTripwire, level)
-		if err != nil {
-			t.Fatal(err)
-		}
+		other, _ := Glyph(KindTripwire, level)
 		if !bytes.Equal(first, other) {
-			t.Errorf("the cross changed colour at level %s", level)
+			t.Errorf("the cross changed at level %s", level)
 		}
 	}
+}
 
-	img, err := png.Decode(bytes.NewReader(first))
+// A kind this build has never heard of still gets an icon, because findings are
+// added in the service and this must not be the thing that breaks.
+func TestAnUnknownKindFallsBackRatherThanFailing(t *testing.T) {
+	data, err := Glyph("invented-later", LevelWarn)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("an unknown kind produced no icon: %v", err)
 	}
-	want := levelColour(LevelBad)
-	var opaque int
-	for y := 0; y < glyphPx; y++ {
-		for x := 0; x < glyphPx; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
-			if a>>8 < 250 {
-				continue
-			}
-			opaque++
-			// Within a few counts: antialiased edges are blended, so an edge
-			// pixel is near the colour rather than exactly it.
-			near := func(got uint32, want uint8) bool {
-				d := int(got>>8) - int(want)
-				return d > -8 && d < 8
-			}
-			if !near(r, want.R) || !near(g, want.G) || !near(b, want.B) {
-				t.Fatalf("a solid pixel at %d,%d is not red: %d,%d,%d", x, y, r>>8, g>>8, b>>8)
-			}
-		}
+	if len(data) == 0 {
+		t.Error("the fallback is empty")
 	}
-	if opaque == 0 {
-		t.Error("the cross drew nothing solid")
+	// An unknown LEVEL must not fail either, and must not read as health.
+	if _, err := Glyph(KindSchedule, Level("something-new")); err != nil {
+		t.Errorf("an unknown level produced no icon: %v", err)
 	}
 }
 
-// Smaller than the others, so it does not dominate a menu whose other rows are
-// not emergencies.
-func TestTheCrossIsSmallerThanTheClock(t *testing.T) {
-	painted := func(kind string) int {
-		data, err := Glyph(kind, LevelWarn)
-		if err != nil {
-			t.Fatal(err)
-		}
-		img, err := png.Decode(bytes.NewReader(data))
-		if err != nil {
-			t.Fatal(err)
-		}
-		var n int
-		for y := 0; y < glyphPx; y++ {
-			for x := 0; x < glyphPx; x++ {
-				if _, _, _, a := img.At(x, y).RGBA(); a > 0 {
-					n++
-				}
-			}
-		}
-		return n
-	}
-	if cross, clock := painted(KindTripwire), painted(KindSchedule); cross >= clock {
-		t.Errorf("the cross covers %d pixels, the clock %d — it is not the smaller", cross, clock)
-	}
-}
-
-// The window draws the same nine shapes as SVG, because a menu item needs PNG
-// bytes and a web view does not. The two cannot share code, so the list of kinds
-// is what holds them together — and this is the Go half of that check. Its
-// counterpart is frontend/src/FindingIcon.test.tsx.
+// The window draws the same icons as lucide-react components, because a menu
+// item takes image bytes and a web view takes SVG. Nothing can share code across
+// that line, so the list of kinds is what holds the two together — and the
+// generator that renders these PNGs keys off the same list.
 func TestTheKindsMatchTheOnesTheWindowDraws(t *testing.T) {
-	// Read out of the frontend rather than restated, so this fails when the two
-	// drift rather than when someone forgets to update a copy of a copy.
 	src, err := os.ReadFile("../../frontend/src/FindingIcon.tsx")
 	if err != nil {
 		t.Skipf("cannot read the window's icons: %v", err)
 	}
-
 	block := regexp.MustCompile(`(?s)findingKinds = \[(.*?)\]`).FindSubmatch(src)
 	if block == nil {
 		t.Fatal("findingKinds is not where this test expects it")
 	}
+
 	inWindow := map[string]bool{}
 	for _, m := range regexp.MustCompile(`"([a-z]+)"`).FindAllSubmatch(block[1], -1) {
 		inWindow[string(m[1])] = true
 	}
-
-	for _, kind := range allKinds() {
+	for _, kind := range Kinds() {
 		if !inWindow[kind] {
-			t.Errorf("%s is drawn in the menu bar but not in the window", kind)
+			t.Errorf("%s has a menu bar icon but the window does not draw it", kind)
 		}
 		delete(inWindow, kind)
 	}
 	for kind := range inWindow {
-		t.Errorf("%s is drawn in the window but not in the menu bar", kind)
+		t.Errorf("%s is drawn in the window but has no menu bar icon", kind)
+	}
+}
+
+// The generator is the only thing that writes these files, so a kind added to
+// the const block above without a line in the script would silently ship the
+// fallback icon.
+func TestTheGeneratorCoversEveryKind(t *testing.T) {
+	script, err := os.ReadFile("../../build/icons/findings.sh")
+	if err != nil {
+		t.Skipf("cannot read the generator: %v", err)
+	}
+	for _, kind := range Kinds() {
+		if !regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(kind) + `:`).Match(script) {
+			t.Errorf("%s has no icon named in build/icons/findings.sh", kind)
+		}
 	}
 }

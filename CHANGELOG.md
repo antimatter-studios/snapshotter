@@ -7,6 +7,34 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.9.0 — 2026-08-16
+
+**The finding icons come from a designed set instead of being drawn by hand.**
+
+v0.7.0 and v0.8.0 drew nine icons out of circles, arcs and line primitives, with
+an antialiaser underneath and tests asserting no two came out identical. It was
+a lot of machinery to produce worse icons than are freely available, and the
+evidence was there early: the first attempt at the tripwire icon read as a
+sunset and had to be replaced with a cross.
+
+They are now [Lucide](https://lucide.dev) (ISC), which has around two thousand of
+them, drawn by people who do this. The window uses `lucide-react`; the menu bar
+uses the same icons rendered to PNG by `build/icons/findings.sh`, because macOS
+wants image bytes for a menu item rather than SVG.
+
+That deleted the drawing code, its antialiaser, and the tests that existed only
+to check hand-drawn shapes were distinguishable — 340 lines out, 125 in, most of
+the remainder being tests that now check the icons load, are the right size, and
+are not blank.
+
+The generated PNGs are committed rather than built, so the release pipeline needs
+neither node nor librsvg. Two tests keep the pieces honest: one fails if the
+window and the menu bar know different sets of kinds, the other if a kind exists
+with no line in the generator.
+
+The coverage strip is still drawn here, and stays that way: it is a picture of
+this machine's snapshot history, which no icon set can contain.
+
 ## v0.8.0 — 2026-08-15
 
 **The window draws findings the way the menu bar does.**
