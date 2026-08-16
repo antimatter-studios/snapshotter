@@ -104,3 +104,103 @@ func TestGetSurfacesAnUnreadableFileWithoutFailing(t *testing.T) {
 		t.Error("the path is the one thing that makes the error actionable")
 	}
 }
+
+// The reason for silencing a folder arrives while looking at a warning that
+// should not have happened, so this is the button under that warning.
+
+func TestIgnoringAFolderStopsTheTripwireCountingIt(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	c := NewConfigService()
+
+	view, err := c.IgnoreFolder("/Users/someone/Library/Caches/Microsoft Edge/Default/Cache")
+	if err != nil {
+		t.Fatalf("ignore: %v", err)
+	}
+
+	var found bool
+	for _, f := range view.Config.Tripwire.Ignore {
+		if f == "/Users/someone/Library/Caches/Microsoft Edge/Default/Cache/" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the folder was not added: %v", view.Config.Tripwire.Ignore)
+	}
+}
+
+// Stored with separators around it, so it matches that folder and anything under
+// it without matching a sibling whose name merely starts the same way.
+func TestAFolderIsStoredAsAFragmentNotAPrefix(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	c := NewConfigService()
+
+	view, err := c.IgnoreFolder("/a/build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := view.Config.Tripwire.Ignore[len(view.Config.Tripwire.Ignore)-1]
+	if last != "/a/build/" {
+		t.Errorf("stored as %q, want /a/build/ — without the trailing separator it "+
+			"would also silence /a/build-output", last)
+	}
+}
+
+// A button must not be able to silence the whole tripwire by accident.
+func TestTheRootCannotBeIgnored(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	c := NewConfigService()
+
+	before := len(NewConfigService().Get().Config.Tripwire.Ignore)
+	for _, bad := range []string{"/", "", "   "} {
+		if _, err := c.IgnoreFolder(bad); err == nil {
+			t.Errorf("%q was accepted, which would silence every path", bad)
+		}
+	}
+	if after := NewConfigService().Get().Config.Tripwire.Ignore; len(after) != before {
+		t.Errorf("a refused entry was still written: %v", after)
+	}
+}
+
+// Removing matters as much as adding: a list nobody can shorten grows until the
+// tripwire watches nothing, and that failure is silent by construction.
+func TestAFolderCanBeWatchedAgain(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	c := NewConfigService()
+
+	if _, err := c.IgnoreFolder("/a/build"); err != nil {
+		t.Fatal(err)
+	}
+	view, err := c.WatchFolder("/a/build/")
+	if err != nil {
+		t.Fatalf("watch: %v", err)
+	}
+	for _, f := range view.Config.Tripwire.Ignore {
+		if f == "/a/build/" {
+			t.Errorf("it is still ignored: %v", view.Config.Tripwire.Ignore)
+		}
+	}
+}
+
+// Adding the same folder twice is what a second click on the same row is, and it
+// should be a no-op rather than a duplicate or an error.
+func TestIgnoringTwiceIsHarmless(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	c := NewConfigService()
+
+	if _, err := c.IgnoreFolder("/a/build"); err != nil {
+		t.Fatal(err)
+	}
+	view, err := c.IgnoreFolder("/a/build")
+	if err != nil {
+		t.Errorf("a second click was an error: %v", err)
+	}
+	var n int
+	for _, f := range view.Config.Tripwire.Ignore {
+		if f == "/a/build/" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("stored %d times", n)
+	}
+}

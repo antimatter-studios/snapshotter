@@ -29,6 +29,25 @@ export function Get(): $CancellablePromise<$models.ConfigView> {
 }
 
 /**
+ * IgnoreFolder stops the bulk-deletion tripwire counting deletions in a folder.
+ *
+ * The reason for wanting this arrives while looking at a warning that should not
+ * have happened — a browser clearing its cache, a build directory being emptied —
+ * so the interface offers it there rather than in a settings screen someone would
+ * have to go and find.
+ *
+ * The folder is stored with separators around it, which is what makes it a
+ * fragment rather than a prefix: "/Caches/" matches that folder wherever it
+ * appears, and a folder given here matches itself and anything under it without
+ * matching a sibling whose name merely starts the same way.
+ */
+export function IgnoreFolder(folder: string): $CancellablePromise<$models.ConfigView> {
+    return $Call.ByID(3171666770, folder).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * SetTheme stores the appearance choice and nothing else.
  *
  * Narrow on purpose. A general "write this whole config" from the window would
@@ -38,6 +57,19 @@ export function Get(): $CancellablePromise<$models.ConfigView> {
  */
 export function SetTheme(theme: string): $CancellablePromise<void> {
     return $Call.ByID(3523442845, theme);
+}
+
+/**
+ * WatchFolder undoes IgnoreFolder.
+ *
+ * Removing is as important as adding: an ignore list nobody can see or shorten is
+ * a list that quietly grows until the tripwire watches nothing, and the failure
+ * is silent by construction.
+ */
+export function WatchFolder(fragment: string): $CancellablePromise<$models.ConfigView> {
+    return $Call.ByID(68344599, fragment).then(($result: any) => {
+        return $$createType0($result);
+    });
 }
 
 // Private type creation functions

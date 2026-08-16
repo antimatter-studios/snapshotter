@@ -7,6 +7,27 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.17.0 — 2026-08-16
+
+**Silencing a folder is a button on the warning, not a setting to go and find.**
+
+v0.16.0 made the tripwire's ignore list configurable, and configurable meant
+editing a file or using the command line. But the moment anyone wants to change
+it is the moment they are looking at a warning that should not have happened —
+a browser clearing its cache, a build directory being emptied — so the control
+belongs there.
+
+Each row of the bulk deletion warnings has an **ignore** action that adds that
+folder to the list. Underneath, everything currently silenced is shown with a
+**watch again** beside it. Being able to see and shorten the list is the half
+that matters: one nobody can read grows until the tripwire watches nothing, and
+that failure is silent by construction.
+
+A folder is stored with separators around it — `/a/build/` rather than
+`/a/build` — so it matches itself and everything under it without also silencing
+a sibling called `/a/build-output`. The root cannot be added: a button should not
+be able to switch the whole tripwire off by accident.
+
 ## v0.16.0 — 2026-08-16
 
 **The tripwire stops crying wolf, and a development build stops hiding.**
