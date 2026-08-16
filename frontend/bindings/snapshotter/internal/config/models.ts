@@ -39,6 +39,7 @@ export class Config {
     "schedule": Schedule;
     "tripwire": Tripwire;
     "appearance": Appearance;
+    "logging": Logging;
     "window": Window;
     "refresh": Refresh;
     "paths": Paths;
@@ -53,6 +54,9 @@ export class Config {
         }
         if (!("appearance" in $$source)) {
             this["appearance"] = (new Appearance());
+        }
+        if (!("logging" in $$source)) {
+            this["logging"] = (new Logging());
         }
         if (!("window" in $$source)) {
             this["window"] = (new Window());
@@ -77,6 +81,7 @@ export class Config {
         const $$createField3_0 = $$createType3;
         const $$createField4_0 = $$createType4;
         const $$createField5_0 = $$createType5;
+        const $$createField6_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("schedule" in $$parsedSource) {
             $$parsedSource["schedule"] = $$createField0_0($$parsedSource["schedule"]);
@@ -87,16 +92,51 @@ export class Config {
         if ("appearance" in $$parsedSource) {
             $$parsedSource["appearance"] = $$createField2_0($$parsedSource["appearance"]);
         }
+        if ("logging" in $$parsedSource) {
+            $$parsedSource["logging"] = $$createField3_0($$parsedSource["logging"]);
+        }
         if ("window" in $$parsedSource) {
-            $$parsedSource["window"] = $$createField3_0($$parsedSource["window"]);
+            $$parsedSource["window"] = $$createField4_0($$parsedSource["window"]);
         }
         if ("refresh" in $$parsedSource) {
-            $$parsedSource["refresh"] = $$createField4_0($$parsedSource["refresh"]);
+            $$parsedSource["refresh"] = $$createField5_0($$parsedSource["refresh"]);
         }
         if ("paths" in $$parsedSource) {
-            $$parsedSource["paths"] = $$createField5_0($$parsedSource["paths"]);
+            $$parsedSource["paths"] = $$createField6_0($$parsedSource["paths"]);
         }
         return new Config($$parsedSource as Partial<Config>);
+    }
+}
+
+/**
+ * Logging is what the application says about itself.
+ */
+export class Logging {
+    /**
+     * Verbose turns on per-directory and per-file logging.
+     *
+     * Off by default because it is tens of thousands of lines on a home folder.
+     * On, it says why a folder could not be compared — which is the question that
+     * prompted it, after three wrong guesses at an answer the application already
+     * had and was discarding.
+     */
+    "verbose": boolean;
+
+    /** Creates a new Logging instance. */
+    constructor($$source: Partial<Logging> = {}) {
+        if (!("verbose" in $$source)) {
+            this["verbose"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Logging instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Logging {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Logging($$parsedSource as Partial<Logging>);
     }
 }
 
@@ -253,7 +293,7 @@ export class Tripwire {
      * Creates a new Tripwire instance from a string or object.
      */
     static createFrom($$source: any = {}): Tripwire {
-        const $$createField1_0 = $$createType6;
+        const $$createField1_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ignore" in $$parsedSource) {
             $$parsedSource["ignore"] = $$createField1_0($$parsedSource["ignore"]);
@@ -294,7 +334,8 @@ export class Window {
 const $$createType0 = Schedule.createFrom;
 const $$createType1 = Tripwire.createFrom;
 const $$createType2 = Appearance.createFrom;
-const $$createType3 = Window.createFrom;
-const $$createType4 = Refresh.createFrom;
-const $$createType5 = Paths.createFrom;
-const $$createType6 = $Create.Array($Create.Any);
+const $$createType3 = Logging.createFrom;
+const $$createType4 = Window.createFrom;
+const $$createType5 = Refresh.createFrom;
+const $$createType6 = Paths.createFrom;
+const $$createType7 = $Create.Array($Create.Any);

@@ -332,6 +332,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.25.0
+
+Folders show the verdict they resolved, rather than the placeholder the listing
+returned before the walk ran. A `logging.verbose` setting reports what each
+verdict concluded and why, and a folder that could not be checked says what
+stopped it.
+
 ### v0.24.0
 
 Folder verdicts are remembered while the window is open and forgotten when the
@@ -384,12 +391,6 @@ sentence. The bulk-deletion tripwire ignores cache and temporary directories, so
 a browser clearing its cache no longer trips it. A development build refuses to join a menu
 bar that already has the installed copy in it. The release retries `hdiutil`,
 which fails transiently on shared runners.
-
-### v0.15.0
-
-The health screen pins its eight figures to the foot of the window and scrolls
-everything else behind them, so the space goes to whatever actually has something
-to say. Bulk deletion warnings are a compact table, one row per event.
 
 
 ## Design decisions

@@ -29,6 +29,7 @@ type Config struct {
 	Schedule   Schedule   `yaml:"schedule" json:"schedule"`
 	Tripwire   Tripwire   `yaml:"tripwire" json:"tripwire"`
 	Appearance Appearance `yaml:"appearance" json:"appearance"`
+	Logging    Logging    `yaml:"logging" json:"logging"`
 	Window     Window     `yaml:"window" json:"window"`
 	Refresh    Refresh    `yaml:"refresh" json:"refresh"`
 	Paths      Paths      `yaml:"paths" json:"paths"`
@@ -64,6 +65,17 @@ type Tripwire struct {
 	// like "/Library/Caches/" covers every application's cache without naming any
 	// of them.
 	Ignore []string `yaml:"ignore" json:"ignore"`
+}
+
+// Logging is what the application says about itself.
+type Logging struct {
+	// Verbose turns on per-directory and per-file logging.
+	//
+	// Off by default because it is tens of thousands of lines on a home folder.
+	// On, it says why a folder could not be compared — which is the question that
+	// prompted it, after three wrong guesses at an answer the application already
+	// had and was discarding.
+	Verbose bool `yaml:"verbose" json:"verbose"`
 }
 
 type Appearance struct {
@@ -127,6 +139,7 @@ func Defaults() Config {
 			},
 		},
 		Appearance: Appearance{Theme: "system"},
+		Logging:    Logging{Verbose: false},
 		Window:     Window{Width: 1180, Height: 780},
 		Refresh:    Refresh{MenuBarSeconds: 60, WindowSeconds: 30},
 		Paths:      Paths{}, // empty: see Paths, and Resolve below

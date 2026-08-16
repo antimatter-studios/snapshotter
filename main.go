@@ -27,6 +27,7 @@ import (
 	"snapshotter/internal/notify"
 	"snapshotter/internal/scenario"
 	"snapshotter/internal/schedule"
+	"snapshotter/internal/trace"
 	"snapshotter/internal/verdict"
 	"snapshotter/internal/version"
 	"snapshotter/services"
@@ -183,6 +184,7 @@ func resolvePaths() (paths, error) {
 	if cfgErr != nil {
 		log.Printf("configuration: %v (continuing with defaults)", cfgErr)
 	}
+	trace.SetEnabled(cfg.Logging.Verbose)
 	return paths{
 		mountRoot: config.ResolvePath(cfg.Paths.MountRoot,
 			filepath.Join(home, "Library", "Application Support", "Snapshotter", "mounts")),

@@ -216,8 +216,8 @@ func TestTheListingDefersFolderVerdictsAndResolvesThemSeparately(t *testing.T) {
 	if err != nil {
 		t.Fatalf("directory status: %v", err)
 	}
-	if status != "same" {
-		t.Errorf("an unchanged folder resolved to %q", status)
+	if status.Status != "same" {
+		t.Errorf("an unchanged folder resolved to %q (%s)", status.Status, status.Why)
 	}
 }
 
@@ -234,8 +234,8 @@ func TestAChangedFolderResolvesToChanged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("directory status: %v", err)
 	}
-	if status != "modified" {
-		t.Errorf("a folder with an edited file inside resolved to %q", status)
+	if status.Status != "modified" {
+		t.Errorf("a folder with an edited file inside resolved to %q (%s)", status.Status, status.Why)
 	}
 }
 
@@ -265,8 +265,8 @@ func TestAFolderVerdictIsRememberedUntilTheDiskMoves(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if again != first {
-		t.Errorf("the remembered answer was not used: %q then %q", first, again)
+	if again.Status != first.Status {
+		t.Errorf("the remembered answer was not used: %q then %q", first.Status, again.Status)
 	}
 
 	// Once told, it walks again and sees the change.
@@ -275,8 +275,8 @@ func TestAFolderVerdictIsRememberedUntilTheDiskMoves(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if after != "modified" {
-		t.Errorf("after being told the disk moved, the folder is %q", after)
+	if after.Status != "modified" {
+		t.Errorf("after being told the disk moved, the folder is %q (%s)", after.Status, after.Why)
 	}
 }
 

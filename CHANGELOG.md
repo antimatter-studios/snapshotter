@@ -7,6 +7,34 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.25.0 — 2026-08-16
+
+**Folders show the verdict they resolved.**
+
+Every folder read "could not check", whatever the answer turned out to be. The
+walk ran, reached the right conclusion, and handed it back; the row then
+displayed the placeholder the listing had returned before any of that happened.
+The resolved verdict was computed and used for one thing — the row's CSS class —
+while every visible cell read the value it was supposed to replace.
+
+Three explanations were offered for that behaviour before the cause was found,
+and all three were wrong: the walk's budget was too low, unreadable subfolders
+were aborting the answer, and macOS privacy protection was denying reads. Each
+led to a real change, and none of them was why. The compiler had nothing to say
+about it, because the resolved value *was* used, just not where it mattered.
+
+### The application can now say what it knows
+
+`logging.verbose` turns on per-verdict logging: which folder, what was concluded,
+how long it took, and what stopped it when nothing could be. It can be turned on
+and off while the application is running, because restarting to look at a problem
+is how the problem gets lost.
+
+A folder that could not be answered for also carries the reason back to the
+window, shown in the row's tooltip — so "could not check" says what stopped it
+without anyone having to find a log file. The application knew all along and was
+throwing it away, which is what made three wrong guesses possible.
+
 ## v0.24.0 — 2026-08-16
 
 **Folder verdicts are remembered, and forgotten when the disk moves.**

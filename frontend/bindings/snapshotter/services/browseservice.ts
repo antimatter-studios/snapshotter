@@ -14,20 +14,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
-/**
- * DirectoryStatus answers whether anything under one directory has changed.
- *
- * Separate from Merged because the two have opposite costs. A listing is two
- * directory reads and is instant; a directory's verdict may be a walk of
- * everything beneath it, and only in the case where nothing has changed — a
- * difference is found and returned the moment it appears. Asking for them
- * together would make every listing as slow as its slowest folder.
- *
- * The window calls this once per folder row and fills each in as it answers, so
- * a large untouched tree delays nothing but its own row.
- */
-export function DirectoryStatus(snapshotName: string, livePath: string): $CancellablePromise<string> {
-    return $Call.ByID(638270053, snapshotName, livePath);
+export function DirectoryStatus(snapshotName: string, livePath: string): $CancellablePromise<$models.FolderVerdict> {
+    return $Call.ByID(638270053, snapshotName, livePath).then(($result: any) => {
+        return $$createType0($result);
+    });
 }
 
 /**
@@ -47,7 +37,7 @@ export function Home(): $CancellablePromise<string> {
  */
 export function ListLive(livePath: string): $CancellablePromise<$models.Listing> {
     return $Call.ByID(3553074810, livePath).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
@@ -58,7 +48,7 @@ export function ListLive(livePath: string): $CancellablePromise<$models.Listing>
  */
 export function ListSnapshot(snapshotName: string, livePath: string): $CancellablePromise<$models.Listing> {
     return $Call.ByID(4050716252, snapshotName, livePath).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
@@ -69,7 +59,7 @@ export function ListSnapshot(snapshotName: string, livePath: string): $Cancellab
  */
 export function Locate(livePath: string): $CancellablePromise<$models.Presence[]> {
     return $Call.ByID(1872916882, livePath).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -80,7 +70,7 @@ export function Locate(livePath: string): $CancellablePromise<$models.Presence[]
  */
 export function Merged(snapshotName: string, livePath: string, includeSame: boolean): $CancellablePromise<$models.MergedListing> {
     return $Call.ByID(3217692856, snapshotName, livePath, includeSame).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -93,7 +83,8 @@ export function RevealInFinder(snapshotName: string, livePath: string): $Cancell
 }
 
 // Private type creation functions
-const $$createType0 = $models.Listing.createFrom;
-const $$createType1 = $models.Presence.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.MergedListing.createFrom;
+const $$createType0 = $models.FolderVerdict.createFrom;
+const $$createType1 = $models.Listing.createFrom;
+const $$createType2 = $models.Presence.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.MergedListing.createFrom;
