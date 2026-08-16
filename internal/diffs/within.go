@@ -61,9 +61,19 @@ func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (di
 	liveEntries, liveErr := readDirMap(liveDir)
 	if snapErr != nil || liveErr != nil {
 		// One side unreadable — most often macOS privacy protection over a
-		// subfolder. Not knowing is not the same as nothing having changed.
+		// subfolder. Not knowing is not the same as nothing having changed, so
+		// this subtree is skipped rather than answered for.
+		//
+		// It used to abort the entire walk, which meant a single protected folder
+		// anywhere beneath a directory made the whole thing unanswerable — and the
+		// interface then reported that as "too large to check", which was not what
+		// had happened at all.
 		return false, false
 	}
+
+	// Set when a subtree could not be read. It only matters if nothing else
+	// differs: a difference found elsewhere answers the question outright.
+	var skipped bool
 
 	for _, name := range mergedNames(snapEntries, liveEntries) {
 		if *remaining <= 0 {
@@ -87,8 +97,17 @@ func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (di
 		case snapInfo.IsDir():
 			snapPath := filepath.Join(snapshotDir, name)
 			livePath := filepath.Join(liveDir, name)
-			if differs, answered := differsWithin(snapPath, livePath, opt, remaining); differs || !answered {
-				return differs, answered
+			childDiffers, childAnswered := differsWithin(snapPath, livePath, opt, remaining)
+			if childDiffers {
+				// A difference anywhere is the answer, whatever else was skipped.
+				return true, true
+			}
+			if !childAnswered {
+				// Carry on rather than giving up: another subtree may hold a
+				// difference, and finding one answers the question outright. Only
+				// if nothing is found does the skip matter, and that is remembered
+				// below.
+				skipped = true
 			}
 
 		default:
@@ -104,5 +123,7 @@ func differsWithin(snapshotDir, liveDir string, opt Options, remaining *int) (di
 		}
 	}
 
-	return false, true
+	// Nothing differed in what could be read. If something could not be, that is
+	// the honest answer rather than "unchanged".
+	return false, !skipped
 }

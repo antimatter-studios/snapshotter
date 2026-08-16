@@ -10,6 +10,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/schedule"
+	"snapshotter/internal/verdict"
 )
 
 // Mounter attaches snapshots so their contents can be read.
@@ -58,4 +59,9 @@ type Deps struct {
 	// guaranteed" is exactly the finding worth being able to look at without
 	// filling a real disk to see it.
 	Space func(volume string) (total, free uint64, err error)
+	// Verdicts remembers whether a folder differs from a snapshot, so browsing
+	// does not walk the same tree every time somebody navigates back to it. Nil
+	// simply means every answer is computed afresh, which is what the command
+	// line does.
+	Verdicts *verdict.Cache
 }

@@ -27,6 +27,7 @@ import (
 	"snapshotter/internal/notify"
 	"snapshotter/internal/scenario"
 	"snapshotter/internal/schedule"
+	"snapshotter/internal/verdict"
 	"snapshotter/internal/version"
 	"snapshotter/services"
 
@@ -285,6 +286,12 @@ func buildDeps(s setup, runner apfs.Runner) services.Deps {
 		Faking:   faking,
 		FakeSeed: fakeSeed,
 		Scenario: s.scenario,
+		// One cache for the window's lifetime, kept honest by the watch started
+		// in runWindow. Nothing is written to disk: a cache that outlived the
+		// process would have to be right about everything that happened while it
+		// was gone, and a cold start costs one walk, which is what every start
+		// costs today.
+		Verdicts: verdict.New(),
 		Space:    s.space,
 	}
 }
@@ -395,6 +402,12 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		// applied to a running application is applied here; what cannot is named
 		// in applySettings so the limit is written down rather than discovered.
 		go watchSettings(context.Background(), s.paths, deps, win, applyToTray)
+
+		// Browsing asks for a folder's verdict constantly, and the answer only
+		// stops being true when the live disk moves.
+		if home, herr := os.UserHomeDir(); herr == nil && deps.Verdicts != nil {
+			go watchForChanges(context.Background(), home, deps.Verdicts)
+		}
 	})
 	return app.Run()
 }

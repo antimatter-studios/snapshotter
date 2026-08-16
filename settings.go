@@ -5,10 +5,13 @@ package main
 import (
 	"context"
 	"log"
+	"path/filepath"
 	"snapshotter/internal/config"
 	"snapshotter/internal/mountmgr"
+	"snapshotter/internal/verdict"
 	"snapshotter/services"
 
+	"github.com/rjeczalik/notify"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -62,4 +65,34 @@ func applySettings(cfg config.Config, p paths, deps services.Deps, win applicati
 
 	log.Printf("settings reloaded: window %dx%d, menu bar every %s, window every %s",
 		width, height, cfg.MenuBarRefresh(), cfg.WindowRefresh())
+}
+
+// watchForChanges forgets cached folder verdicts as the disk moves under them.
+//
+// A verdict is only ever invalidated by the live side — a snapshot is read-only
+// — and the filesystem is what knows when that happens. What it does not say is
+// which folders an event affects: a file edited five levels down changes the
+// answer for all five above it, because a directory's modification time moves
+// only when something is added, removed or renamed directly inside it. Given the
+// path that changed, though, the ancestors are just that path taken apart.
+func watchForChanges(ctx context.Context, root string, cache *verdict.Cache) {
+	events := make(chan notify.EventInfo, 1024)
+	// Recursive, and deliberately every kind of event: a rename is a deletion
+	// from one folder and a creation in another, and either can change a verdict.
+	if err := notify.Watch(filepath.Join(root, "..."), events, notify.All); err != nil {
+		// Not fatal. Without it every answer is computed afresh, which is what
+		// the application did before the cache existed.
+		log.Printf("cached folder verdicts will not be refreshed automatically: %v", err)
+		return
+	}
+	defer notify.Stop(events)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case ev := <-events:
+			cache.Touched(ev.Path())
+		}
+	}
 }

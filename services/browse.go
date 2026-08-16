@@ -9,6 +9,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/diffs"
+	"snapshotter/internal/verdict"
 	"snapshotter/internal/vfs"
 )
 
@@ -242,6 +243,18 @@ func parentOf(path string) string {
 // The window calls this once per folder row and fills each in as it answers, so
 // a large untouched tree delays nothing but its own row.
 func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (string, error) {
+	// Remembered from last time unless the disk has been touched since.
+	//
+	// Browsing asks this constantly: open a folder, look inside, come back, and
+	// every sibling would be walked again to reach the conclusion it reached a
+	// moment ago. Nothing changed in between, so nothing needed recomputing — and
+	// the filesystem is what says when that stops being true.
+	if b.Verdicts != nil {
+		if v, ok := b.Verdicts.Get(snapshotName, livePath); ok {
+			return string(v), nil
+		}
+	}
+
 	mountPoint, err := b.mountPointOf(snapshotName)
 	if err != nil {
 		return string(diffs.NotExamined), err
@@ -255,12 +268,18 @@ func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (string, 
 	}
 
 	differs, answered := diffs.DiffersWithin(snapshotDir, filepath.Clean(livePath), diffs.Options{})
+	var status diffs.Status
 	switch {
 	case !answered:
-		return string(diffs.NotExamined), nil
+		status = diffs.NotExamined
 	case differs:
-		return string(diffs.Modified), nil
+		status = diffs.Modified
 	default:
-		return string(diffs.Same), nil
+		status = diffs.Same
 	}
+
+	if b.Verdicts != nil {
+		b.Verdicts.Put(snapshotName, livePath, verdict.Verdict(status))
+	}
+	return string(status), nil
 }

@@ -7,6 +7,43 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.24.0 — 2026-08-16
+
+**Folder verdicts are remembered, and forgotten when the disk moves.**
+
+Answering "has anything under here changed?" costs a walk. Not a slow one, but
+browsing repeats it relentlessly: open a folder, look inside, come back, and
+every sibling is walked again to reach the conclusion it reached a moment ago.
+Nothing changed in between.
+
+They are cached for as long as the window is open. What makes that safe rather
+than merely fast is the shape of the two sides: a snapshot is read-only and can
+never invalidate anything, so only the live disk can — and the filesystem says
+when it does.
+
+What the filesystem does not say is which folders an event affects. A file edited
+five levels down changes the answer for all five folders above it, and none of
+their modification times move, because a directory's mtime only changes when
+something is added, removed or renamed directly inside it. That is the same fact
+that made the original bug possible. Given the path that changed, though, the
+ancestors are just that path taken apart — so a change invalidates itself and
+every folder containing it.
+
+Nothing is written to disk. A cache that outlived the process would have to be
+right about everything that happened while it was gone, which is a promise it
+cannot keep and does not need to make: a cold start costs one walk, which is what
+every start costs today.
+
+### Also
+
+A folder that cannot be read no longer decides the answer for everything around
+it. One unreadable subfolder used to abort the whole walk, so a single protected
+directory anywhere beneath a folder made it unanswerable — and that was then
+reported as "too large to check", which was not what had happened. Unreadable
+subtrees are skipped; a difference found anywhere else answers outright, and only
+when nothing differs does the skip matter. The label is "could not check", which
+does not guess at a reason it does not know.
+
 ## v0.23.0 — 2026-08-16
 
 **Folder verdicts no longer take the machine with them.**
