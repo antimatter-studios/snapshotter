@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search as SearchAPI, Restore, message, type SearchResult } from "./api";
 import { bytes, stamp } from "./format";
 import { useAction } from "./useAction";
+import { useTranslation } from "./i18n";
 
 /**
  * Find a file by name across every open snapshot.
@@ -12,6 +13,7 @@ import { useAction } from "./useAction";
  * not which directory it was in.
  */
 export function Search({ onStatus }: { onStatus: (s: string) => void }) {
+  const { t } = useTranslation();
   const [term, setTerm] = useState("");
   const [under, setUnder] = useState("");
   const [result, setResult] = useState<SearchResult | null>(null);
@@ -37,7 +39,7 @@ export function Search({ onStatus }: { onStatus: (s: string) => void }) {
         <div className="toolbar-actions">
           <input
             className="search-input"
-            placeholder="Part of a file name — id_rsa, vault, .kdbx"
+            placeholder={t("search.namePlaceholder")}
             value={term}
             onChange={(e) => setTerm(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void run()}
@@ -45,13 +47,13 @@ export function Search({ onStatus }: { onStatus: (s: string) => void }) {
           />
           <input
             className="search-input narrow"
-            placeholder="Only under… (optional)"
+            placeholder={t("search.onlyUnder")}
             value={under}
             onChange={(e) => setUnder(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void run()}
           />
           <button className="primary" onClick={() => void run()} disabled={busy || !term.trim()}>
-            {busy ? "Searching…" : "Search"}
+            {busy ? t("search.searching") : t("search.search")}
           </button>
         </div>
       </div>
@@ -74,10 +76,10 @@ export function Search({ onStatus }: { onStatus: (s: string) => void }) {
           <table className="rows">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Where it was</th>
-                <th>Snapshot</th>
-                <th className="num">Size</th>
+                <th>{t("search.colName")}</th>
+                <th>{t("search.colWhere")}</th>
+                <th>{t("search.colSnapshot")}</th>
+                <th className="num">{t("search.colSize")}</th>
                 <th />
               </tr>
             </thead>
@@ -89,7 +91,7 @@ export function Search({ onStatus }: { onStatus: (s: string) => void }) {
                   <td>{stamp(h.modTime)}</td>
                   <td className="num">{h.isDir ? "—" : bytes(h.size)}</td>
                   <td className="actions">
-                    <button onClick={() => void restore(h.snapshot, h.livePath)}>Restore</button>
+                    <button onClick={() => void restore(h.snapshot, h.livePath)}>{t("search.restore")}</button>
                   </td>
                 </tr>
               ))}

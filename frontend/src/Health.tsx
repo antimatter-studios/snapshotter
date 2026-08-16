@@ -14,6 +14,7 @@ import { bytes, stamp } from "./format";
 import { FindingIcon } from "./FindingIcon";
 import { useAction } from "./useAction";
 import type { Warning } from "./api";
+import { useTranslation } from "./i18n";
 
 /**
  * What the one-click fix installs. Six hours rather than hourly, kept a
@@ -34,6 +35,7 @@ const DEFAULT_RETENTION_DAYS = 14;
  * by hand.
  */
 export function Health({ onStatus }: { onStatus: (s: string) => void }) {
+  const { t } = useTranslation();
   const [health, setHealth] = useState<HealthState | null>(null);
   const { busy, error, setError, run } = useAction(onStatus);
   // The scheduled task's log, fetched only when a finding offers it — a
@@ -60,7 +62,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
   useLiveRefresh(refresh);
 
   if (error) return <p className="banner error">{error}</p>;
-  if (!health) return <p className="empty">Checking…</p>;
+  if (!health) return <p className="empty">{t("health.checking")}</p>;
 
   const act = (fn: () => Promise<unknown>, done: string) => run(fn, done, refresh);
 
@@ -73,14 +75,14 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           <p>
             {health.snapshotCount > 0 && health.newest
               ? `Newest ${stamp(health.newest)}.`
-              : "Nothing has been recorded."}
+              : t("health.nothingRecorded")}
             {health.scheduleInstalled && health.nextDue
               ? ` Next due ${stamp(health.nextDue)}.`
               : ""}
           </p>
         </div>
         <button onClick={() => void refresh()} disabled={busy}>
-          Re-check
+          {t("health.recheck")}
         </button>
       </div>
 
@@ -115,7 +117,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
                 onClick={() => act(() => Snapshots.TakeNow(), "Snapshot taken")}
                 disabled={busy}
               >
-                Take one now
+                {t("health.takeOneNow")}
               </button>
             )}
 
@@ -130,7 +132,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
                 disabled={busy}
               >
                 {health.scheduleInstalled
-                  ? "Start it"
+                  ? t("health.startIt")
                   : `Take one every ${DEFAULT_INTERVAL_HOURS} hours`}
               </button>
             )}
@@ -140,12 +142,12 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
                 onClick={() =>
                   act(
                     () => Schedule.InstallTripwire(),
-                    "Watching for bulk deletion — it will keep watching after this window closes",
+                    t("health.watchingFor"),
                   )
                 }
                 disabled={busy}
               >
-                {health.tripwireInstalled ? "Start watching" : "Watch for bulk deletion"}
+                {health.tripwireInstalled ? t("health.startWatching") : t("health.watchForBulk")}
               </button>
             )}
 
@@ -159,7 +161,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
                   }
                   disabled={busy}
                 >
-                  {log ? "Refresh the log" : "Show the log"}
+                  {log ? t("health.refreshLog") : t("health.showLog")}
                 </button>
                 {log && <pre className="log">{log}</pre>}
               </>
@@ -172,15 +174,15 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
 
       <dl className="facts">
         <div>
-          <dt>Restore points</dt>
+          <dt>{t("health.restorePoints")}</dt>
           <dd>{health.snapshotCount}</dd>
         </div>
         <div>
-          <dt>Cover</dt>
+          <dt>{t("health.cover")}</dt>
           <dd>{coverage(health.coverageHours)}</dd>
         </div>
         <div>
-          <dt>Schedule</dt>
+          <dt>{t("health.schedule")}</dt>
           <dd>
             {health.scheduleInstalled
               ? `Every ${health.intervalHours}h, kept ${health.retentionDays}d${
@@ -190,7 +192,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           </dd>
         </div>
         <div>
-          <dt>Free space</dt>
+          <dt>{t("health.freeSpace")}</dt>
           <dd>
             {bytes(health.volumeFreeBytes)} of {bytes(health.volumeTotalBytes)} (
             {health.freePercent.toFixed(0)}%)
@@ -200,22 +202,22 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           {/* APFS reports no size per snapshot and cannot: a snapshot shares
               blocks with the live volume and with its neighbours. Purgeable is
               the honest substitute — how many macOS may delete on its own. */}
-          <dt>Purgeable</dt>
+          <dt>{t("health.purgeable")}</dt>
           <dd>
             {health.purgeableCount} of {health.snapshotCount}
           </dd>
         </div>
         <div>
-          <dt>Pinning the container</dt>
+          <dt>{t("health.pinning")}</dt>
           <dd>{health.pinningStamp || "None"}</dd>
         </div>
         <div>
-          <dt>Bulk-deletion watch</dt>
+          <dt>{t("health.bulkWatch")}</dt>
           <dd>
             {health.tripwireRunning
-              ? "Watching"
+              ? t("health.watching")
               : health.tripwireInstalled
-                ? "Installed, not running"
+                ? t("health.installedNotRunning")
                 : "Off"}
           </dd>
         </div>
@@ -223,7 +225,7 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
             earns it: a copy in /Applications and a working build share a bundle
             identifier, so "which one am I looking at" is a real question. */}
         <div>
-          <dt>Version</dt>
+          <dt>{t("health.version")}</dt>
           <dd>{health.version}</dd>
         </div>
       </dl>
@@ -250,6 +252,7 @@ function coverage(hours: number): string {
  * Deletion Warnings" on a healthy Mac invites someone to wonder what is missing.
  */
 function BulkDeletionWarnings() {
+  const { t } = useTranslation();
   const [warnings, setWarnings] = useState<Warning[]>([]);
   const [ignored, setIgnored] = useState<string[]>([]);
   const [problem, setProblem] = useState("");
@@ -303,7 +306,7 @@ function BulkDeletionWarnings() {
 
   return (
     <section className="warnings">
-      <h3>Bulk deletion warnings</h3>
+      <h3>{t("health.bulkWarnings")}</h3>
       {/* A row per event rather than a card each: these are a log, and a log is
           read by scanning down one column. The folder is the column that gets
           scanned, so it is the one given the room. */}
@@ -331,7 +334,7 @@ function BulkDeletionWarnings() {
                           title={`Stop warning about ${folder}`}
                           onClick={() => void ignore(folder)}
                         >
-                          Ignore
+                          {t("health.ignore")}
                         </button>
                       </li>
                     ))}
@@ -363,13 +366,13 @@ function BulkDeletionWarnings() {
         // Shown, and removable. A list nobody can see or shorten grows until the
         // tripwire watches nothing, and that failure is silent by construction.
         <div className="ignored">
-          <h4>Not warning about</h4>
+          <h4>{t("health.notWarningAbout")}</h4>
           <ul>
             {ignored.map((fragment) => (
               <li key={fragment}>
                 <code>{fragment}</code>
-                <button title="Start warning about this again" onClick={() => void watchAgain(fragment)}>
-                  Watch again
+                <button title={t("health.watchAgainTitle")} onClick={() => void watchAgain(fragment)}>
+                  {t("health.watchAgain")}
                 </button>
               </li>
             ))}

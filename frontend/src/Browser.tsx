@@ -93,17 +93,17 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
   }, [load]);
 
   if (!snapshot) {
-    return <Empty title="No snapshot selected" detail="Pick a snapshot on the left to look inside it." />;
+    return <Empty title={t("browser.noSnapshotSelected")} detail={t("browser.pickOne")} />;
   }
 
   if (!snapshot.mounted) {
     return (
       <Empty
-        title="This snapshot is not open yet"
-        detail="Opening a snapshot attaches it read-only, which macOS requires an administrator password for. Nothing inside it can be changed."
+        title={t("browser.notOpenYet")}
+        detail={t("browser.openExplain")}
       >
         <button className="primary" onClick={onMount}>
-          Open snapshot
+          {t("browser.openSnapshot")}
         </button>
       </Empty>
     );
@@ -153,7 +153,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
             {t("browser.showIdentical")}
           </label>
           <button onClick={() => Browse.RevealInFinder(snapshot.name, path).catch((e) => setError(message(e)))}>
-            Reveal in Finder
+            {t("browser.revealInFinder")}
           </button>
         </div>
       </div>
@@ -164,11 +164,11 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
       <table className="rows">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th className="num">In snapshot</th>
-            <th className="num">On disk</th>
-            <th>Modified</th>
+            <th>{t("browser.colName")}</th>
+            <th>{t("browser.colStatus")}</th>
+            <th className="num">{t("browser.colInSnapshot")}</th>
+            <th className="num">{t("browser.colOnDisk")}</th>
+            <th>{t("browser.colModified")}</th>
             <th />
           </tr>
         </thead>

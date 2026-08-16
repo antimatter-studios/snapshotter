@@ -7,6 +7,25 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.34.0 — 2026-08-16
+
+**The rest of the window is translated.**
+
+v0.33.0 shipped the machinery and three screens' worth of text. This finishes the
+window: Home, Health, Schedule, Search, the navigation, the banners, the table
+headers, and every tooltip and placeholder. 128 keys in each of the four
+languages, up from 57.
+
+Two things needed restructuring rather than replacing. The interval and retention
+lists were built at module level, where no translation is in scope; they hold
+keys now and are looked up during the render that shows them, which is also what
+makes them re-read when the language changes. And "Snapshotter" stays
+"Snapshotter" in every language, being a name rather than a word.
+
+**Still English:** everything the Go side produces — the headline and findings on
+the Home screen, the menu bar, and notifications. That is the larger half of the
+remaining text and it is next.
+
 ## v0.33.0 — 2026-08-16
 
 **English, German, Spanish and French**, chosen from a picker beside the theme
