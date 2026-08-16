@@ -182,6 +182,7 @@ export const en = {
   "diff.imageNoPixelChange": "Every pixel is the same.",
   "diff.imageAdded": "Added since — not in {version}",
   "diff.imageDeleted": "Deleted — no longer in {version}",
+  "diff.nothingToShow": "This file is in neither version, so there is nothing to compare.",
 } as const;
 
 /** Every key the application can ask for. */

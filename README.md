@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.40.0
+
+Comparing a file that is in neither version explains itself instead of reporting
+a failure.
+
 ### v0.39.0
 
 A file is only shown as a picture when its contents agree with its name, so a zip
@@ -379,13 +384,6 @@ now names its unit — one mark is an hour — so it stops looking stuck.
 
 Every verdict has its own icon rather than only two of them, and the tick is
 legible at the size it is actually drawn.
-
-### v0.30.0
-
-Every file row has a Compare button, which opens the snapshot's version beside
-another. The right-hand side defaults to the live disk and can be switched to any
-other mounted snapshot. The button is new: the panel shipped in v0.22.0 with
-nothing to open it.
 
 
 ## Design decisions

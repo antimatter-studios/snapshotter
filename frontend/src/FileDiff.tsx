@@ -109,11 +109,15 @@ export function FileDiff({
       {error && <p className="error">{error}</p>}
       {!versions && !error && <p className="empty-note">{t("diff.reading")}</p>}
 
+      {/* Nothing on either side. Said plainly rather than as an error: the
+          question was reasonable, it simply has no answer. */}
+      {versions?.kind === "absent" && <p className="empty-note">{t("diff.nothingToShow")}</p>}
+
       {versions?.kind === "image" && (
         <ImageDiff versions={versions} leftLabel={left?.stamp ?? t("diff.theSnapshot")} />
       )}
 
-      {versions && !versions.readable && versions.kind !== "image" && (
+      {versions && !versions.readable && versions.kind !== "image" && versions.kind !== "absent" && (
         <p className="empty-note">
           {versions.note || t("diff.cannotCompare")}{" "}
           {/* The sizes are what is left to say, and they are worth saying. */}
