@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.32.0
+
+The compare panel names both versions in its own header instead of in the diff
+viewer's column titles, which were clipping them. The menu bar's coverage strip
+now names its unit — one mark is an hour — so it stops looking stuck.
+
 ### v0.31.0
 
 Every verdict has its own icon rather than only two of them, and the tick is
@@ -384,12 +390,6 @@ unreadable subfolder no longer makes a whole tree unanswerable.
 
 Folder verdicts resolve a few at a time rather than all at once, which had the
 application taking six cores for a minute on a home directory listing.
-
-### v0.22.0
-
-Differences are shown per file, opened from the row, rather than as a separate
-compare view that only listed which paths had changed. Folders in a listing read
-as *detecting…* and resolve one at a time.
 
 
 ## Design decisions

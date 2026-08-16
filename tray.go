@@ -139,7 +139,13 @@ func installTray(app *application.App, status *services.StatusService, win appli
 					// The caption sits above the strip rather than beside it: macOS
 					// draws an item's image before its label, so a labelled strip
 					// reads as a picture with its caption trailing off to the right.
-					menu.Add("Last two days").OnClick(reveal)
+					//
+					// It says what a mark means, because the strip alone does not.
+					// Twenty-two snapshots can fill three marks — which is the whole
+					// point of showing when rather than how many — but without the
+					// unit written down it reads as a strip that has stopped
+					// updating.
+					menu.Add("Last two days (mark represents an hour)").OnClick(reveal)
 					menu.Add("").SetBitmap(strip).OnClick(reveal)
 				}
 			}

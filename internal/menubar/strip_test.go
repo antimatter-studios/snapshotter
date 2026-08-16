@@ -142,3 +142,39 @@ func TestAnEmptyWindowStillProducesSomething(t *testing.T) {
 		t.Error("a zero window produced a zero-width image")
 	}
 }
+
+// The strip answers "when", not "how many", and the menu's caption has to be
+// able to say so. These two numbers being far apart is the normal case, not an
+// edge one: snapshots cluster.
+func TestManySnapshotsInOneHourCoverOneHour(t *testing.T) {
+	now := time.Date(2026, 8, 16, 12, 0, 0, 0, time.UTC)
+	var taken []time.Time
+	for i := 0; i < 22; i++ {
+		// All within the same hour, two minutes apart.
+		taken = append(taken, now.Add(-time.Duration(i)*2*time.Minute))
+	}
+
+	covered, total := HoursCovered(taken, now, 48*time.Hour)
+	if total != 48 {
+		t.Errorf("the window is not 48 hours wide: %d", total)
+	}
+	if covered != 1 {
+		t.Errorf("22 snapshots inside one hour covered %d hours, not 1", covered)
+	}
+}
+
+func TestSnapshotsSpreadAcrossHoursCoverEachOfThem(t *testing.T) {
+	now := time.Date(2026, 8, 16, 12, 0, 0, 0, time.UTC)
+	taken := []time.Time{
+		now.Add(-30 * time.Minute),
+		now.Add(-90 * time.Minute),
+		now.Add(-5 * time.Hour),
+		// Outside the window entirely, so it must not be counted.
+		now.Add(-60 * time.Hour),
+	}
+
+	covered, _ := HoursCovered(taken, now, 48*time.Hour)
+	if covered != 3 {
+		t.Errorf("three snapshots inside the window covered %d hours", covered)
+	}
+}

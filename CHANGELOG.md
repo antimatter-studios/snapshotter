@@ -7,6 +7,30 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.32.0 — 2026-08-16
+
+**The compare header no longer clips the version it names.**
+
+The two version names were passed to the diff viewer as its own column titles,
+which are laid out inside a row this application does not control — and a
+snapshot stamp was tall enough to be cut in half by it. They sit in the panel's
+own header now, reading left to right in the order the columns appear, with the
+target selector on the side it actually changes. A file missing from one side is
+said once, above the diff, rather than in a title that could be clipped.
+
+**The menu bar's strip says what a mark means.**
+
+It was not stale, and it was not wrong — it was answering a question nobody
+realised it was answering. Each mark is one hour of the last forty-eight in which
+at least one snapshot exists, so twenty-two snapshots taken close together fill
+three marks. That is the entire point of showing when rather than how many, but
+the caption said only "Last two days", which left the strip looking stuck to
+anyone who knew their own snapshot count.
+
+It now reads "Last two days (mark represents an hour)", which names the unit the
+strip is drawn in. The rule that fills the marks lives in one function, so the
+drawing and any future description of it cannot drift apart.
+
 ## v0.31.0 — 2026-08-16
 
 **A mark on every verdict, and a tick that reads as a tick.**

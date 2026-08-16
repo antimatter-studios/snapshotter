@@ -24,18 +24,13 @@ import (
 //
 // The image is drawn at twice its display size, because macOS scales menu images
 // down and a strip drawn at 1× on a Retina display is visibly soft.
-func Coverage(taken []time.Time, now time.Time, window time.Duration, dark bool) ([]byte, error) {
-	const (
-		scale     = 2
-		cellW     = 3 * scale // wide enough that a single hour is still visible
-		cellH     = 11 * scale
-		gap       = 1 * scale
-		hoursWide = 48 // two days: far enough back to show a nightly rhythm
-	)
-
+// hoursFilled marks each hour of the window in which at least one snapshot was
+// taken. It is the single statement of the rule the strip draws and the caption
+// describes, so the two cannot come to disagree about what a mark means.
+func hoursFilled(taken []time.Time, now time.Time, window time.Duration, fallbackHours int) []bool {
 	hours := int(window.Hours())
 	if hours <= 0 {
-		hours = hoursWide
+		hours = fallbackHours
 	}
 
 	filled := make([]bool, hours)
@@ -51,6 +46,35 @@ func Coverage(taken []time.Time, now time.Time, window time.Duration, dark bool)
 			filled[i] = true
 		}
 	}
+	return filled
+}
+
+// HoursCovered counts the hours of the window holding at least one snapshot.
+//
+// The menu needs this to say what the strip means. Twenty-two snapshots can fill
+// three marks, and without a sentence saying so the strip reads as broken rather
+// than as the answer to a different question than the one being asked.
+func HoursCovered(taken []time.Time, now time.Time, window time.Duration) (covered, total int) {
+	filled := hoursFilled(taken, now, window, 48)
+	for _, f := range filled {
+		if f {
+			covered++
+		}
+	}
+	return covered, len(filled)
+}
+
+func Coverage(taken []time.Time, now time.Time, window time.Duration, dark bool) ([]byte, error) {
+	const (
+		scale     = 2
+		cellW     = 3 * scale // wide enough that a single hour is still visible
+		cellH     = 11 * scale
+		gap       = 1 * scale
+		hoursWide = 48 // two days: far enough back to show a nightly rhythm
+	)
+
+	filled := hoursFilled(taken, now, window, hoursWide)
+	hours := len(filled)
 
 	width := hours*cellW + (hours-1)*gap
 	img := image.NewNRGBA(image.Rect(0, 0, width, cellH))
