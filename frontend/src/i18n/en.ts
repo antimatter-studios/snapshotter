@@ -171,6 +171,15 @@ export const en = {
   "schedule.cannotRecreate": "A snapshot cannot be recreated: it records a state of the disk that has passed. Anything outside the policy is deleted on the next scheduled run, and macOS may reclaim more than that under disk pressure — so these figures are upper bounds, not reservations.",
   "schedule.conflict": "Another scheduled task is also taking snapshots: {tasks}. Two of them will double the snapshot rate and apply two different retention windows to the same set. Remove one.",
   "health.responseFailed": "No snapshot was taken in response.",
+  "diff.imageSideBySide": "Side by side",
+  "diff.imageOverlay": "Overlay",
+  "diff.imageIdentical": "These two are byte-for-byte identical.",
+  "diff.imageTooLarge": "This picture is too large to show.",
+  "diff.fade": "Fade between them",
+  "diff.imageDifference": "Difference",
+  "diff.imageDiffersInPixels": "{n}% of pixels differ",
+  "diff.imageSizeDiffers": "The two are different sizes, so their pixels cannot be compared.",
+  "diff.imageNoPixelChange": "Every pixel is the same.",
 } as const;
 
 /** Every key the application can ask for. */

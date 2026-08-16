@@ -3,11 +3,18 @@ package services
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -321,6 +328,25 @@ type FileVersions struct {
 	// RightLabel names what the right side turned out to be, so the window can say
 	// so without repeating the rule for resolving it.
 	RightLabel string `json:"rightLabel"`
+	// Kind is how the window should show this: "text", "image" or "binary".
+	//
+	// Readable stays what it was — true only for text — so nothing that already
+	// checks it starts rendering an image into a line-by-line view.
+	Kind string `json:"kind"`
+	// The two pictures, as data URIs, when Kind is "image". Inlined rather than
+	// served from a URL because a snapshot's mountpoint is not reachable from the
+	// web view, and an image the window cannot fetch is no better than none.
+	LeftImage  string `json:"leftImage,omitempty"`
+	RightImage string `json:"rightImage,omitempty"`
+	// Pixel dimensions, when they could be read. Empty for a format the Go side
+	// has no decoder for — the web view can still draw several of those, and a
+	// picture without its dimensions beats no picture.
+	LeftDims  string `json:"leftDims,omitempty"`
+	RightDims string `json:"rightDims,omitempty"`
+	// Identical says the two sides are byte-for-byte the same. Worth stating for
+	// an image, where two versions can look alike on screen and a diff of lines
+	// is not available to settle it.
+	Identical bool `json:"identical"`
 }
 
 // maxDiffableBytes is the largest file each side may be for a text comparison.
@@ -332,6 +358,14 @@ type FileVersions struct {
 // reason the folder-walk budget was: it declined things people actually wanted
 // to look at.
 const maxDiffableBytes = 16 << 20
+
+// maxImageBytes is the largest image each side may be to be shown.
+//
+// Lower than the text cap because a data URI is a third larger than the bytes it
+// carries and both sides are held at once: eight megabytes each becomes about
+// twenty-one megabytes of string in the web view, which it manages comfortably.
+// Screenshots and photographs sit far below this.
+const maxImageBytes = 8 << 20
 
 // FileVersions reads one file from both sides so the window can show what
 // changed inside it.
@@ -377,6 +411,23 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		out.RightSize = rightInfo.Size()
 	}
 
+	// A picture is shown rather than described. This comes before the binary
+	// check because every image format is binary, and "no lines to compare" is a
+	// poor answer to "what changed in this screenshot" when both versions can
+	// simply be put side by side.
+	if mediaType := imageMediaType(livePath); mediaType != "" {
+		out.Kind = "image"
+		out.LeftImage = dataURI(leftPath, mediaType, out.LeftExists, out.LeftSize)
+		out.RightImage = dataURI(rightPath, mediaType, out.RightExists, out.RightSize)
+		out.LeftDims = pixelDimensions(leftPath, out.LeftExists)
+		out.RightDims = pixelDimensions(rightPath, out.RightExists)
+		out.Identical = sameBytes(leftPath, rightPath, out.LeftExists, out.RightExists, out.LeftSize, out.RightSize)
+		if out.LeftImage == "" && out.RightImage == "" {
+			out.Note = "too large to show"
+		}
+		return out, nil
+	}
+
 	// Binary is asked first, and deliberately. The size gate used to come first,
 	// so a 1.5MB PNG was told it was "too large to compare line by line" — which
 	// implies a smaller PNG would diff, and it would not. The message named the
@@ -385,6 +436,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	//
 	// This costs one small read of each side rather than a full one.
 	if looksBinary(leftPath, out.LeftExists) || looksBinary(rightPath, out.RightExists) {
+		out.Kind = "binary"
 		out.Note = "this looks like a binary file, so there are no lines to compare"
 		return out, nil
 	}
@@ -403,8 +455,98 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		return out, nil
 	}
 
-	out.Left, out.Right, out.Readable = leftText, rightText, true
+	out.Left, out.Right, out.Readable, out.Kind = leftText, rightText, true, "text"
 	return out, nil
+}
+
+// imageTypes maps an extension to the media type a data URI needs.
+//
+// By extension rather than by sniffing content: the media type has to be right
+// for the web view to draw the picture at all, and an extension is what every
+// other program on the machine trusts for that. A file misnamed .png that is
+// really a JPEG still draws, because the web view sniffs too.
+//
+// The list is what WebKit on macOS will render. HEIC is included because Apple's
+// own screenshots and photographs use it, even though the Go side has no decoder
+// for its dimensions.
+var imageTypes = map[string]string{
+	".png":  "image/png",
+	".jpg":  "image/jpeg",
+	".jpeg": "image/jpeg",
+	".gif":  "image/gif",
+	".webp": "image/webp",
+	".bmp":  "image/bmp",
+	".ico":  "image/x-icon",
+	".svg":  "image/svg+xml",
+	".tif":  "image/tiff",
+	".tiff": "image/tiff",
+	".heic": "image/heic",
+	".heif": "image/heif",
+	".avif": "image/avif",
+}
+
+// imageMediaType returns the media type for a path, or empty if it is not a
+// picture this can show.
+func imageMediaType(path string) string {
+	return imageTypes[strings.ToLower(filepath.Ext(path))]
+}
+
+// dataURI reads a file and encodes it for an <img> tag.
+//
+// Returns empty for a side that is absent or past the cap, which the window
+// shows as a missing panel rather than an error: one side missing is how a
+// picture added or deleted since the snapshot appears.
+func dataURI(path, mediaType string, exists bool, size int64) string {
+	if !exists || size > maxImageBytes {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return "data:" + mediaType + ";base64," + base64.StdEncoding.EncodeToString(data)
+}
+
+// pixelDimensions reads just the header of an image to find its size.
+//
+// Only the formats the standard library decodes are registered, which is most of
+// what anyone compares. An unknown format returns empty rather than an error: the
+// picture is still worth showing without its dimensions beside it.
+func pixelDimensions(path string, exists bool) string {
+	if !exists {
+		return ""
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	cfg, _, err := image.DecodeConfig(f)
+	if err != nil {
+		return ""
+	}
+	return strconv.Itoa(cfg.Width) + "\u00d7" + strconv.Itoa(cfg.Height)
+}
+
+// sameBytes reports whether two files hold exactly the same contents.
+//
+// Sizes are compared first, which settles most pairs without reading anything.
+// Worth answering for a picture: two versions can look identical on a screen and
+// there is no line-by-line comparison to settle it.
+func sameBytes(leftPath, rightPath string, left, right bool, leftSize, rightSize int64) bool {
+	if !left || !right || leftSize != rightSize {
+		return false
+	}
+	a, err := os.ReadFile(leftPath)
+	if err != nil {
+		return false
+	}
+	b, err := os.ReadFile(rightPath)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(a, b)
 }
 
 // binarySniffBytes is how much of a file is read to decide whether it is text.

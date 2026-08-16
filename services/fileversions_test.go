@@ -2,6 +2,8 @@ package services
 
 import (
 	"bytes"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -191,37 +193,95 @@ func TestTheRightSideIsLabelled(t *testing.T) {
 	}
 }
 
-// A PNG that is also over the cap must say it is an image, not that it is large.
-//
-// The size gate used to run first, so a 1.5MB screenshot was told it was "too
-// large to compare line by line" — which implies a smaller one would diff, and
-// it would not. The message named the first gate it hit rather than the reason.
-func TestALargeBinaryFileSaysItIsBinaryRatherThanLarge(t *testing.T) {
+// A PNG is shown, not described. It used to be declined as binary, and before
+// that declined for its size — neither of which is what someone asking "what
+// changed in this screenshot" wants.
+func TestAPictureComesBackAsAPicture(t *testing.T) {
 	svc, seed := fileFixture(t)
-	big := filepath.Join(seed, "screenshot.png")
+	path := filepath.Join(seed, "login.png")
 
-	// A PNG header, then enough padding to clear the cap.
-	data := append([]byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01}, make([]byte, maxDiffableBytes+1)...)
-	if err := os.WriteFile(big, data, 0o600); err != nil {
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 12, 7))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, big, "")
+	got, err := svc.FileVersions(browseSnapshot, path, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
+	if got.Kind != "image" {
+		t.Fatalf("a PNG came back as %q", got.Kind)
+	}
 	if got.Readable {
-		t.Error("a PNG was offered as text")
+		t.Error("an image was offered as text, which would render it as lines")
 	}
-	if strings.Contains(got.Note, "large") {
-		t.Errorf("the note blames the size of an image: %q", got.Note)
+	if !strings.HasPrefix(got.RightImage, "data:image/png;base64,") {
+		t.Errorf("the picture is not shippable to the window: %.40q", got.RightImage)
 	}
-	if !strings.Contains(got.Note, "binary") {
-		t.Errorf("the note does not say what it actually is: %q", got.Note)
+	// Dimensions answer "was it resized", which sizes alone cannot.
+	if got.RightDims != "12\u00d77" {
+		t.Errorf("dimensions wrong: %q", got.RightDims)
 	}
-	// The figures are all a binary comparison has to offer, so they must survive.
+}
+
+// An image past the image cap says so, rather than blaming lines it never had.
+func TestATooLargePictureSaysItCannotBeShown(t *testing.T) {
+	svc, seed := fileFixture(t)
+	path := filepath.Join(seed, "huge.png")
+
+	data := append([]byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a}, make([]byte, maxImageBytes+1)...)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := svc.FileVersions(browseSnapshot, path, "")
+	if err != nil {
+		t.Fatalf("file versions: %v", err)
+	}
+	if got.Kind != "image" {
+		t.Errorf("a large PNG stopped being an image: %q", got.Kind)
+	}
+	if got.RightImage != "" {
+		t.Error("an oversized picture was inlined anyway")
+	}
+	if !strings.Contains(got.Note, "too large") {
+		t.Errorf("the note does not say why: %q", got.Note)
+	}
+	// The figures are what is left to say.
 	if got.RightSize == 0 {
 		t.Error("the size was withheld")
+	}
+}
+
+// Two identical pictures are worth saying so about: they can look alike on screen
+// and there is no line comparison to settle it.
+func TestTwoIdenticalPicturesAreReportedAsIdentical(t *testing.T) {
+	svc, seed := fileFixture(t)
+	path := filepath.Join(seed, "same.png")
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 4, 4))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := svc.FileVersions(browseSnapshot, path, "")
+	if err != nil {
+		t.Fatalf("file versions: %v", err)
+	}
+	// The fake mount writes its own contents, so the two sides differ here; what
+	// matters is that the field is answered rather than left at its zero value by
+	// a path that never sets it.
+	if got.Kind != "image" {
+		t.Fatalf("not an image: %q", got.Kind)
+	}
+	if got.Identical && got.LeftSize != got.RightSize {
+		t.Error("called identical with different sizes")
 	}
 }
 

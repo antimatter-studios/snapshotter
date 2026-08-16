@@ -161,4 +161,13 @@ export const es: Record<Key, string> = {
   "schedule.cannotRecreate": "Un snapshot no se puede recrear: registra un estado del disco que ya pasó. Todo lo que quede fuera de la política se borra en la siguiente ejecución programada, y macOS puede recuperar más aún si falta espacio, así que estas cifras son límites superiores, no reservas.",
   "schedule.conflict": "Otra tarea programada también crea snapshots: {tasks}. Dos de ellas duplicarán el ritmo y aplicarán dos ventanas de retención distintas al mismo conjunto. Elimine una.",
   "health.responseFailed": "No se creó ningún snapshot en respuesta.",
+  "diff.imageSideBySide": "Lado a lado",
+  "diff.imageOverlay": "Superpuesto",
+  "diff.imageIdentical": "Estos dos son idénticos byte a byte.",
+  "diff.imageTooLarge": "Esta imagen es demasiado grande para mostrarla.",
+  "diff.fade": "Fundido entre ambas",
+  "diff.imageDifference": "Diferencia",
+  "diff.imageDiffersInPixels": "Difiere el {n}% de los píxeles",
+  "diff.imageSizeDiffers": "Ambas tienen tamaños distintos, así que sus píxeles no se pueden comparar.",
+  "diff.imageNoPixelChange": "Todos los píxeles son iguales.",
 };
