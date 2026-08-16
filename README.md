@@ -404,14 +404,6 @@ allowed to become a release.
 Packaging only. The application bundle now carries its own notarization ticket, so
 the copy Homebrew installs opens on a machine with no network.
 
-### v0.1.0
-
-First release. Browse, compare and restore APFS local snapshots on a Mac with no
-backup disk, with a schedule and a bulk-deletion tripwire to make sure there is
-something to restore from. Signed with Developer ID and notarized, so it installs
-with `brew install antimatter-studios/tap/snapshotter` and opens without arguing
-with Gatekeeper. Mounting still needs Full Disk Access, which only you can grant.
-
 ## Design decisions
 
 [docs/DECISIONS.md](docs/DECISIONS.md) records why things are the way they are,
