@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Browse, Restore, message, type MergedListing, type Change, type SnapshotView } from "./api";
 import { bytes, breadcrumbs, stamp, statusLabel } from "./format";
-import { CircleCheck, CircleX } from "lucide-react";
 import { FileIcon } from "./FileIcon";
+import { StatusIcon } from "./StatusIcon";
 
 interface Props {
   snapshot: SnapshotView | null;
@@ -193,9 +193,11 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
                   {/* Only while detecting. notExamined shares this badge's quiet
                       colour but is a finished answer, and a spinner on it would
                       promise a result that is never coming. */}
-                  {status === "detecting" && <span className="spinner" aria-hidden="true" />}
-                  {status === "same" && <CircleCheck className="badge-mark" size={12} aria-hidden="true" />}
-                  {status === "notExamined" && <CircleX className="badge-mark" size={12} aria-hidden="true" />}
+                  {status === "detecting" ? (
+                    <span className="spinner" aria-hidden="true" />
+                  ) : (
+                    <StatusIcon status={status} />
+                  )}
                   {statusLabel[status] ?? status}
                 </span>
               </td>
