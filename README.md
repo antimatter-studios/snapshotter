@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.19.0
+
+Each folder in a bulk deletion warning gets its own line and its own ignore
+button, rather than a comma-separated block and one button that silenced
+whichever folder came first.
+
 ### v0.18.0
 
 The ignore and watch-again actions are proper buttons rather than faint links,
@@ -388,12 +394,6 @@ The settings file header now names what a running application cannot change.
 The settings file is watched, so changing a value takes effect in the running
 application rather than at the next launch — the window resizes, the refresh
 intervals change, and new paths apply to work that has not started yet.
-
-### v0.9.0
-
-Finding icons come from Lucide rather than being drawn by hand — the window uses
-`lucide-react`, the menu bar the same icons rendered to PNG. 340 lines of drawing
-code and its tests deleted.
 
 
 ## Design decisions

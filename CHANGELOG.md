@@ -7,6 +7,21 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.19.0 — 2026-08-16
+
+**A folder per line, and a button that silences the one you meant.**
+
+The folders in a warning were joined with commas. Once paths stopped being
+truncated that became a block of comma-separated text wrapping across several
+lines, which is not something anyone can read.
+
+They are one per line now — and each carries its own **Ignore**. The single
+button silenced `where[0]`, whichever folder happened to have the most deletions
+in it, which is not a choice anyone made: a burst usually spans two or three
+folders and often only one of them is the noisy one. The browser burst that
+started all this touched two cache directories and one holding actual browser
+state, and silencing all three because you clicked once would have been wrong.
+
 ## v0.18.0 — 2026-08-16
 
 **The buttons look like buttons, and paths are shown whole.**

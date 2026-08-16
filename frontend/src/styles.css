@@ -1169,10 +1169,47 @@ pre.log {
    long enough that the distinguishing part is at the end. It wraps instead, and
    breaks inside a path component if it has to, because the alternative is a
    column that scrolls sideways. */
-.warning-where {
+/* One folder per line, each with the button that silences it.
+
+   They used to be joined with commas, which wrapped into a block nobody could
+   read — and a single button silenced whichever came first, which is not a
+   choice anyone made. */
+.warning-where ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.warning-where li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+/* Shown whole: there is nothing to open to read the rest, and a cache path
+   carries its distinguishing part last, so truncating hides the answer. */
+.warning-where .folder {
   word-break: break-word;
   overflow-wrap: anywhere;
   line-height: 1.45;
+}
+
+.warning-where button {
+  flex: 0 0 auto;
+  font-size: 11px;
+  padding: 2px 9px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.warning-where button:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .warning-outcome {
@@ -1191,32 +1228,6 @@ pre.log {
   color: var(--deleted);
 }
 
-/* The ignore action sits on the row because that is where the wish to use it
-   occurs: someone is looking at a warning they did not want. */
-.warning-action {
-  width: 1%;
-  white-space: nowrap;
-  text-align: right;
-  padding-left: 12px;
-}
-
-/* A real button, not a link. This is the action the table exists to offer —
-   someone looking at a warning they did not want — and it was styled as the
-   quietest thing on the row. */
-.warning-action button {
-  font-size: 11px;
-  padding: 3px 9px;
-  color: var(--text);
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-}
-
-.warning-action button:hover:not(:disabled) {
-  background: var(--hover);
-  border-color: var(--accent);
-  color: var(--accent);
-}
 
 /* What has been silenced, shown and undoable. A list nobody can see grows until
    the tripwire watches nothing, and that failure is silent by construction. */
