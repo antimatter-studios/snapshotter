@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.45.0
+
+Switching language updates the menu bar immediately rather than at the next
+refresh.
+
 ### v0.44.0
 
 The command line is translated too, following `appearance.language` like
@@ -376,12 +381,6 @@ reports that it is binary instead of blaming its size.
 
 Fixes a sentence that was cut short in German, Spanish and French, and adds tests
 for the shape of a translation rather than merely its presence.
-
-### v0.35.0
-
-The text the first translation sweep missed, mostly sentences with a value in the
-middle. "In snapshot" and "On disk" become "Snapshot Size" and "Disk Size", and
-the bulk-deletion table drops a column that only ever confirmed success.
 
 
 ## Design decisions

@@ -54,6 +54,12 @@ func applySettings(cfg config.Config, p paths, deps services.Deps, win applicati
 	// setting, the watcher above notices the file, and this applies it.
 	i18n.SetLanguage(cfg.Language())
 
+	// Recorded because the effect of this is on the menu bar, which no test and no
+	// log would otherwise show: the one report that reached me about it was a
+	// person looking at a menu that had not changed.
+	trace.Printf("settings applied: language=%s theme=%s verbose=%v",
+		cfg.Language(), cfg.Appearance.Theme, cfg.Logging.Verbose)
+
 	applyToTray(cfg)
 
 	width, height := cfg.WindowSize()

@@ -7,6 +7,24 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.45.0 — 2026-08-17
+
+**Changing the language now changes the menu bar.**
+
+It claimed to already. What actually happened is that the menu was rebuilt only
+when the *refresh interval* changed, so switching language left the old words in
+place until the next tick — up to a minute — which is the relaunch-shaped wait the
+whole mechanism exists to avoid.
+
+The cause was a list. The code decided which settings were worth a redraw by
+enumerating them, and the enumeration was written before there was a language to
+enumerate. It redraws on any settings change now, which costs one health check
+each time a person changes a setting.
+
+Also records what was applied, under verbose logging. The effect of this code is
+on the menu bar, which no test and no log could show — the only signal that it was
+broken was someone looking at a menu that had not changed.
+
 ## v0.44.0 — 2026-08-17
 
 **The command line speaks the four languages as well.**
