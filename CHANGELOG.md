@@ -7,6 +7,39 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.44.0 — 2026-08-17
+
+**The command line speaks the four languages as well.**
+
+It reads the same settings file the window writes, so it already knew the
+language and simply was not using it. `snapshotter config set appearance.language
+de` now changes what the terminal prints, from the next invocation onwards. 109
+messages per language, up from 70.
+
+Running it in each language found two things a sweep for English literals had
+missed, because neither was a literal any more.
+
+The **age column** printed "11m ago" whatever the language: the strings existed
+in the catalogue and the call sites had never been wired to them. It reads "vor 11
+Min." in German now. The abbreviation keeps its full stop, which German requires
+and English does not, so the punctuation test carries a documented exception for
+the three of them rather than being loosened.
+
+The **coverage phrase** read "21 Snapshots, decken 4 days ab" — German sentence,
+English duration. The command line had a duration formatter of its own, separate
+from the window's, and only one of the two had been translated. Both use the same
+counting messages now.
+
+Command syntax is deliberately left alone: `run -- <command> [args...]` and
+`config get <key>` are what someone types, not what they read, and a translated
+flag name would be a flag that does not work.
+
+Also fixes a real defect the translation exposed rather than caused: several
+messages had been passed to `fmt.Errorf` as format strings, which `go vet`
+rejects. A translated string is data, not a format — a translator could otherwise
+have broken a verb and turned an error message into `%!s(MISSING)`. Those are
+`errors.New` now.
+
 ## v0.43.0 — 2026-08-17
 
 **Everything a person reads is translated.**

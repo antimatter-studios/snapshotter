@@ -11,6 +11,127 @@
   "browse.notCovered": {
     "other": "Los snapshots del volumen de datos no cubren esta ubicación."
   },
+  "cli.agentsNote": {
+    "other": "La tarea programada y el vigilante de borrados masivos los ejecuta launchd como --take-snapshot y --watch. Instale ambos desde la ventana."
+  },
+  "cli.colAge": {
+    "other": "EDAD"
+  },
+  "cli.colDate": {
+    "other": "FECHA"
+  },
+  "cli.colFlags": {
+    "other": "MARCAS"
+  },
+  "cli.commandFailed": {
+    "other": "{{.Command}} falló; el estado anterior está en el snapshot {{.Name}}"
+  },
+  "cli.commandsHeading": {
+    "other": "Comandos:"
+  },
+  "cli.configExists": {
+    "other": "{{.Path}} ya existe; edítelo o elimínelo primero para empezar de nuevo"
+  },
+  "cli.configMissing": {
+    "other": "{{.Path}} no existe, así que se usan los valores predeterminados."
+  },
+  "cli.configUnknownOption": {
+    "other": "opción desconocida {{.Name}}"
+  },
+  "cli.configWriteHint": {
+    "other": "Escríbalos allí para empezar a editar: snapshotter config --write"
+  },
+  "cli.daysAgo": {
+    "one": "hace {{.Count}} d",
+    "other": "hace {{.Count}} d"
+  },
+  "cli.desc.config": {
+    "other": "mostrar, leer o cambiar los ajustes"
+  },
+  "cli.desc.list": {
+    "other": "listar los snapshots del volumen de datos, primero los más recientes"
+  },
+  "cli.desc.run": {
+    "other": "crear un snapshot y luego ejecutar un comando"
+  },
+  "cli.desc.snapshot": {
+    "other": "crear un snapshot ahora"
+  },
+  "cli.desc.status": {
+    "other": "indicar si este Mac tiene puntos de restauración utilizables"
+  },
+  "cli.desc.version": {
+    "other": "mostrar la versión de esta compilación"
+  },
+  "cli.fixFileFirst": {
+    "other": "corrija el archivo antes de establecer nada"
+  },
+  "cli.getNeedsKey": {
+    "other": "get necesita una clave"
+  },
+  "cli.hoursAgo": {
+    "one": "hace {{.Count}} h",
+    "other": "hace {{.Count}} h"
+  },
+  "cli.justNow": {
+    "other": "ahora mismo"
+  },
+  "cli.keysNoArgs": {
+    "other": "keys no acepta argumentos"
+  },
+  "cli.minutesAgo": {
+    "one": "hace {{.Count}} min",
+    "other": "hace {{.Count}} min"
+  },
+  "cli.newest": {
+    "other": "más reciente"
+  },
+  "cli.noSnapshots": {
+    "other": "No hay snapshots. No hay nada a lo que volver."
+  },
+  "cli.noSnapshotsShort": {
+    "other": "Sin snapshots: no hay nada a lo que volver."
+  },
+  "cli.noSuchCommand": {
+    "other": "no existe el comando {{.Name}}"
+  },
+  "cli.notAConfigCommand": {
+    "other": "{{.Name}} no es un comando de config (pruebe: keys, get, set)"
+  },
+  "cli.oldest": {
+    "other": "más antiguo"
+  },
+  "cli.restorePoint": {
+    "other": "punto de restauración {{.Name}}"
+  },
+  "cli.runNoRestorePoint": {
+    "other": "no se ejecutará sin un punto de restauración"
+  },
+  "cli.runNothing": {
+    "other": "nada que ejecutar"
+  },
+  "cli.setNeedsPair": {
+    "other": "set necesita una clave y un valor"
+  },
+  "cli.snapshotsCovering": {
+    "one": "{{.Count}} snapshot, cubriendo {{.Span}}",
+    "other": "{{.Count}} snapshots, cubriendo {{.Span}}"
+  },
+  "cli.tagline": {
+    "other": "Explorar, comparar y programar snapshots locales de APFS."
+  },
+  "cli.underAnHour": {
+    "other": "menos de una hora"
+  },
+  "cli.usageHeading": {
+    "other": "Uso:"
+  },
+  "cli.usageWindow": {
+    "other": "abrir la ventana"
+  },
+  "cli.wroteDefaults": {
+    "other": "se escribieron los valores predeterminados en {{.Path}}"
+  },
   "count.days": {
     "one": "{{.Count}} día",
     "other": "{{.Count}} días"

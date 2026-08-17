@@ -114,6 +114,16 @@ func TestPlaceholdersSurviveTranslation(t *testing.T) {
 // The same truncation guard the window's catalogue needed: a translation that
 // stops short of the full stop has usually stopped short of a clause, and what
 // remains is still a grammatical sentence.
+// abbreviated are the messages whose final full stop belongs to an abbreviation
+// rather than to a sentence. German writes "vor 5 Min." with the point, because
+// Min. is short for Minuten; dropping it to match English's "5m ago" would be
+// wrong German rather than consistent punctuation.
+var abbreviated = map[string]bool{
+	"cli.minutesAgo": true,
+	"cli.hoursAgo":   true,
+	"cli.daysAgo":    true,
+}
+
 func TestNothingIsObviouslyTruncated(t *testing.T) {
 	ends := func(s string) bool { return strings.HasSuffix(s, ".") || strings.HasSuffix(s, "…") }
 
@@ -125,7 +135,7 @@ func TestNothingIsObviouslyTruncated(t *testing.T) {
 		other := load(t, code)
 		for id, want := range english {
 			got := other[id].Other
-			if ends(want.Other) != ends(got) {
+			if ends(want.Other) != ends(got) && !abbreviated[id] {
 				t.Errorf("%s/%s ends differently from English: %q", code, id, got)
 			}
 			// German runs longer than English rather than shorter.

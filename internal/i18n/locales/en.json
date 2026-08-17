@@ -11,6 +11,127 @@
   "browse.notCovered": {
     "other": "Snapshots of the data volume do not cover this location."
   },
+  "cli.agentsNote": {
+    "other": "The scheduled task and the bulk-deletion watcher are run by launchd as --take-snapshot and --watch. Install both from the window."
+  },
+  "cli.colAge": {
+    "other": "AGE"
+  },
+  "cli.colDate": {
+    "other": "DATE"
+  },
+  "cli.colFlags": {
+    "other": "FLAGS"
+  },
+  "cli.commandFailed": {
+    "other": "{{.Command}} failed; the state before it is in snapshot {{.Name}}"
+  },
+  "cli.commandsHeading": {
+    "other": "Commands:"
+  },
+  "cli.configExists": {
+    "other": "{{.Path}} already exists; edit it, or delete it first to start again"
+  },
+  "cli.configMissing": {
+    "other": "{{.Path}} does not exist, so the defaults are in use."
+  },
+  "cli.configUnknownOption": {
+    "other": "unknown option {{.Name}}"
+  },
+  "cli.configWriteHint": {
+    "other": "Write them there to start editing: snapshotter config --write"
+  },
+  "cli.daysAgo": {
+    "one": "{{.Count}}d ago",
+    "other": "{{.Count}}d ago"
+  },
+  "cli.desc.config": {
+    "other": "show, read or change the settings"
+  },
+  "cli.desc.list": {
+    "other": "list the snapshots of the data volume, newest first"
+  },
+  "cli.desc.run": {
+    "other": "take a snapshot, then run a command"
+  },
+  "cli.desc.snapshot": {
+    "other": "take a snapshot now"
+  },
+  "cli.desc.status": {
+    "other": "say whether this Mac has usable restore points"
+  },
+  "cli.desc.version": {
+    "other": "print the version of this build"
+  },
+  "cli.fixFileFirst": {
+    "other": "fix the file before setting anything"
+  },
+  "cli.getNeedsKey": {
+    "other": "get needs one key"
+  },
+  "cli.hoursAgo": {
+    "one": "{{.Count}}h ago",
+    "other": "{{.Count}}h ago"
+  },
+  "cli.justNow": {
+    "other": "just now"
+  },
+  "cli.keysNoArgs": {
+    "other": "keys takes no arguments"
+  },
+  "cli.minutesAgo": {
+    "one": "{{.Count}}m ago",
+    "other": "{{.Count}}m ago"
+  },
+  "cli.newest": {
+    "other": "newest"
+  },
+  "cli.noSnapshots": {
+    "other": "No snapshots. Nothing can be rolled back to."
+  },
+  "cli.noSnapshotsShort": {
+    "other": "No snapshots — nothing to roll back to."
+  },
+  "cli.noSuchCommand": {
+    "other": "no such command {{.Name}}"
+  },
+  "cli.notAConfigCommand": {
+    "other": "{{.Name}} is not a config command (try: keys, get, set)"
+  },
+  "cli.oldest": {
+    "other": "oldest"
+  },
+  "cli.restorePoint": {
+    "other": "restore point {{.Name}}"
+  },
+  "cli.runNoRestorePoint": {
+    "other": "refusing to run without a restore point"
+  },
+  "cli.runNothing": {
+    "other": "nothing to run"
+  },
+  "cli.setNeedsPair": {
+    "other": "set needs a key and a value"
+  },
+  "cli.snapshotsCovering": {
+    "one": "{{.Count}} snapshot, covering {{.Span}}",
+    "other": "{{.Count}} snapshots, covering {{.Span}}"
+  },
+  "cli.tagline": {
+    "other": "Browse, compare and schedule APFS local snapshots."
+  },
+  "cli.underAnHour": {
+    "other": "under an hour"
+  },
+  "cli.usageHeading": {
+    "other": "Usage:"
+  },
+  "cli.usageWindow": {
+    "other": "open the window"
+  },
+  "cli.wroteDefaults": {
+    "other": "wrote the defaults to {{.Path}}"
+  },
   "count.days": {
     "one": "{{.Count}} day",
     "other": "{{.Count}} days"

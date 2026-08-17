@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.44.0
+
+The command line is translated too, following `appearance.language` like
+everything else. Command syntax stays in English, being what you type.
+
 ### v0.43.0
 
 Every piece of text a person reads is translated, including the macOS password
@@ -377,11 +382,6 @@ for the shape of a translation rather than merely its presence.
 The text the first translation sweep missed, mostly sentences with a value in the
 middle. "In snapshot" and "On disk" become "Snapshot Size" and "Disk Size", and
 the bulk-deletion table drops a column that only ever confirmed success.
-
-### v0.34.0
-
-The whole window is translated rather than three screens of it. Text produced by
-the Go side — the health findings, the menu bar, notifications — is still English.
 
 
 ## Design decisions
