@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"snapshotter/internal/i18n"
 	"time"
 
 	"snapshotter/internal/config"
@@ -139,10 +140,10 @@ func (s *ScheduleService) Policies(intervalHours, retentionDays float64) []Polic
 
 	options := []PolicyOption{optionOf(
 		schedule.FlatID, "Flat window",
-		"Every snapshot inside the window and nothing outside it — what this schedule has always done.",
+		i18n.T("schedule.flatWhy"),
 		schedule.FlatPolicy(days(retentionDays)), interval, now,
 	)}
-	for _, preset := range schedule.Presets {
+	for _, preset := range schedule.Presets() {
 		options = append(options, optionOf(preset.ID, preset.Name, preset.Why, preset.Policy, interval, now))
 	}
 	return options
@@ -189,7 +190,7 @@ func (s *ScheduleService) Uninstall(ctx context.Context) (ScheduleView, error) {
 // Log returns the tail of the agent's log, so a schedule that is failing
 // silently can be seen to be failing.
 func (s *ScheduleService) Log(maxBytes int64) (string, error) {
-	return tailFile(s.Agent.LogPath, maxBytes, "The scheduled task has not written anything yet.")
+	return tailFile(s.Agent.LogPath, maxBytes, i18n.T("schedule.taskNotWrittenYet"))
 }
 
 // defaultLogTailBytes is how much of a log is returned when the caller does not
@@ -265,7 +266,7 @@ func tierViews(policy schedule.Policy) []TierView {
 // Describe renders the schedule as a sentence for the settings screen.
 func (v ScheduleView) Describe() string {
 	if !v.Installed {
-		return "No schedule installed. Nothing is taking snapshots automatically."
+		return i18n.T("schedule.noneInstalled")
 	}
 	state := "installed but not running"
 	if v.Loaded {
@@ -327,7 +328,7 @@ func (s *ScheduleService) UninstallTripwire(ctx context.Context) (TripwireView, 
 // see that it is running and what it has reacted to.
 func (s *ScheduleService) TripwireLog(maxBytes int64) (string, error) {
 	return tailFile(s.Tripwire.LogPath, maxBytes,
-		"The bulk-deletion watcher has not written anything yet.")
+		i18n.T("schedule.tripwireNotWrittenYet"))
 }
 
 // Restored says what Restore put back, so the caller can tell someone.

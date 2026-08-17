@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.43.0
+
+Every piece of text a person reads is translated, including the macOS password
+prompts, the notifications the background agents post, and the retention sentence.
+
 ### v0.42.0
 
 Translation is handled by i18next and go-i18n, and image comparison by pixelmatch,
@@ -377,12 +382,6 @@ the bulk-deletion table drops a column that only ever confirmed success.
 
 The whole window is translated rather than three screens of it. Text produced by
 the Go side — the health findings, the menu bar, notifications — is still English.
-
-### v0.33.0
-
-The window speaks English, German, Spanish or French, chosen from a picker in the
-header. The choice is written to the settings file, so the menu bar follows it
-too. Some screens are still English — see the changelog.
 
 
 ## Design decisions

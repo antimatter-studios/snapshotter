@@ -7,6 +7,45 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.43.0 — 2026-08-17
+
+**Everything a person reads is translated.**
+
+What was left after v0.42.0: the browse notes, the schedule's notes and policy
+descriptions, the search notes, the Time Machine thinning warning, the macOS
+password prompts, and the notifications the two launchd agents post. 70 messages
+per language, up from 39.
+
+Three of these needed more than a lookup.
+
+The **retention sentence** — "Everything for 2 days, then one a day out to 14
+days." — was assembled from fragments glued with " for " and " out to ". Each
+clause is a whole message now, because the order of rate and span is not the same
+in every language and gluing fixes English's. In German it reads "Alles für 2
+Tage, dann einer pro Tag bis 14 Tage." Its first letter is upper-cased by rune
+rather than by byte, so a sentence opening with "Ü" is not cut in half.
+
+The **password prompts** carried two helpers, `possessive()` and `subject()`,
+returning "its"/"their" and "It"/"They". They existed only to make English agree,
+and no other language agrees along the same axis. Both are gone, replaced by
+singular and plural forms of one message.
+
+The **agents** never reached the window's setup, because each runs as its own
+launchd process. A scheduled snapshot failing at three in the morning would have
+posted its notification in English to someone who chose German. They set the
+language before they can post anything now.
+
+Two package-level values had frozen the language at process start — the retention
+presets and the thinning warning. Both are functions now, for the same reason the
+findings became functions in v0.41.0.
+
+**Deliberately not translated**, because they are not prose: `"No destinations
+configured"` and the scenario runner's output, which are matched against what
+Apple's own tools print; `"Application Support"`, which is a path; and
+`"ProgramArguments"` and `"App Background Activity"`, which are a plist key and a
+macOS-defined label. Translating any of them would break something. The command
+line tool is also still English, being a separate surface.
+
 ## v0.42.0 — 2026-08-16
 
 **Replaces three hand-written implementations with the libraries that already

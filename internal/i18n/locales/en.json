@@ -1,4 +1,16 @@
 {
+  "apfs.thinningWarning": {
+    "other": "Time Machine has a backup destination configured, and its backup cycle thins local snapshots to roughly 24 hours. A longer retention window will not hold."
+  },
+  "browse.folderDidNotExist": {
+    "other": "This folder did not exist when the snapshot was taken."
+  },
+  "browse.folderGoneFromDisk": {
+    "other": "This folder is in the snapshot but no longer on disk."
+  },
+  "browse.notCovered": {
+    "other": "Snapshots of the data volume do not cover this location."
+  },
   "count.days": {
     "one": "{{.Count}} day",
     "other": "{{.Count}} days"
@@ -14,11 +26,38 @@
   "count.underAnHour": {
     "other": "under an hour"
   },
+  "count.weeks": {
+    "one": "{{.Count}} week",
+    "other": "{{.Count}} weeks"
+  },
+  "mount.closing": {
+    "one": "Snapshotter is closing {{.What}}. Only an administrator may detach a filesystem.",
+    "other": "Snapshotter is closing {{.What}}. Only an administrator may detach a filesystem."
+  },
+  "mount.opening": {
+    "one": "Snapshotter is opening {{.What}} so you can browse its files. It is attached read-only, so nothing inside can be changed — but only an administrator may attach a filesystem.",
+    "other": "Snapshotter is opening {{.What}} so you can browse their files. They are attached read-only, so nothing inside can be changed — but only an administrator may attach a filesystem."
+  },
+  "mount.theSnapshotFrom": {
+    "other": "the snapshot from {{.When}}"
+  },
+  "notify.couldNotSnapshot": {
+    "other": "Could not take a snapshot: {{.Error}}"
+  },
+  "notify.deletingFrom": {
+    "other": "Files are being deleted from {{.Where}}"
+  },
   "notify.scheduleRestored.body": {
     "other": "Something had removed {{.what}}, most likely an upgrade. It is running again."
   },
   "notify.scheduleRestored.title": {
     "other": "Snapshotter restored your schedule"
+  },
+  "notify.scheduledFailed": {
+    "other": "Scheduled snapshot failed"
+  },
+  "notify.tookSnapshotAt": {
+    "other": "Took a snapshot at {{.When}}. Whatever is still on disk can be restored."
   },
   "notify.what.both": {
     "other": "the schedule and the bulk-deletion watcher"
@@ -28,6 +67,64 @@
   },
   "notify.what.tripwire": {
     "other": "the bulk-deletion watcher"
+  },
+  "retention.clause.everythingFor": {
+    "other": "everything for {{.Span}}"
+  },
+  "retention.clause.rateFor": {
+    "other": "{{.Rate}} for {{.Span}}"
+  },
+  "retention.clause.rateOutTo": {
+    "other": "{{.Rate}} out to {{.Span}}"
+  },
+  "retention.everyDay": {
+    "other": "one a day"
+  },
+  "retention.everyHour": {
+    "other": "one an hour"
+  },
+  "retention.everyOther": {
+    "other": "one every {{.Span}}"
+  },
+  "retention.everyWeek": {
+    "other": "one a week"
+  },
+  "retention.join": {
+    "other": ", then "
+  },
+  "retention.nothingPruned": {
+    "other": "Nothing is pruned."
+  },
+  "retention.tiered13.name": {
+    "other": "Tiered — 13 weeks"
+  },
+  "retention.tiered13.why": {
+    "other": "Roughly half as many snapshots as a flat fortnight, reaching six times further back."
+  },
+  "retention.tiered52.name": {
+    "other": "Tiered — a year"
+  },
+  "retention.tiered52.why": {
+    "other": "A year of reach for about the count a flat fortnight already costs."
+  },
+  "schedule.flatWhy": {
+    "other": "Every snapshot inside the window and nothing outside it — what this schedule has always done."
+  },
+  "schedule.noneInstalled": {
+    "other": "No schedule installed. Nothing is taking snapshots automatically."
+  },
+  "schedule.taskNotWrittenYet": {
+    "other": "The scheduled task has not written anything yet."
+  },
+  "schedule.tripwireNotWrittenYet": {
+    "other": "The bulk-deletion watcher has not written anything yet."
+  },
+  "search.nothingOpen": {
+    "one": "No snapshot is open, so nothing was searched. Open the {{.Count}} snapshot to search inside it.",
+    "other": "No snapshot is open, so nothing was searched. Open one of the {{.Count}} snapshots to search inside them."
+  },
+  "search.stoppedAtLimit": {
+    "other": "Stopped early at the match limit — narrow the search to see the rest."
   },
   "status.conflict.title": {
     "other": "Another agent is also taking snapshots"

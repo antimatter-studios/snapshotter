@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"snapshotter/internal/i18n"
 	"snapshotter/internal/trace"
 	"time"
 
@@ -54,7 +55,7 @@ func (b *BrowseService) Home() string {
 func (b *BrowseService) ListLive(livePath string) (Listing, error) {
 	out := Listing{LivePath: filepath.Clean(livePath), Parent: parentOf(livePath), Covered: vfs.Covered(livePath)}
 	if !out.Covered {
-		out.Note = "Snapshots of the data volume do not cover this location."
+		out.Note = i18n.T("browse.notCovered")
 	}
 	entries, err := vfs.ListDir(out.LivePath)
 	if err != nil {
@@ -83,7 +84,7 @@ func (b *BrowseService) ListSnapshot(snapshotName, livePath string) (Listing, er
 	entries, err := vfs.ListDir(snapPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			out.Note = "This folder did not exist when the snapshot was taken."
+			out.Note = i18n.T("browse.folderDidNotExist")
 			return out, nil
 		}
 		return out, err
@@ -144,9 +145,9 @@ func (b *BrowseService) Merged(snapshotName, livePath string, includeSame bool) 
 
 	switch {
 	case !out.SnapshotExists && out.LiveExists:
-		out.Note = "This folder did not exist when the snapshot was taken."
+		out.Note = i18n.T("browse.folderDidNotExist")
 	case out.SnapshotExists && !out.LiveExists:
-		out.Note = "This folder is in the snapshot but no longer on disk."
+		out.Note = i18n.T("browse.folderGoneFromDisk")
 	}
 	return out, nil
 }

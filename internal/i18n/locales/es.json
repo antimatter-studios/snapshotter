@@ -1,4 +1,16 @@
 {
+  "apfs.thinningWarning": {
+    "other": "Time Machine tiene configurado un destino de copia, y su ciclo de copia reduce los snapshots locales a unas 24 horas. Una ventana de retención más larga no se mantendrá."
+  },
+  "browse.folderDidNotExist": {
+    "other": "Esta carpeta no existía cuando se creó el snapshot."
+  },
+  "browse.folderGoneFromDisk": {
+    "other": "Esta carpeta está en el snapshot pero ya no está en el disco."
+  },
+  "browse.notCovered": {
+    "other": "Los snapshots del volumen de datos no cubren esta ubicación."
+  },
   "count.days": {
     "one": "{{.Count}} día",
     "other": "{{.Count}} días"
@@ -14,11 +26,38 @@
   "count.underAnHour": {
     "other": "menos de una hora"
   },
+  "count.weeks": {
+    "one": "{{.Count}} semana",
+    "other": "{{.Count}} semanas"
+  },
+  "mount.closing": {
+    "one": "Snapshotter está cerrando {{.What}}. Solo un administrador puede desmontar un sistema de archivos.",
+    "other": "Snapshotter está cerrando {{.What}}. Solo un administrador puede desmontar un sistema de archivos."
+  },
+  "mount.opening": {
+    "one": "Snapshotter está abriendo {{.What}} para que pueda explorar sus archivos. Se monta en solo lectura, así que nada de su interior puede cambiarse, pero solo un administrador puede montar un sistema de archivos.",
+    "other": "Snapshotter está abriendo {{.What}} para que pueda explorar sus archivos. Se montan en solo lectura, así que nada de su interior puede cambiarse, pero solo un administrador puede montar un sistema de archivos."
+  },
+  "mount.theSnapshotFrom": {
+    "other": "el snapshot del {{.When}}"
+  },
+  "notify.couldNotSnapshot": {
+    "other": "No se pudo crear un snapshot: {{.Error}}"
+  },
+  "notify.deletingFrom": {
+    "other": "Se están eliminando archivos de {{.Where}}"
+  },
   "notify.scheduleRestored.body": {
     "other": "Algo había eliminado {{.what}}, probablemente una actualización. Vuelve a estar activo."
   },
   "notify.scheduleRestored.title": {
     "other": "Snapshotter restauró su programación"
+  },
+  "notify.scheduledFailed": {
+    "other": "El snapshot programado falló"
+  },
+  "notify.tookSnapshotAt": {
+    "other": "Se creó un snapshot a las {{.When}}. Todo lo que siga en el disco puede restaurarse."
   },
   "notify.what.both": {
     "other": "la programación y el vigilante de borrados masivos"
@@ -28,6 +67,64 @@
   },
   "notify.what.tripwire": {
     "other": "el vigilante de borrados masivos"
+  },
+  "retention.clause.everythingFor": {
+    "other": "todo durante {{.Span}}"
+  },
+  "retention.clause.rateFor": {
+    "other": "{{.Rate}} durante {{.Span}}"
+  },
+  "retention.clause.rateOutTo": {
+    "other": "{{.Rate}} hasta {{.Span}}"
+  },
+  "retention.everyDay": {
+    "other": "uno al día"
+  },
+  "retention.everyHour": {
+    "other": "uno cada hora"
+  },
+  "retention.everyOther": {
+    "other": "uno cada {{.Span}}"
+  },
+  "retention.everyWeek": {
+    "other": "uno por semana"
+  },
+  "retention.join": {
+    "other": ", luego "
+  },
+  "retention.nothingPruned": {
+    "other": "No se elimina nada."
+  },
+  "retention.tiered13.name": {
+    "other": "Escalonado: 13 semanas"
+  },
+  "retention.tiered13.why": {
+    "other": "Aproximadamente la mitad de snapshots que una quincena uniforme, llegando seis veces más atrás."
+  },
+  "retention.tiered52.name": {
+    "other": "Escalonado: un año"
+  },
+  "retention.tiered52.why": {
+    "other": "Un año de alcance por aproximadamente la cantidad que ya cuesta una quincena uniforme."
+  },
+  "schedule.flatWhy": {
+    "other": "Todos los snapshots dentro de la ventana y ninguno fuera — lo que esta programación siempre ha hecho."
+  },
+  "schedule.noneInstalled": {
+    "other": "No hay programación instalada. Nada crea snapshots automáticamente."
+  },
+  "schedule.taskNotWrittenYet": {
+    "other": "La tarea programada aún no ha escrito nada."
+  },
+  "schedule.tripwireNotWrittenYet": {
+    "other": "El vigilante de borrados masivos aún no ha escrito nada."
+  },
+  "search.nothingOpen": {
+    "one": "No hay ningún snapshot abierto, así que no se buscó nada. Abra el {{.Count}} snapshot para buscar dentro.",
+    "other": "No hay ningún snapshot abierto, así que no se buscó nada. Abra uno de los {{.Count}} snapshots para buscar dentro."
+  },
+  "search.stoppedAtLimit": {
+    "other": "Se detuvo en el límite de coincidencias: acote la búsqueda para ver el resto."
   },
   "status.conflict.title": {
     "other": "Otro agente también crea snapshots"

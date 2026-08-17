@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"snapshotter/internal/i18n"
 	"strings"
 	"testing"
 	"time"
@@ -76,7 +77,7 @@ func TestPlanKeepsTheNewestEvenWhenThePolicyWouldPruneEverything(t *testing.T) {
 
 func TestPlanOnNothingPlansNothing(t *testing.T) {
 	for _, snaps := range [][]apfs.Snapshot{nil, {}} {
-		keep, prune := Plan(snaps, Presets[0].Policy, planNow)
+		keep, prune := Plan(snaps, Presets()[0].Policy, planNow)
 		if len(keep) != 0 || len(prune) != 0 {
 			t.Errorf("kept %d and pruned %d from an empty set", len(keep), len(prune))
 		}
@@ -87,7 +88,7 @@ func TestPlanWithASingleSnapshotKeepsIt(t *testing.T) {
 	// Older than the policy reaches, so only the newest-snapshot rule saves it.
 	snaps := []apfs.Snapshot{snapshotAt(planNow.Add(-5 * 365 * day))}
 
-	keep, prune := Plan(snaps, Presets[0].Policy, planNow)
+	keep, prune := Plan(snaps, Presets()[0].Policy, planNow)
 	if len(keep) != 1 || len(prune) != 0 {
 		t.Fatalf("kept %v, pruned %v", stamps(keep), stamps(prune))
 	}
@@ -151,7 +152,7 @@ func TestPlanKeepsTheOldestSnapshotInEachBucket(t *testing.T) {
 // decision may either. Buckets are absolute for this reason: bucketing by age
 // relative to now would shift every boundary between one run and the next.
 func TestPlanIsStableWhileNothingChangesBand(t *testing.T) {
-	policy := Presets[0].Policy
+	policy := Presets()[0].Policy
 	// Spaced 6 hours but offset half an hour off the tier boundaries, so
 	// advancing an hour moves nothing between bands.
 	snaps := history(planNow.Add(-30*time.Minute), 6*time.Hour, 200)
@@ -175,7 +176,7 @@ func TestPlanIsStableWhileNothingChangesBand(t *testing.T) {
 // one, unless something about it changed — it aged into a coarser band, or out
 // of the policy altogether. Anything else is the history rewriting itself.
 func TestPlanNeverPrunesASnapshotForNoNewReason(t *testing.T) {
-	policy := Presets[1].Policy
+	policy := Presets()[1].Policy
 	tiers := policy.normalised()
 	const interval = 6 * time.Hour
 	steps := int((400 * day) / interval)
@@ -232,7 +233,7 @@ func TestPlanNeverPrunesASnapshotForNoNewReason(t *testing.T) {
 // at most one snapshot per boundary — and never the other way round, which would
 // mean deleting something a single plan would have held on to.
 func TestPruningAsItGoesKeepsASubsetOfPlanningTheWholeHistory(t *testing.T) {
-	policy := Presets[1].Policy
+	policy := Presets()[1].Policy
 	const interval = 6 * time.Hour
 	steps := int((400 * day) / interval)
 
@@ -264,7 +265,7 @@ func TestPruningAsItGoesKeepsASubsetOfPlanningTheWholeHistory(t *testing.T) {
 // shortest preset. Each band is checked for what it promises rather than for a
 // total, because a total can be right by accident.
 func TestPlanThinsARealisticHistoryBandByBand(t *testing.T) {
-	policy := Presets[0].Policy
+	policy := Presets()[0].Policy
 	tiers := policy.normalised()
 	const interval = 6 * time.Hour
 	snaps := history(planNow, interval, int((120*day)/interval))
@@ -334,7 +335,7 @@ func TestPlanThinsARealisticHistoryBandByBand(t *testing.T) {
 // would fail by deleting the wrong snapshots, which is not a failure anyone
 // notices in time.
 func TestPlanDoesNotCareWhatOrderSnapshotsArriveIn(t *testing.T) {
-	policy := Presets[0].Policy
+	policy := Presets()[0].Policy
 	ordered := history(planNow, 6*time.Hour, 200)
 
 	shuffled := append([]apfs.Snapshot(nil), ordered...)
@@ -364,7 +365,7 @@ func TestPlanDoesNotTouchTheCallersSlice(t *testing.T) {
 	})
 	before := strings.Join(stamps(snaps), ",")
 
-	Plan(snaps, Presets[0].Policy, planNow)
+	Plan(snaps, Presets()[0].Policy, planNow)
 
 	if after := strings.Join(stamps(snaps), ","); after != before {
 		t.Errorf("Plan reordered its argument\nbefore: %s\nafter:  %s", before, after)
@@ -406,7 +407,7 @@ func TestPlanKeepsASnapshotDatedInTheFuture(t *testing.T) {
 // better on the settings screen and would break it, which is why the longest
 // band is four weeks.
 func TestPresetPeriodsNest(t *testing.T) {
-	for _, preset := range Presets {
+	for _, preset := range Presets() {
 		var previous time.Duration
 		for _, tier := range preset.Policy.Bands() {
 			if tier.Every <= 0 {
@@ -429,7 +430,7 @@ func TestPresetPeriodsNest(t *testing.T) {
 // survive the trip through it unchanged.
 func TestPolicyEncodingRoundTrips(t *testing.T) {
 	policies := []Policy{FlatPolicy(14 * day), FlatPolicy(36 * time.Hour)}
-	for _, preset := range Presets {
+	for _, preset := range Presets() {
 		policies = append(policies, preset.Policy)
 	}
 	for _, want := range policies {
@@ -472,7 +473,7 @@ func TestParsePolicyRefusesAnythingItCannotReadWhole(t *testing.T) {
 // it disagreed it would be the one the user had believed.
 func TestRetainedCountsWhatPlanWouldKeep(t *testing.T) {
 	const interval = 6 * time.Hour
-	for _, policy := range []Policy{FlatPolicy(14 * day), Presets[0].Policy, Presets[1].Policy} {
+	for _, policy := range []Policy{FlatPolicy(14 * day), Presets()[0].Policy, Presets()[1].Policy} {
 		snaps := history(planNow, interval, int(policy.Horizon()/interval)+1)
 		keep, _ := Plan(snaps, policy, planNow)
 		if got := Retained(policy, interval, planNow); got != len(keep) {
@@ -488,7 +489,7 @@ func TestTieringReachesFurtherThanTheFlatFortnightForNoMoreSnapshots(t *testing.
 	flat := FlatPolicy(14 * day)
 	flatCount := Retained(flat, interval, planNow)
 
-	for _, preset := range Presets {
+	for _, preset := range Presets() {
 		count := Retained(preset.Policy, interval, planNow)
 		if count > flatCount {
 			t.Errorf("%s retains %d against the flat fortnight's %d", preset.ID, count, flatCount)
@@ -500,7 +501,7 @@ func TestTieringReachesFurtherThanTheFlatFortnightForNoMoreSnapshots(t *testing.
 }
 
 func TestHorizonIsTheOldestAgeKept(t *testing.T) {
-	if got := Presets[1].Policy.Horizon(); got != 364*day {
+	if got := Presets()[1].Policy.Horizon(); got != 364*day {
 		t.Errorf("horizon %s, want 364 days", got)
 	}
 	if got := (Policy{}).Horizon(); got != 0 {
@@ -512,7 +513,7 @@ func TestIdentifyPolicyNamesWhatIsActuallyInstalled(t *testing.T) {
 	if got := IdentifyPolicy(FlatPolicy(14 * day)); got != FlatID {
 		t.Errorf("flat window identified as %q", got)
 	}
-	if got := IdentifyPolicy(Presets[0].Policy); got != Presets[0].ID {
+	if got := IdentifyPolicy(Presets()[0].Policy); got != Presets()[0].ID {
 		t.Errorf("preset identified as %q", got)
 	}
 	// A hand-edited plist is reported as what it is rather than as the nearest
@@ -553,7 +554,7 @@ func (l *listingRunner) Run(_ context.Context, name string, args ...string) (str
 func TestPruneByPolicyDeletesExactlyWhatThePlanPrunes(t *testing.T) {
 	snaps := history(planNow, 6*time.Hour, int((120*day)/(6*time.Hour)))
 	r := &listingRunner{snaps: snaps}
-	policy := Presets[0].Policy
+	policy := Presets()[0].Policy
 
 	deleted, err := PruneByPolicy(context.Background(), r, apfs.DataVolume, policy, planNow)
 	if err != nil {
@@ -600,9 +601,45 @@ func TestPruneByPolicyDeletesNothingUnderAnEmptyPolicy(t *testing.T) {
 }
 
 func TestDescribeReadsAsASentence(t *testing.T) {
-	got := Presets[1].Policy.Describe()
+	got := Presets()[1].Policy.Describe()
 	want := "Everything for 2 days, then one a day out to 14 days, then one a week out to 8 weeks, then one every 4 weeks out to 52 weeks."
 	if got != want {
 		t.Errorf("Describe() = %q, want %q", got, want)
+	}
+}
+
+// Describe builds a sentence from clauses. Each clause is a whole message rather
+// than words glued together, because the order of rate and span is not the same
+// in every language — and this is the test that would catch a return to gluing.
+func TestTheDescribedPolicyIsTranslated(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLanguage("en") })
+
+	p := Policy{Tiers: []Tier{
+		{Every: 0, For: 2 * day},
+		{Every: day, For: 14 * day},
+	}}
+
+	i18n.SetLanguage("en")
+	english := p.Describe()
+	i18n.SetLanguage("de")
+	german := p.Describe()
+
+	if english == german {
+		t.Fatalf("the language did not change the sentence: %q", german)
+	}
+	for _, want := range []string{"Everything for", "one a day"} {
+		if !strings.Contains(english, want) {
+			t.Errorf("English is missing %q: %q", want, english)
+		}
+	}
+	for _, want := range []string{"Alles für", "einer pro Tag", "dann"} {
+		if !strings.Contains(german, want) {
+			t.Errorf("German is missing %q: %q", want, german)
+		}
+	}
+	// The first letter is upper-cased by rune, so a sentence opening with a
+	// multi-byte letter is not cut in half.
+	if !strings.HasSuffix(german, ".") {
+		t.Errorf("German lost its full stop: %q", german)
 	}
 }

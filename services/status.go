@@ -364,7 +364,7 @@ func findingTimeMachineThins() Finding {
 		Kind:  KindThinning,
 		// Untranslated: it is one sentence of Apple's own behaviour, kept beside
 		// the code that knows about it rather than copied into four catalogues.
-		Detail: apfs.ThinningWarning,
+		Detail: apfs.ThinningWarning(),
 	}
 }
 

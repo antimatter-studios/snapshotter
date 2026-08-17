@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"snapshotter/internal/i18n"
 	"strings"
 	"syscall"
 
@@ -264,27 +265,26 @@ func (m *Manager) unmountScript(names []string) (string, error) {
 // A single snapshot is named by its date, because at that point the user has
 // clicked one row and the dialog should agree with what they clicked. Past one,
 // the count is the only thing that fits.
+// One message per plural form rather than a sentence assembled from pronouns.
+// possessive() and subject() existed only to make English agree — "its"/"their",
+// "It"/"They" — and no other language agrees along the same axis.
 func mountReason(names []string) string {
-	return fmt.Sprintf("Snapshotter is opening %s so you can browse %s files. "+
-		"%s attached read-only, so nothing inside can be changed — but only an "+
-		"administrator may attach a filesystem.",
-		describe(names), possessive(names), subject(names))
+	return i18n.N("mount.opening", len(names), "What", describe(names))
 }
 
 func unmountReason(names []string) string {
-	return fmt.Sprintf("Snapshotter is closing %s. "+
-		"Only an administrator may detach a filesystem.", describe(names))
+	return i18n.N("mount.closing", len(names), "What", describe(names))
 }
 
 // describe names one snapshot by date and any larger number by count.
 func describe(names []string) string {
 	if len(names) == 1 {
 		if s, ok := apfs.ParseName(names[0]); ok {
-			return "the snapshot from " + s.Taken.Format("Mon 2 Jan, 15:04")
+			return i18n.T("mount.theSnapshotFrom", "When", s.Taken.Format("Mon 2 Jan, 15:04"))
 		}
-		return "1 snapshot"
+		return i18n.N("count.snapshots", 1)
 	}
-	return fmt.Sprintf("%d snapshots", len(names))
+	return i18n.N("count.snapshots", len(names))
 }
 
 func possessive(names []string) string {

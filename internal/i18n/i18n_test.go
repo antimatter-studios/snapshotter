@@ -65,9 +65,17 @@ func TestEveryLanguageCarriesEveryMessage(t *testing.T) {
 	}
 }
 
+// joiners are the messages whose whitespace is the point: they are placed
+// between two clauses and have to carry their own spacing, which differs by
+// language. Everything else with a space at its edge is a mistake.
+var joiners = map[string]bool{"retention.join": true}
+
 func TestNothingIsBlankOrPadded(t *testing.T) {
 	for _, code := range Languages {
 		for id, m := range load(t, code) {
+			if joiners[id] {
+				continue
+			}
 			if strings.TrimSpace(m.Other) == "" {
 				t.Errorf("%s/%s is empty, which shows as a gap rather than a fault", code, id)
 			}

@@ -2,6 +2,7 @@ package apfs
 
 import (
 	"context"
+	"snapshotter/internal/i18n"
 	"strings"
 )
 
@@ -39,8 +40,8 @@ type TimeMachine struct {
 // has just called that function to find out whether to say it at all — the
 // window, the menu bar and the command line. It was written out separately in
 // each of them, which is how it came to be worded three different ways.
-const ThinningWarning = "Time Machine has a backup destination configured, and its backup cycle " +
-	"thins local snapshots to roughly 24 hours. A longer retention window will not hold."
+// A function rather than a const, because it is translated and a const cannot be.
+func ThinningWarning() string { return i18n.T("apfs.thinningWarning") }
 
 func DestinationInfo(ctx context.Context, r Runner) TimeMachine {
 	out, err := r.Run(ctx, "tmutil", "destinationinfo")
