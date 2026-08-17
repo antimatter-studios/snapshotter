@@ -13,6 +13,7 @@ import (
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/config"
 	"snapshotter/internal/events"
+	"snapshotter/internal/i18n"
 	"snapshotter/internal/notify"
 	"snapshotter/internal/schedule"
 	"snapshotter/internal/watch"
@@ -28,7 +29,7 @@ func runScheduledSnapshot(ctx context.Context, runner apfs.Runner) error {
 	if err != nil {
 		// A scheduled run that fails is invisible: launchd keeps the output and
 		// nobody reads a log until something has already been lost.
-		if nerr := notify.Send(ctx, "Scheduled snapshot failed", err.Error()); nerr != nil {
+		if nerr := notify.Send(ctx, i18n.T("notify.scheduledFailed"), err.Error()); nerr != nil {
 			log.Printf("could not post a notification: %v", nerr)
 		}
 		return err
@@ -89,8 +90,8 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 			}); eerr != nil {
 				log.Printf("could not record the event: %v", eerr)
 			}
-			if nerr := notify.Send(ctx, "Files are being deleted from "+watch.Places(where),
-				"Could not take a snapshot: "+err.Error()); nerr != nil {
+			if nerr := notify.Send(ctx, i18n.T("notify.deletingFrom", "Where", watch.Places(where)),
+				i18n.T("notify.couldNotSnapshot", "Error", err.Error())); nerr != nil {
 				log.Printf("could not post a notification: %v", nerr)
 			}
 			return err
@@ -111,8 +112,8 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 		// The location is the point. "Something is deleting a lot of files" tells
 		// someone to worry; naming the folder tells them whether it is the build
 		// directory they just cleaned out or the one with their invoices in it.
-		if nerr := notify.Send(ctx, "Files are being deleted from "+watch.Places(where),
-			"Took a snapshot at "+snap.Taken.Format("15:04")+". Whatever is still on disk can be restored."); nerr != nil {
+		if nerr := notify.Send(ctx, i18n.T("notify.deletingFrom", "Where", watch.Places(where)),
+			i18n.T("notify.tookSnapshotAt", "When", snap.Taken.Format("15:04"))); nerr != nil {
 			log.Printf("could not post a notification: %v", nerr)
 		}
 		return nil

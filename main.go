@@ -124,6 +124,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Before the agent branches below. Both run as their own launchd processes and
+	// never reach the window's setup, so without this a scheduled snapshot failing
+	// at 3am would post its notification in English to someone who chose German.
+	if cfg, cerr := config.Load(); cerr == nil {
+		i18n.SetLanguage(cfg.Language())
+	}
+
 	if *takeSnapshot {
 		if err := runScheduledSnapshot(context.Background(), runner); err != nil {
 			log.Fatal(err)

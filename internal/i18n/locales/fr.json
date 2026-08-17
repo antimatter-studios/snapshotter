@@ -1,4 +1,16 @@
 {
+  "apfs.thinningWarning": {
+    "other": "Time Machine dispose d'une destination de sauvegarde configurée, et son cycle de sauvegarde réduit les snapshots locaux à environ 24 heures. Une fenêtre de rétention plus longue ne tiendra pas."
+  },
+  "browse.folderDidNotExist": {
+    "other": "Ce dossier n'existait pas lorsque le snapshot a été créé."
+  },
+  "browse.folderGoneFromDisk": {
+    "other": "Ce dossier figure dans le snapshot mais n'est plus sur le disque."
+  },
+  "browse.notCovered": {
+    "other": "Les snapshots du volume de données ne couvrent pas cet emplacement."
+  },
   "count.days": {
     "one": "{{.Count}} jour",
     "other": "{{.Count}} jours"
@@ -14,11 +26,38 @@
   "count.underAnHour": {
     "other": "moins d'une heure"
   },
+  "count.weeks": {
+    "one": "{{.Count}} semaine",
+    "other": "{{.Count}} semaines"
+  },
+  "mount.closing": {
+    "one": "Snapshotter ferme {{.What}}. Seul un administrateur peut démonter un système de fichiers.",
+    "other": "Snapshotter ferme {{.What}}. Seul un administrateur peut démonter un système de fichiers."
+  },
+  "mount.opening": {
+    "one": "Snapshotter ouvre {{.What}} afin que vous puissiez parcourir ses fichiers. Il est monté en lecture seule, si bien que rien à l'intérieur ne peut être modifié — mais seul un administrateur peut monter un système de fichiers.",
+    "other": "Snapshotter ouvre {{.What}} afin que vous puissiez parcourir leurs fichiers. Ils sont montés en lecture seule, si bien que rien à l'intérieur ne peut être modifié — mais seul un administrateur peut monter un système de fichiers."
+  },
+  "mount.theSnapshotFrom": {
+    "other": "le snapshot du {{.When}}"
+  },
+  "notify.couldNotSnapshot": {
+    "other": "Impossible de créer un snapshot : {{.Error}}"
+  },
+  "notify.deletingFrom": {
+    "other": "Des fichiers sont supprimés dans {{.Where}}"
+  },
   "notify.scheduleRestored.body": {
     "other": "Quelque chose avait supprimé {{.what}}, très probablement une mise à jour. C'est de nouveau actif."
   },
   "notify.scheduleRestored.title": {
     "other": "Snapshotter a rétabli votre planification"
+  },
+  "notify.scheduledFailed": {
+    "other": "Le snapshot planifié a échoué"
+  },
+  "notify.tookSnapshotAt": {
+    "other": "Un snapshot a été créé à {{.When}}. Tout ce qui se trouve encore sur le disque peut être restauré."
   },
   "notify.what.both": {
     "other": "la planification et la surveillance des suppressions massives"
@@ -28,6 +67,64 @@
   },
   "notify.what.tripwire": {
     "other": "la surveillance des suppressions massives"
+  },
+  "retention.clause.everythingFor": {
+    "other": "tout pendant {{.Span}}"
+  },
+  "retention.clause.rateFor": {
+    "other": "{{.Rate}} pendant {{.Span}}"
+  },
+  "retention.clause.rateOutTo": {
+    "other": "{{.Rate}} jusqu'à {{.Span}}"
+  },
+  "retention.everyDay": {
+    "other": "un par jour"
+  },
+  "retention.everyHour": {
+    "other": "un par heure"
+  },
+  "retention.everyOther": {
+    "other": "un toutes les {{.Span}}"
+  },
+  "retention.everyWeek": {
+    "other": "un par semaine"
+  },
+  "retention.join": {
+    "other": ", puis "
+  },
+  "retention.nothingPruned": {
+    "other": "Rien n'est supprimé."
+  },
+  "retention.tiered13.name": {
+    "other": "Échelonné — 13 semaines"
+  },
+  "retention.tiered13.why": {
+    "other": "Environ deux fois moins de snapshots qu'une quinzaine uniforme, en remontant six fois plus loin."
+  },
+  "retention.tiered52.name": {
+    "other": "Échelonné — un an"
+  },
+  "retention.tiered52.why": {
+    "other": "Un an de portée pour à peu près le nombre qu'une quinzaine uniforme coûte déjà."
+  },
+  "schedule.flatWhy": {
+    "other": "Tous les snapshots dans la fenêtre et aucun en dehors — ce que cette planification a toujours fait."
+  },
+  "schedule.noneInstalled": {
+    "other": "Aucune planification installée. Rien ne crée de snapshots automatiquement."
+  },
+  "schedule.taskNotWrittenYet": {
+    "other": "La tâche planifiée n'a encore rien écrit."
+  },
+  "schedule.tripwireNotWrittenYet": {
+    "other": "La surveillance des suppressions massives n'a encore rien écrit."
+  },
+  "search.nothingOpen": {
+    "one": "Aucun snapshot n'est ouvert, rien n'a donc été recherché. Ouvrez le {{.Count}} snapshot pour y chercher.",
+    "other": "Aucun snapshot n'est ouvert, rien n'a donc été recherché. Ouvrez l'un des {{.Count}} snapshots pour y chercher."
+  },
+  "search.stoppedAtLimit": {
+    "other": "Arrêt à la limite de résultats — affinez la recherche pour voir le reste."
   },
   "status.conflict.title": {
     "other": "Un autre agent crée aussi des snapshots"

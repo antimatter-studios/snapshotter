@@ -17,8 +17,8 @@ func TestEveryPolicyIsOfferedWithNumbersToCompare(t *testing.T) {
 	s := &ScheduleService{}
 	got := s.Policies(6, 14)
 
-	if len(got) != len(schedule.Presets)+1 {
-		t.Fatalf("want flat plus every preset (%d), got %d", len(schedule.Presets)+1, len(got))
+	if len(got) != len(schedule.Presets())+1 {
+		t.Fatalf("want flat plus every preset (%d), got %d", len(schedule.Presets())+1, len(got))
 	}
 	if got[0].ID != schedule.FlatID {
 		t.Errorf("flat should be offered first, got %q", got[0].ID)

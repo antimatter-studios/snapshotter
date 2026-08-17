@@ -1,4 +1,16 @@
 {
+  "apfs.thinningWarning": {
+    "other": "Für Time Machine ist ein Backup-Ziel eingerichtet, und dessen Backup-Zyklus dünnt lokale Snapshots auf etwa 24 Stunden aus. Ein längerer Aufbewahrungszeitraum hält nicht."
+  },
+  "browse.folderDidNotExist": {
+    "other": "Dieser Ordner existierte nicht, als der Snapshot erstellt wurde."
+  },
+  "browse.folderGoneFromDisk": {
+    "other": "Dieser Ordner ist im Snapshot vorhanden, aber nicht mehr auf der Festplatte."
+  },
+  "browse.notCovered": {
+    "other": "Snapshots des Datenvolumes decken diesen Ort nicht ab."
+  },
   "count.days": {
     "one": "{{.Count}} Tag",
     "other": "{{.Count}} Tage"
@@ -14,11 +26,38 @@
   "count.underAnHour": {
     "other": "weniger als eine Stunde"
   },
+  "count.weeks": {
+    "one": "{{.Count}} Woche",
+    "other": "{{.Count}} Wochen"
+  },
+  "mount.closing": {
+    "one": "Snapshotter schließt {{.What}}. Nur ein Administrator darf ein Dateisystem aushängen.",
+    "other": "Snapshotter schließt {{.What}}. Nur ein Administrator darf ein Dateisystem aushängen."
+  },
+  "mount.opening": {
+    "one": "Snapshotter öffnet {{.What}}, damit Sie die Dateien durchsehen können. Er wird schreibgeschützt eingebunden, sodass nichts darin geändert werden kann — aber nur ein Administrator darf ein Dateisystem einbinden.",
+    "other": "Snapshotter öffnet {{.What}}, damit Sie die Dateien durchsehen können. Sie werden schreibgeschützt eingebunden, sodass nichts darin geändert werden kann — aber nur ein Administrator darf ein Dateisystem einbinden."
+  },
+  "mount.theSnapshotFrom": {
+    "other": "den Snapshot vom {{.When}}"
+  },
+  "notify.couldNotSnapshot": {
+    "other": "Snapshot konnte nicht erstellt werden: {{.Error}}"
+  },
+  "notify.deletingFrom": {
+    "other": "Dateien werden gelöscht aus {{.Where}}"
+  },
   "notify.scheduleRestored.body": {
     "other": "Etwas hatte {{.what}} entfernt, höchstwahrscheinlich eine Aktualisierung. Es läuft wieder."
   },
   "notify.scheduleRestored.title": {
     "other": "Snapshotter hat Ihren Zeitplan wiederhergestellt"
+  },
+  "notify.scheduledFailed": {
+    "other": "Geplanter Snapshot fehlgeschlagen"
+  },
+  "notify.tookSnapshotAt": {
+    "other": "Um {{.When}} wurde ein Snapshot erstellt. Was noch auf der Festplatte liegt, kann wiederhergestellt werden."
   },
   "notify.what.both": {
     "other": "den Zeitplan und die Überwachung von Massenlöschungen"
@@ -28,6 +67,64 @@
   },
   "notify.what.tripwire": {
     "other": "die Überwachung von Massenlöschungen"
+  },
+  "retention.clause.everythingFor": {
+    "other": "alles für {{.Span}}"
+  },
+  "retention.clause.rateFor": {
+    "other": "{{.Rate}} für {{.Span}}"
+  },
+  "retention.clause.rateOutTo": {
+    "other": "{{.Rate}} bis {{.Span}}"
+  },
+  "retention.everyDay": {
+    "other": "einer pro Tag"
+  },
+  "retention.everyHour": {
+    "other": "einer pro Stunde"
+  },
+  "retention.everyOther": {
+    "other": "einer alle {{.Span}}"
+  },
+  "retention.everyWeek": {
+    "other": "einer pro Woche"
+  },
+  "retention.join": {
+    "other": ", dann "
+  },
+  "retention.nothingPruned": {
+    "other": "Es wird nichts entfernt."
+  },
+  "retention.tiered13.name": {
+    "other": "Gestaffelt — 13 Wochen"
+  },
+  "retention.tiered13.why": {
+    "other": "Etwa halb so viele Snapshots wie zwei gleichmäßige Wochen, dabei sechsmal weiter zurückreichend."
+  },
+  "retention.tiered52.name": {
+    "other": "Gestaffelt — ein Jahr"
+  },
+  "retention.tiered52.why": {
+    "other": "Ein Jahr Reichweite für etwa die Anzahl, die zwei gleichmäßige Wochen ohnehin kosten."
+  },
+  "schedule.flatWhy": {
+    "other": "Jeder Snapshot innerhalb des Zeitraums und keiner außerhalb — so hat dieser Zeitplan es immer gehalten."
+  },
+  "schedule.noneInstalled": {
+    "other": "Kein Zeitplan eingerichtet. Es werden keine Snapshots automatisch erstellt."
+  },
+  "schedule.taskNotWrittenYet": {
+    "other": "Die geplante Aufgabe hat noch nichts geschrieben."
+  },
+  "schedule.tripwireNotWrittenYet": {
+    "other": "Die Überwachung von Massenlöschungen hat noch nichts geschrieben."
+  },
+  "search.nothingOpen": {
+    "one": "Kein Snapshot ist geöffnet, es wurde also nichts durchsucht. Öffnen Sie den {{.Count}} Snapshot, um darin zu suchen.",
+    "other": "Kein Snapshot ist geöffnet, es wurde also nichts durchsucht. Öffnen Sie einen der {{.Count}} Snapshots, um darin zu suchen."
+  },
+  "search.stoppedAtLimit": {
+    "other": "Bei der Trefferobergrenze abgebrochen — grenzen Sie die Suche ein, um den Rest zu sehen."
   },
   "status.conflict.title": {
     "other": "Ein weiterer Agent erstellt ebenfalls Snapshots"

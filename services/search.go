@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"snapshotter/internal/i18n"
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/diffs"
@@ -88,13 +89,12 @@ func (s *SearchService) Search(ctx context.Context, term, under string) (SearchR
 
 	switch {
 	case len(out.Searched) == 0 && len(out.Skipped) > 0:
-		out.Note = fmt.Sprintf("No snapshot is open, so nothing was searched. Open one of the %d "+
-			"snapshots to search inside it.", len(out.Skipped))
+		out.Note = i18n.N("search.nothingOpen", len(out.Skipped))
 	case len(out.Skipped) > 0:
 		out.Note = fmt.Sprintf("%d snapshot(s) were not searched because they are not open, so "+
 			"this is not the whole history.", len(out.Skipped))
 	case out.Truncated:
-		out.Note = "Stopped early at the match limit — narrow the search to see the rest."
+		out.Note = i18n.T("search.stoppedAtLimit")
 	case out.Incomplete:
 		// A snapshot is a whole volume, so an unscoped search reads every
 		// application and framework on the disk before it reaches anything the

@@ -3,13 +3,14 @@ package schedule
 import (
 	"context"
 	"fmt"
+	"snapshotter/internal/i18n"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"snapshotter/internal/apfs"
-	"snapshotter/internal/text"
 )
 
 // day is spelled out because a retention policy is discussed in days and weeks
@@ -276,21 +277,31 @@ func (p Policy) String() string {
 func (p Policy) Describe() string {
 	tiers := p.normalised()
 	if len(tiers) == 0 {
-		return "Nothing is pruned."
+		return i18n.T("retention.nothingPruned")
 	}
+	// Each clause is a whole message rather than words glued together, because
+	// the order of rate and span is not the same in every language and gluing
+	// fixes English's.
 	parts := make([]string, 0, len(tiers))
 	for i, t := range tiers {
 		switch {
 		case t.Every <= 0:
-			parts = append(parts, "everything for "+words(t.For))
+			parts = append(parts, i18n.T("retention.clause.everythingFor", "Span", words(t.For)))
 		case i == 0:
-			parts = append(parts, everyPhrase(t.Every)+" for "+words(t.For))
+			parts = append(parts, i18n.T("retention.clause.rateFor", "Rate", everyPhrase(t.Every), "Span", words(t.For)))
 		default:
-			parts = append(parts, everyPhrase(t.Every)+" out to "+words(t.For))
+			parts = append(parts, i18n.T("retention.clause.rateOutTo", "Rate", everyPhrase(t.Every), "Span", words(t.For)))
 		}
 	}
-	sentence := strings.Join(parts, ", then ")
-	return strings.ToUpper(sentence[:1]) + sentence[1:] + "."
+	sentence := strings.Join(parts, i18n.T("retention.join"))
+	// By rune, not by byte: a sentence starting with "Ü" or "É" would otherwise be
+	// cut in half by slicing one byte off the front.
+	letters := []rune(sentence)
+	if len(letters) == 0 {
+		return ""
+	}
+	letters[0] = unicode.ToUpper(letters[0])
+	return string(letters) + "."
 }
 
 // everyPhrase words a bucket period as a rate. The three common ones get the
@@ -299,13 +310,13 @@ func (p Policy) Describe() string {
 func everyPhrase(every time.Duration) string {
 	switch every {
 	case time.Hour:
-		return "one an hour"
+		return i18n.T("retention.everyHour")
 	case day:
-		return "one a day"
+		return i18n.T("retention.everyDay")
 	case 7 * day:
-		return "one a week"
+		return i18n.T("retention.everyWeek")
 	default:
-		return "one every " + words(every)
+		return i18n.T("retention.everyOther", "Span", words(every))
 	}
 }
 
@@ -330,11 +341,11 @@ func words(d time.Duration) string {
 	hours := int((d + time.Minute/2) / time.Hour)
 	switch {
 	case hours >= 4*hoursPerWeek && hours%hoursPerWeek == 0:
-		return text.Plural(hours/hoursPerWeek, "week")
+		return i18n.N("count.weeks", hours/hoursPerWeek)
 	case hours >= hoursPerDay && hours%hoursPerDay == 0:
-		return text.Plural(hours/hoursPerDay, "day")
+		return i18n.N("count.days", hours/hoursPerDay)
 	default:
-		return text.Plural(hours, "hour")
+		return i18n.N("count.hours", hours)
 	}
 }
 
@@ -450,28 +461,33 @@ const FlatID = "flat"
 //
 // Each band's reach is a whole number of its own periods too, so the oldest
 // bucket in a band is a full one rather than a stub.
-var Presets = []Preset{
-	{
-		ID:   "tiered-13-weeks",
-		Name: "Tiered — 13 weeks",
-		Why:  "Roughly half as many snapshots as a flat fortnight, reaching six times further back.",
-		Policy: Policy{Tiers: []Tier{
-			{Every: 0, For: 2 * day},
-			{Every: day, For: 14 * day},
-			{Every: 7 * day, For: 91 * day},
-		}},
-	},
-	{
-		ID:   "tiered-52-weeks",
-		Name: "Tiered — a year",
-		Why:  "A year of reach for about the count a flat fortnight already costs.",
-		Policy: Policy{Tiers: []Tier{
-			{Every: 0, For: 2 * day},
-			{Every: day, For: 14 * day},
-			{Every: 7 * day, For: 56 * day},
-			{Every: 28 * day, For: 364 * day},
-		}},
-	},
+// A function rather than a value: a package-level slice is built at init, before
+// any language has been chosen, and would keep English names for the life of the
+// process. Called where it is used, which is once per settings screen.
+func Presets() []Preset {
+	return []Preset{
+		{
+			ID:   "tiered-13-weeks",
+			Name: i18n.T("retention.tiered13.name"),
+			Why:  i18n.T("retention.tiered13.why"),
+			Policy: Policy{Tiers: []Tier{
+				{Every: 0, For: 2 * day},
+				{Every: day, For: 14 * day},
+				{Every: 7 * day, For: 91 * day},
+			}},
+		},
+		{
+			ID:   "tiered-52-weeks",
+			Name: i18n.T("retention.tiered52.name"),
+			Why:  i18n.T("retention.tiered52.why"),
+			Policy: Policy{Tiers: []Tier{
+				{Every: 0, For: 2 * day},
+				{Every: day, For: 14 * day},
+				{Every: 7 * day, For: 56 * day},
+				{Every: 28 * day, For: 364 * day},
+			}},
+		},
+	}
 }
 
 // PolicyByID resolves what the settings screen sends back. The flat window needs
@@ -481,7 +497,7 @@ func PolicyByID(id string, flatRetention time.Duration) (Policy, bool) {
 	if id == FlatID {
 		return FlatPolicy(flatRetention), true
 	}
-	for _, p := range Presets {
+	for _, p := range Presets() {
 		if p.ID == id {
 			return p.Policy, true
 		}
@@ -495,7 +511,7 @@ func PolicyByID(id string, flatRetention time.Duration) (Policy, bool) {
 // Reporting a hand-edited plist as "custom" rather than as the nearest preset
 // keeps the settings screen honest about what launchd will actually do.
 func IdentifyPolicy(p Policy) string {
-	for _, preset := range Presets {
+	for _, preset := range Presets() {
 		if preset.Policy.Equal(p) {
 			return preset.ID
 		}
