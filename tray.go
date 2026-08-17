@@ -204,14 +204,18 @@ func installTray(app *application.App, status *services.StatusService, win appli
 
 	return func(next config.Config) {
 		mu.Lock()
-		changed := trayRefresh != next.MenuBarRefresh()
 		trayRefresh = next.MenuBarRefresh()
 		mu.Unlock()
-		if changed {
-			// Redrawn immediately so the new interval is visibly in force rather
-			// than starting after one more wait at the old one.
-			render()
-		}
+
+		// Always, rather than only when the interval changed. Deciding which
+		// settings are worth a redraw meant keeping a list, and the list was wrong
+		// the moment a language was added: switching language left the menu in the
+		// old one until the next tick, up to a minute later, which is precisely the
+		// relaunch-shaped wait this mechanism exists to avoid.
+		//
+		// The cost is one health check per settings change, and settings change
+		// when a person changes them.
+		render()
 	}
 }
 
