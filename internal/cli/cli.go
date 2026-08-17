@@ -12,11 +12,15 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
+	"snapshotter/internal/i18n"
 	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -66,32 +70,32 @@ type command struct {
 func commands() map[string]command {
 	return map[string]command{
 		"list": {
-			summary: "list the snapshots of the data volume, newest first",
+			summary: i18n.T("cli.desc.list"),
 			usage:   "list",
 			run:     runList,
 		},
 		"status": {
-			summary: "say whether this Mac has usable restore points",
+			summary: i18n.T("cli.desc.status"),
 			usage:   "status",
 			run:     runStatus,
 		},
 		"take": {
-			summary: "take a snapshot now",
+			summary: i18n.T("cli.desc.snapshot"),
 			usage:   "take",
 			run:     runTake,
 		},
 		"run": {
-			summary: "take a snapshot, then run a command",
+			summary: i18n.T("cli.desc.run"),
 			usage:   "run -- <command> [args...]",
 			run:     runRun,
 		},
 		"version": {
-			summary: "print the version of this build",
+			summary: i18n.T("cli.desc.version"),
 			usage:   "version",
 			run:     runVersion,
 		},
 		"config": {
-			summary: "show, read or change the settings",
+			summary: i18n.T("cli.desc.config"),
 			usage:   "config [--write | keys | get <key> | set <key> <value>]",
 			run:     runConfig,
 		},
@@ -110,13 +114,20 @@ func IsCommand(arg string) bool {
 
 // Run dispatches one command and returns the process exit code.
 func Run(ctx context.Context, e Env, args []string) int {
+	// The terminal is a surface like any other, and it reads the same settings
+	// file the window writes — so `snapshotter config set appearance.language de`
+	// changes what this prints, from the next invocation onwards.
+	if cfg, err := config.Load(); err == nil {
+		i18n.SetLanguage(cfg.Language())
+	}
+
 	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		writeHelp(e.Out)
 		return 0
 	}
 	cmd, ok := commands()[args[0]]
 	if !ok {
-		fmt.Fprintf(e.Err, "snapshotter: no such command %q\n\n", args[0])
+		fmt.Fprintf(e.Err, "snapshotter: %s\n\n", i18n.T("cli.noSuchCommand", "Name", strconv.Quote(args[0])))
 		writeHelp(e.Err)
 		return 2
 	}
@@ -128,9 +139,9 @@ func Run(ctx context.Context, e Env, args []string) int {
 }
 
 func writeHelp(w io.Writer) {
-	fmt.Fprintln(w, "Browse, compare and schedule APFS local snapshots.")
-	fmt.Fprintln(w, "\nUsage:\n  snapshotter                 open the window\n  snapshotter <command>")
-	fmt.Fprintln(w, "\nCommands:")
+	fmt.Fprintln(w, i18n.T("cli.tagline"))
+	fmt.Fprintln(w, "\n"+i18n.T("cli.usageHeading")+"\n  snapshotter                 "+i18n.T("cli.usageWindow")+"\n  snapshotter <command>")
+	fmt.Fprintln(w, "\n"+i18n.T("cli.commandsHeading"))
 
 	all := commands()
 	names := make([]string, 0, len(all))
@@ -145,8 +156,8 @@ func writeHelp(w io.Writer) {
 	}
 	tw.Flush()
 
-	fmt.Fprintln(w, "\nThe scheduled task and the bulk-deletion watcher are run by launchd as")
-	fmt.Fprintln(w, "--take-snapshot and --watch. Install both from the window.")
+	fmt.Fprintln(w, "\n"+i18n.T("cli.agentsNote"))
+	fmt.Fprintln(w)
 }
 
 func runList(ctx context.Context, e Env, _ []string) error {
@@ -155,7 +166,7 @@ func runList(ctx context.Context, e Env, _ []string) error {
 		return err
 	}
 	if len(snaps) == 0 {
-		fmt.Fprintln(e.Out, "No snapshots. Nothing can be rolled back to.")
+		fmt.Fprintln(e.Out, i18n.T("cli.noSnapshots"))
 		return nil
 	}
 
@@ -164,7 +175,7 @@ func runList(ctx context.Context, e Env, _ []string) error {
 	details, _ := apfs.Details(ctx, e.Runner, e.Volume)
 
 	tw := tabwriter.NewWriter(e.Out, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(tw, "DATE\tAGE\tFLAGS")
+	fmt.Fprintln(tw, i18n.T("cli.colDate")+"\t"+i18n.T("cli.colAge")+"\t"+i18n.T("cli.colFlags"))
 	for _, s := range snaps {
 		var flags []string
 		if d, ok := details[s.Name]; ok {
@@ -189,14 +200,14 @@ func runStatus(ctx context.Context, e Env, _ []string) error {
 		return err
 	}
 	if len(snaps) == 0 {
-		fmt.Fprintln(e.Out, "No snapshots — nothing to roll back to.")
+		fmt.Fprintln(e.Out, i18n.T("cli.noSnapshotsShort"))
 		return nil
 	}
 
 	newest, oldest := snaps[0], snaps[len(snaps)-1]
-	fmt.Fprintf(e.Out, "%d snapshot(s), covering %s\n", len(snaps), coverage(newest.Taken.Sub(oldest.Taken)))
-	fmt.Fprintf(e.Out, "newest  %s (%s)\n", newest.Stamp, age(e.Now().Sub(newest.Taken)))
-	fmt.Fprintf(e.Out, "oldest  %s (%s)\n", oldest.Stamp, age(e.Now().Sub(oldest.Taken)))
+	fmt.Fprintln(e.Out, i18n.N("cli.snapshotsCovering", len(snaps), "Span", coverage(newest.Taken.Sub(oldest.Taken))))
+	fmt.Fprintf(e.Out, i18n.T("cli.newest")+"  %s (%s)\n", newest.Stamp, age(e.Now().Sub(newest.Taken)))
+	fmt.Fprintf(e.Out, i18n.T("cli.oldest")+"  %s (%s)\n", oldest.Stamp, age(e.Now().Sub(oldest.Taken)))
 
 	// A configured Time Machine destination silently changes what retention
 	// means, so it is reported here rather than left to surprise someone.
@@ -241,17 +252,17 @@ func runRun(ctx context.Context, e Env, args []string) error {
 		args = args[1:]
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("run: nothing to run (usage: snapshotter run -- <command> [args...])")
+		return errors.New("run: " + i18n.T("cli.runNothing") + " (usage: snapshotter run -- <command> [args...])")
 	}
 
 	snap, err := apfs.Create(ctx, e.Runner)
 	if err != nil {
-		return fmt.Errorf("run: refusing to run without a restore point: %w", err)
+		return fmt.Errorf("run: "+i18n.T("cli.runNoRestorePoint")+": %w", err)
 	}
-	fmt.Fprintf(e.Err, "snapshotter: restore point %s\n", snap.Stamp)
+	fmt.Fprintf(e.Err, "snapshotter: "+i18n.T("cli.restorePoint", "Name", "%s")+"\n", snap.Stamp)
 
 	if err := e.Exec(ctx, args[0], args[1:]); err != nil {
-		fmt.Fprintf(e.Err, "snapshotter: %s failed; the state before it is in snapshot %s\n", args[0], snap.Stamp)
+		fmt.Fprintf(e.Err, "snapshotter: "+i18n.T("cli.commandFailed", "Command", "%s", "Name", "%s")+"\n", args[0], snap.Stamp)
 		return err
 	}
 	return nil
@@ -262,24 +273,24 @@ func runRun(ctx context.Context, e Env, args []string) error {
 func age(d time.Duration) string {
 	switch {
 	case d < time.Minute:
-		return "just now"
+		return i18n.T("cli.justNow")
 	case d < time.Hour:
-		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+		return i18n.N("cli.minutesAgo", int(d.Minutes()))
 	case d < 48*time.Hour:
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
+		return i18n.N("cli.hoursAgo", int(d.Hours()))
 	default:
-		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+		return i18n.N("cli.daysAgo", int(d.Hours()/24))
 	}
 }
 
 func coverage(d time.Duration) string {
 	switch {
 	case d >= 48*time.Hour:
-		return fmt.Sprintf("%.0f days", d.Hours()/24)
+		return i18n.N("count.days", int(math.Round(d.Hours()/24)))
 	case d >= time.Hour:
-		return fmt.Sprintf("%.0f hours", d.Hours())
+		return i18n.N("count.hours", int(math.Round(d.Hours())))
 	default:
-		return "under an hour"
+		return i18n.T("cli.underAnHour")
 	}
 }
 
@@ -300,7 +311,7 @@ func runConfig(_ context.Context, e Env, args []string) error {
 		case "--write":
 			write = true
 		default:
-			return fmt.Errorf("config: unknown option %q (usage: snapshotter config [--write])", arg)
+			return fmt.Errorf("config: "+i18n.T("cli.configUnknownOption", "Name", "%q")+" (usage: snapshotter config [--write])", arg)
 		}
 	}
 
@@ -315,7 +326,7 @@ func runConfig(_ context.Context, e Env, args []string) error {
 		// Refusing rather than merging: a rewrite would drop anything this build
 		// does not know about, and settings files outlive the version that wrote
 		// them.
-		return fmt.Errorf("config: %s already exists; edit it, or delete it first to start again", path)
+		return fmt.Errorf("config: "+i18n.T("cli.configExists", "Path", "%s"), path)
 	case statErr == nil:
 		// Read back rather than printed from memory, so what is shown is what the
 		// file says — including a value this build ignores.
@@ -333,11 +344,11 @@ func runConfig(_ context.Context, e Env, args []string) error {
 		if err := config.Save(config.Defaults()); err != nil {
 			return err
 		}
-		fmt.Fprintf(e.Out, "wrote the defaults to %s\n", path)
+		fmt.Fprintf(e.Out, i18n.T("cli.wroteDefaults", "Path", "%s")+"\n", path)
 		return nil
 	default:
-		fmt.Fprintf(e.Out, "%s does not exist, so the defaults are in use.\n", path)
-		fmt.Fprintln(e.Out, "Write them there to start editing: snapshotter config --write")
+		fmt.Fprintf(e.Out, i18n.T("cli.configMissing", "Path", "%s")+"\n", path)
+		fmt.Fprintln(e.Out, i18n.T("cli.configWriteHint"))
 		return nil
 	}
 }
@@ -351,7 +362,7 @@ func configSubcommand(e Env, args []string) error {
 	switch args[0] {
 	case "keys":
 		if len(args) != 1 {
-			return fmt.Errorf("config: keys takes no arguments")
+			return errors.New("config: " + i18n.T("cli.keysNoArgs"))
 		}
 		for _, k := range config.Keys() {
 			fmt.Fprintln(e.Out, k)
@@ -360,7 +371,7 @@ func configSubcommand(e Env, args []string) error {
 
 	case "get":
 		if len(args) != 2 {
-			return fmt.Errorf("config: get needs one key (usage: snapshotter config get <key>)")
+			return errors.New("config: " + i18n.T("cli.getNeedsKey") + " (usage: snapshotter config get <key>)")
 		}
 		// Loaded rather than read from the file directly, so an absent file
 		// answers with the default rather than with an error: the default is what
@@ -378,14 +389,14 @@ func configSubcommand(e Env, args []string) error {
 
 	case "set":
 		if len(args) != 3 {
-			return fmt.Errorf("config: set needs a key and a value (usage: snapshotter config set <key> <value>)")
+			return errors.New("config: " + i18n.T("cli.setNeedsPair") + " (usage: snapshotter config set <key> <value>)")
 		}
 		// A file that will not parse is not overwritten here either. Load reports
 		// the error and hands back the defaults, and saving those would silently
 		// discard whatever the file was trying to say.
 		cfg, err := config.Load()
 		if err != nil {
-			return fmt.Errorf("config: %w (fix the file before setting anything)", err)
+			return fmt.Errorf("config: %w ("+i18n.T("cli.fixFileFirst")+")", err)
 		}
 		if err := config.Set(&cfg, args[1], args[2]); err != nil {
 			return err
@@ -404,6 +415,6 @@ func configSubcommand(e Env, args []string) error {
 		return nil
 
 	default:
-		return fmt.Errorf("config: %q is not a config command (try: keys, get, set)", args[0])
+		return fmt.Errorf("config: "+i18n.T("cli.notAConfigCommand", "Name", "%q"), args[0])
 	}
 }

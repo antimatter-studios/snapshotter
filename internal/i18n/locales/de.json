@@ -11,6 +11,127 @@
   "browse.notCovered": {
     "other": "Snapshots des Datenvolumes decken diesen Ort nicht ab."
   },
+  "cli.agentsNote": {
+    "other": "Die geplante Aufgabe und die Überwachung von Massenlöschungen werden von launchd als --take-snapshot und --watch ausgeführt. Beide werden im Fenster eingerichtet."
+  },
+  "cli.colAge": {
+    "other": "ALTER"
+  },
+  "cli.colDate": {
+    "other": "DATUM"
+  },
+  "cli.colFlags": {
+    "other": "FLAGS"
+  },
+  "cli.commandFailed": {
+    "other": "{{.Command}} ist fehlgeschlagen; der Zustand davor liegt im Snapshot {{.Name}}"
+  },
+  "cli.commandsHeading": {
+    "other": "Befehle:"
+  },
+  "cli.configExists": {
+    "other": "{{.Path}} existiert bereits; bearbeiten Sie die Datei oder löschen Sie sie, um neu zu beginnen"
+  },
+  "cli.configMissing": {
+    "other": "{{.Path}} existiert nicht, daher gelten die Standardwerte."
+  },
+  "cli.configUnknownOption": {
+    "other": "unbekannte Option {{.Name}}"
+  },
+  "cli.configWriteHint": {
+    "other": "Schreiben Sie sie dorthin, um mit dem Bearbeiten zu beginnen: snapshotter config --write"
+  },
+  "cli.daysAgo": {
+    "one": "vor {{.Count}} T.",
+    "other": "vor {{.Count}} T."
+  },
+  "cli.desc.config": {
+    "other": "die Einstellungen anzeigen, lesen oder ändern"
+  },
+  "cli.desc.list": {
+    "other": "die Snapshots des Datenvolumes auflisten, neueste zuerst"
+  },
+  "cli.desc.run": {
+    "other": "einen Snapshot erstellen, dann einen Befehl ausführen"
+  },
+  "cli.desc.snapshot": {
+    "other": "jetzt einen Snapshot erstellen"
+  },
+  "cli.desc.status": {
+    "other": "angeben, ob dieser Mac brauchbare Wiederherstellungspunkte hat"
+  },
+  "cli.desc.version": {
+    "other": "die Version dieses Builds ausgeben"
+  },
+  "cli.fixFileFirst": {
+    "other": "beheben Sie die Datei, bevor Sie etwas setzen"
+  },
+  "cli.getNeedsKey": {
+    "other": "get benötigt einen Schlüssel"
+  },
+  "cli.hoursAgo": {
+    "one": "vor {{.Count}} Std.",
+    "other": "vor {{.Count}} Std."
+  },
+  "cli.justNow": {
+    "other": "gerade eben"
+  },
+  "cli.keysNoArgs": {
+    "other": "keys nimmt keine Argumente"
+  },
+  "cli.minutesAgo": {
+    "one": "vor {{.Count}} Min.",
+    "other": "vor {{.Count}} Min."
+  },
+  "cli.newest": {
+    "other": "neuester"
+  },
+  "cli.noSnapshots": {
+    "other": "Keine Snapshots. Es gibt nichts, wohin zurückgekehrt werden könnte."
+  },
+  "cli.noSnapshotsShort": {
+    "other": "Keine Snapshots — nichts, wohin zurückgekehrt werden kann."
+  },
+  "cli.noSuchCommand": {
+    "other": "unbekannter Befehl {{.Name}}"
+  },
+  "cli.notAConfigCommand": {
+    "other": "{{.Name}} ist kein config-Befehl (versuchen Sie: keys, get, set)"
+  },
+  "cli.oldest": {
+    "other": "ältester"
+  },
+  "cli.restorePoint": {
+    "other": "Wiederherstellungspunkt {{.Name}}"
+  },
+  "cli.runNoRestorePoint": {
+    "other": "Ausführung ohne Wiederherstellungspunkt abgelehnt"
+  },
+  "cli.runNothing": {
+    "other": "nichts auszuführen"
+  },
+  "cli.setNeedsPair": {
+    "other": "set benötigt einen Schlüssel und einen Wert"
+  },
+  "cli.snapshotsCovering": {
+    "one": "{{.Count}} Snapshot, deckt {{.Span}} ab",
+    "other": "{{.Count}} Snapshots, decken {{.Span}} ab"
+  },
+  "cli.tagline": {
+    "other": "APFS-Snapshots durchsehen, vergleichen und planen."
+  },
+  "cli.underAnHour": {
+    "other": "weniger als eine Stunde"
+  },
+  "cli.usageHeading": {
+    "other": "Verwendung:"
+  },
+  "cli.usageWindow": {
+    "other": "das Fenster öffnen"
+  },
+  "cli.wroteDefaults": {
+    "other": "Standardwerte wurden nach {{.Path}} geschrieben"
+  },
   "count.days": {
     "one": "{{.Count}} Tag",
     "other": "{{.Count}} Tage"
