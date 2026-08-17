@@ -204,7 +204,7 @@ export default function App() {
                   <span className="dot" title={snapshot.mounted ? "Open" : t("app.notOpen")} />
                   <span>{stamp(snapshot.taken)}</span>
                 </div>
-                <div className="age">{age(snapshot.taken)}</div>
+                <div className="age">{age(snapshot.taken, t)}</div>
                 <div className="row-actions">
                   {snapshot.mounted ? (
                     <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), "Closed"))}>

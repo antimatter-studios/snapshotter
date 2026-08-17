@@ -235,10 +235,19 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
 }
 
 /** Words a span in the largest unit that stays honest. */
+// The same rule and the same keys as i18n.Span on the Go side. Go cannot call
+// TypeScript, so the thresholds are stated twice — but the keys are shared, so a
+// correction to a translation lands in both, and the constants are named rather
+// than being two bare numbers a reader has to match up by eye.
+const hoursPerDay = 24;
+const hoursBeforeDays = 48;
+
 function coverage(hours: number, t: TFunction): string {
-  if (hours >= 48) return t("health.days", { n: Math.round(hours / 24) });
-  if (hours >= 1) return t("health.hours", { n: Math.round(hours) });
-  return t("health.underAnHour");
+  // count is i18next's own plural selector, so German and Spanish pick their form
+  // by CLDR rule rather than by an "s" appended in English.
+  if (hours >= hoursBeforeDays) return t("count.days", { count: Math.round(hours / hoursPerDay) });
+  if (hours >= 1) return t("count.hours", { count: Math.round(hours) });
+  return t("count.underAnHour");
 }
 
 /**

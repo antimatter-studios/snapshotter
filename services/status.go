@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"os/exec"
 	"snapshotter/internal/events"
 	"snapshotter/internal/i18n"
@@ -460,7 +459,7 @@ func summarise(h Health) (Level, string) {
 	case !h.ScheduleInstalled:
 		return LevelBad, i18n.N("status.headline.nothingTakingMore", h.SnapshotCount)
 	case level == LevelOK:
-		return LevelOK, i18n.N("status.headline.covered", h.SnapshotCount, "Cover", coverage(h.CoverageHours))
+		return LevelOK, i18n.N("status.headline.covered", h.SnapshotCount, "Cover", i18n.Span(h.CoverageHours))
 	default:
 		actionable := 0
 		for _, f := range h.Findings {
@@ -469,7 +468,7 @@ func summarise(h Health) (Level, string) {
 			}
 		}
 		return level, fmt.Sprintf("%s, %s of cover — %s to look at",
-			snapshotCount(h.SnapshotCount), coverage(h.CoverageHours),
+			snapshotCount(h.SnapshotCount), i18n.Span(h.CoverageHours),
 			text.Plural(actionable, "thing"))
 	}
 }
@@ -483,19 +482,6 @@ func snapshotCount(n int) string { return i18n.N("count.snapshots", n) }
 
 // coverage words the span in the largest unit that stays honest, because "0.3
 // days" reads as a rounding error and "7 hours" reads as a fact.
-func coverage(hours float64) string {
-	switch {
-	case hours >= 48:
-		return i18n.N("count.days", int(math.Round(hours/hoursPerDay)))
-	case hours >= 1:
-		// Rounded first, then pluralised against what will actually be printed:
-		// 1.4 hours prints as "1 hour", and pluralising the unrounded value would
-		// have called it "1 hours".
-		return i18n.N("count.hours", int(math.Round(hours)))
-	default:
-		return i18n.T("count.underAnHour")
-	}
-}
 
 // OpenPrivacySettings reveals the Full Disk Access pane.
 //

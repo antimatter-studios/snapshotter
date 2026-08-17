@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 // Formatting helpers shared by the views.
 
 /** Renders a byte count in the units a person reads sizes in. */
@@ -17,16 +18,20 @@ export function bytes(n: number): string {
  * Renders a snapshot's age. Snapshots are chosen by "how far back do I need to
  * go", so the elapsed time matters more than the calendar date.
  */
-export function age(when: string | Date): string {
+export function age(when: string | Date, t: TFunction): string {
   const then = new Date(when).getTime();
   const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} hr ago`;
-  const days = Math.round(hours / 24);
-  return days === 1 ? "yesterday" : `${days} days ago`;
+  if (minutes < 1) return t("age.justNow");
+  if (minutes < minutesPerHour) return t("age.minutes", { count: minutes });
+  const hours = Math.round(minutes / minutesPerHour);
+  if (hours < hoursPerDay) return t("age.hours", { count: hours });
+  const days = Math.round(hours / hoursPerDay);
+  // Named rather than counted, because "1 day ago" is a thing nobody says.
+  return days === 1 ? t("age.yesterday") : t("age.days", { count: days });
 }
+
+const minutesPerHour = 60;
+const hoursPerDay = 24;
 
 /** Renders a timestamp as a short local date and time. */
 export function stamp(when: string | Date): string {

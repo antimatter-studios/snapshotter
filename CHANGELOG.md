@@ -7,6 +7,49 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.46.0 — 2026-08-17
+
+**Removes the duplicate code paths that caused two bugs, and the two they were
+still hiding.**
+
+Both of yesterday's translation bugs had the same shape: a second code path doing
+the same job, where translating one left the other in English. A scan for the rest
+of that class found four more, two of which were live faults.
+
+**Process setup was duplicated across four entry paths** — the window, the two
+launchd agents and the command line — each remembering part of what a process must
+do before it prints anything. There is one function now, in `internal/boot`.
+
+That fixed a bug nobody had reported, because its only symptom is the absence of
+output: the command line returns before the only call to `trace.SetEnabled`, so
+`logging.verbose: true` was silently ignored for every CLI command.
+
+**`coverage()` existed three times**, in two languages, all carrying the same two
+thresholds. Go's two are one function now. The TypeScript copy cannot call Go, but
+its thresholds are named constants matching the Go ones rather than bare numbers.
+
+**The same sentence had three message keys.** "Under an hour" was
+`count.underAnHour`, `cli.underAnHour` and `health.underAnHour`. A correction to a
+translation had to find every copy. The keys correspond now.
+
+Two more untranslated things fell out of looking:
+
+The headline ended with an English-only pluraliser, so a German reading finished
+"— 3 things to look at". The whole sentence is one message now rather than three
+fragments, which also lets a language order it differently.
+
+And the window's `age()` — "just now", "5 min ago", "yesterday", shown against
+every snapshot in the sidebar — had never been translated at all. It also now uses
+i18next's plural forms rather than one form doing duty for both, as do the day and
+hour counts, which had been slipping past the plural machinery entirely.
+
+**One item was rejected after implementing it.** Centralising the eighteen
+`config.Load()` calls looked worthwhile and was not: nine of them read the file in
+order to write it back, so they must see it as it is rather than as something
+remembered. That left one caller that runs once at startup, which is indirection
+without a benefit and a stale-settings failure mode that does not exist today. The
+reasoning is in `docs/human-code-report-2026-08-17.md`.
+
 ## v0.45.0 — 2026-08-17
 
 **Changing the language now changes the menu bar.**

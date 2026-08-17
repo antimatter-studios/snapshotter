@@ -1,6 +1,7 @@
 package services
 
 import (
+	"snapshotter/internal/i18n"
 	"strings"
 	"testing"
 	"time"
@@ -142,7 +143,7 @@ func TestCoverIsWordedInTheLargestHonestUnit(t *testing.T) {
 		{48, "2 days"},
 		{72, "3 days"},
 	} {
-		if got := coverage(tc.hours); got != tc.want {
+		if got := i18n.Span(tc.hours); got != tc.want {
 			t.Errorf("%.1fh: want %q, got %q", tc.hours, tc.want, got)
 		}
 	}

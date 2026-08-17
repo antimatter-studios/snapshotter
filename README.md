@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.46.0
+
+Consolidates duplicated code paths — one process-setup function, one duration
+formatter, one set of message keys — and fixes the CLI silently ignoring
+`logging.verbose`, an untranslated headline plural, and an untranslated age column.
+
 ### v0.45.0
 
 Switching language updates the menu bar immediately rather than at the next
@@ -376,11 +382,6 @@ pixels changed.
 
 Files up to 16 MiB can be compared, rather than 1 MiB, and a large binary now
 reports that it is binary instead of blaming its size.
-
-### v0.36.0
-
-Fixes a sentence that was cut short in German, Spanish and French, and adds tests
-for the shape of a translation rather than merely its presence.
 
 
 ## Design decisions
