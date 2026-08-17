@@ -7,6 +7,36 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.47.0 — 2026-08-17
+
+**The entry point moves to `cmd/snapshotter`, and the repository root holds no Go
+files.**
+
+Two things had been keeping it there, and both were mechanical rather than
+deliberate: `go:embed` cannot reach outside the directory of the file declaring
+it, and `main.go` embedded two things that live at the root.
+
+`frontend/dist` is now embedded by `frontend/embed.go`, beside what it embeds. The
+three menu bar glyphs moved into `internal/menubar/icons/`, which that package
+already embeds — they belong there anyway, since drawing menu bar imagery is what
+it is for, and `build/icons/findings.sh` had already established that rendered
+PNGs live with the package while `assets/` keeps the design sources.
+
+Three things in the build had to follow, and one of them would have broken the
+release quietly. `wails3 generate bindings` falls back to the current directory
+when given no pattern, so with no Go files at the root it found zero services,
+emitted a warning, and — because the task passes `-clean=true` — deleted all
+twenty binding files. It is given `./...` now. The two `go build` invocations name
+`./cmd/snapshotter`.
+
+One test changed rather than being adapted around: the menu bar glyph test
+compared slices by address, which held only because they were package-level
+embedded variables. They come from an embedded filesystem now, which returns a
+fresh copy per call, so it compares contents.
+
+Verified by running the packaged build rather than by reasoning about it: the
+binary carries the frontend and the tray glyphs, and the server build works too.
+
 ## v0.46.0 — 2026-08-17
 
 **Removes the duplicate code paths that caused two bugs, and the two they were

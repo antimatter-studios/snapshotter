@@ -9,7 +9,6 @@ package main
 
 import (
 	"context"
-	"embed"
 	"flag"
 	"fmt"
 	"log"
@@ -17,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"snapshotter/frontend"
 	"snapshotter/internal/boot"
 	"snapshotter/internal/i18n"
 	"strconv"
@@ -35,34 +35,6 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
-)
-
-//go:embed all:frontend/dist
-var assets embed.FS
-
-// The menu bar glyphs, one per health level. Each is the same ring drawn to a
-// different extent — closed for ok, two thirds for warn, a bare crescent for bad
-// — so the level reads in greyscale and to someone who cannot tell the green from
-// the amber. Colour is the fast signal here, not the only one.
-//
-// These are deliberately NOT template images, which is the one thing that cannot
-// be changed casually: a template is black plus alpha and macOS inverts it to
-// suit the menu bar, discarding the colour entirely. Worse, Wails latches the
-// template flag on the tray the first time it is set and never clears it, so a
-// single SetTemplateIcon call anywhere would render every one of these as a black
-// silhouette. The palette is mid-toned to hold up against a light and a dark menu
-// bar without that help.
-//
-// The @2x files are the ones embedded, not the 22px ones beside them: Wails
-// resizes whatever it is given to the status bar's thickness in points, so the
-// pixels only decide how sharp it looks. 44px into a 22pt slot is exactly Retina.
-var (
-	//go:embed assets/icons/tray-ok-2x.png
-	trayIconOK []byte
-	//go:embed assets/icons/tray-warn-2x.png
-	trayIconWarn []byte
-	//go:embed assets/icons/tray-error-2x.png
-	trayIconBad []byte
 )
 
 func main() {
@@ -338,7 +310,7 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 			application.NewService(services.NewConfigService()),
 		},
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
+			Handler: application.AssetFileServerFS(frontend.Assets),
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,

@@ -14,7 +14,9 @@ import (
 // and neither is detectable from inside the application, so they are checked
 // here instead.
 
-const stylesheet = "frontend/src/styles.css"
+// Relative to this test's own directory, which is two below the repository root
+// now that the entry point lives under cmd/.
+const stylesheet = "../../frontend/src/styles.css"
 
 // rootToken reads one custom property from the :root block.
 func rootToken(t *testing.T, name string) string {

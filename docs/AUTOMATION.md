@@ -76,7 +76,7 @@ combine it with the fake mounts below rather than expecting Browse to work.
 ## Scenarios
 
 Everything in this application that shells out goes through `apfs.Runner`, and
-`main.go` is the only place that chooses which one. Replacing it replaces the whole
+`cmd/snapshotter/main.go` is the only place that chooses which one. Replacing it replaces the whole
 machine at once — the snapshot listing, what diskutil knows about each snapshot,
 whether Time Machine has a destination, what launchd has loaded — because those
 are all commands and they all go through the same seam.
@@ -287,7 +287,7 @@ almost no space until something writes to them, but the walk is not free — poi
 ## What is still missing
 
 Three seams would finish this, and all of them are in code a scenario cannot reach
-from `main.go`.
+from `cmd/snapshotter/main.go`.
 
 **1. `services.Deps` should carry the scenario.** `Deps` already has `Faking` and
 `FakeSeed` for the fake mounts, and the scenario needs the same treatment:
@@ -299,7 +299,7 @@ from `main.go`.
 Scenario string
 ```
 
-`main.go` sets it from `sim.Spec.Name`. `StatusService.Check` copies it into
+`cmd/snapshotter/main.go` sets it from `sim.Spec.Name`. `StatusService.Check` copies it into
 `Health` beside `Faking`, and `findings` adds one at `LevelWarn` saying so — the
 same shape as the existing "Mounts are simulated" finding, which is the precedent
 to follow. Then the banner appears in the interface as well as in the log, and the

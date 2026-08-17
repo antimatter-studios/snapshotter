@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
+	"snapshotter/internal/menubar"
 	"strings"
 	"testing"
 
@@ -27,11 +29,11 @@ func TestTheMenuBarGlyphMatchesTheLevel(t *testing.T) {
 		want  []byte
 		name  string
 	}{
-		{services.LevelOK, trayIconOK, "ok"},
-		{services.LevelWarn, trayIconWarn, "warn"},
-		{services.LevelBad, trayIconBad, "bad"},
+		{services.LevelOK, menubar.TrayIcon(menubar.LevelOK), "ok"},
+		{services.LevelWarn, menubar.TrayIcon(menubar.LevelWarn), "warn"},
+		{services.LevelBad, menubar.TrayIcon(menubar.LevelBad), "bad"},
 	} {
-		if got := trayIcon(tc.level); &got[0] != &tc.want[0] {
+		if got := trayIcon(tc.level); !bytes.Equal(got, tc.want) {
 			t.Errorf("%s got the wrong glyph", tc.name)
 		}
 	}
@@ -42,10 +44,10 @@ func TestTheMenuBarGlyphMatchesTheLevel(t *testing.T) {
 // menu bar for a machine nobody has checked.
 func TestAnUnknownLevelIsTreatedAsBadRatherThanHealthy(t *testing.T) {
 	got := trayIcon(services.Level("something-new"))
-	if &got[0] == &trayIconOK[0] {
+	if bytes.Equal(got, menubar.TrayIcon(menubar.LevelOK)) {
 		t.Error("an unknown level showed the healthy glyph")
 	}
-	if &got[0] != &trayIconBad[0] {
+	if !bytes.Equal(got, menubar.TrayIcon(menubar.LevelBad)) {
 		t.Error("an unknown level should show the worst glyph available")
 	}
 }
@@ -54,7 +56,9 @@ func TestAnUnknownLevelIsTreatedAsBadRatherThanHealthy(t *testing.T) {
 // icon, which looks like the application failed to start.
 func TestEveryGlyphIsEmbedded(t *testing.T) {
 	for name, data := range map[string][]byte{
-		"ok": trayIconOK, "warn": trayIconWarn, "bad": trayIconBad,
+		"ok":   menubar.TrayIcon(menubar.LevelOK),
+		"warn": menubar.TrayIcon(menubar.LevelWarn),
+		"bad":  menubar.TrayIcon(menubar.LevelBad),
 	} {
 		if len(data) == 0 {
 			t.Errorf("%s glyph is empty", name)

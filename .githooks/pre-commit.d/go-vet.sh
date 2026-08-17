@@ -3,7 +3,7 @@
 # Runs `go vet ./...` and blocks the commit on a finding. Go modules only.
 #
 # Fails OPEN when the module cannot be built for a reason that is not the code:
-# main.go embeds frontend/dist, so a fresh clone has nothing to embed until the
+# frontend/embed.go embeds frontend/dist, so a fresh clone has nothing to embed until the
 # frontend is built once. Blocking there would make a new checkout unable to
 # commit anything, which is a worse failure than a missed vet — and CI, which
 # builds the frontend first, is the backstop.
@@ -17,7 +17,7 @@ git diff --cached --name-only --diff-filter=ACM -- '*.go' 'go.mod' 'go.sum' | gr
 
 if [ -d "$root/frontend" ] && [ ! -f "$root/frontend/dist/index.html" ]; then
   echo "github-guard: go-vet skipped — frontend/dist is not built yet, so the embed" >&2
-  echo "             directive in main.go cannot resolve. Run 'wails3 task build' once." >&2
+  echo "             directive in frontend/embed.go cannot resolve. Run 'wails3 task build' once." >&2
   exit 0
 fi
 

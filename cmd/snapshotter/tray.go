@@ -111,10 +111,10 @@ func installTray(app *application.App, status *services.StatusService, win appli
 		if err != nil {
 			// Failing to read the state is not the same as reading a bad state, and
 			// the icon cannot say which, so the label keeps a mark of its own.
-			tray.SetIcon(trayIconBad)
+			tray.SetIcon(menubar.TrayIcon(menubar.LevelBad))
 			tray.SetLabel(label + "⚠︎")
 			tray.SetTooltip(product + ": " + err.Error())
-			menu.Add(i18n.T("tray.couldNotRead")).SetBitmap(trayIconBad).OnClick(reveal)
+			menu.Add(i18n.T("tray.couldNotRead")).SetBitmap(menubar.TrayIcon(menubar.LevelBad)).OnClick(reveal)
 			menu.Add(err.Error()).OnClick(reveal)
 		} else {
 			tray.SetIcon(trayIcon(health.Level))
@@ -219,18 +219,11 @@ func installTray(app *application.App, status *services.StatusService, win appli
 	}
 }
 
-// trayIcon is the glyph for a level. An unrecognised level is treated as bad
-// rather than ok, so a level added to services and forgotten here shows up as
-// something to look at instead of silently reading as healthy.
+// trayIcon is the glyph for a level, translated from the service's vocabulary to
+// the menubar package's. The glyphs and the rule for an unrecognised level live
+// there, with the rest of the menu bar's imagery.
 func trayIcon(level services.Level) []byte {
-	switch level {
-	case services.LevelOK:
-		return trayIconOK
-	case services.LevelWarn:
-		return trayIconWarn
-	default:
-		return trayIconBad
-	}
+	return menubar.TrayIcon(menubar.Level(level))
 }
 
 // trayLabel is what sits in the menu bar beside the icon, which leaves room for
