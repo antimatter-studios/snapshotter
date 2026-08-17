@@ -282,7 +282,7 @@ git config core.hooksPath .githooks
 ```
 
 The Go guards skip themselves when `frontend/dist` has not been built, because
-`main.go` embeds it — otherwise a fresh checkout could not commit at all. Build
+`frontend/embed.go` embeds it — otherwise a fresh checkout could not commit at all. Build
 the frontend once (`wails3 task build`) and they engage.
 
 One project-local guard exists for an irritation rather than a risk:
@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.47.0
+
+The program's entry point lives in `cmd/snapshotter` and the repository root holds
+no Go files. `frontend/embed.go` carries the built window; the menu bar glyphs moved
+into the package that draws them.
+
 ### v0.46.0
 
 Consolidates duplicated code paths — one process-setup function, one duration
@@ -377,11 +383,6 @@ called photo.png is not handed to an image tag.
 
 Images can be compared: side by side, cross-faded, or as a mask of exactly which
 pixels changed.
-
-### v0.37.0
-
-Files up to 16 MiB can be compared, rather than 1 MiB, and a large binary now
-reports that it is binary instead of blaming its size.
 
 
 ## Design decisions

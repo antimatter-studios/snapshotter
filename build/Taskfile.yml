@@ -185,7 +185,11 @@ tasks:
     generates:
       - frontend/bindings/**/*
     cmds:
-      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts
+      # ./... rather than the default, which is the current directory: the entry
+      # point lives under cmd/ now, so a scan of the repository root finds no Go
+      # files, emits a warning nobody reads, and -clean deletes every binding it
+      # failed to regenerate.
+      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts ./...
 
   generate:icons:
     summary: Generates Windows `.ico` and Mac `.icns` from an image; on macOS, `-iconcomposerinput appicon.icon -macassetdir darwin` also produces `Assets.car` from a `.icon` file (skipped on other platforms).
@@ -263,7 +267,7 @@ tasks:
           BUILD_FLAGS:
             ref: .BUILD_FLAGS
     cmds:
-      - go build -tags server {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}
+      - go build -tags server {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}} ./cmd/snapshotter
     vars:
       BUILD_FLAGS: "{{.BUILD_FLAGS}}"
 
