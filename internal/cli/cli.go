@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"os/exec"
 	"snapshotter/internal/i18n"
@@ -114,13 +113,6 @@ func IsCommand(arg string) bool {
 
 // Run dispatches one command and returns the process exit code.
 func Run(ctx context.Context, e Env, args []string) int {
-	// The terminal is a surface like any other, and it reads the same settings
-	// file the window writes — so `snapshotter config set appearance.language de`
-	// changes what this prints, from the next invocation onwards.
-	if cfg, err := config.Load(); err == nil {
-		i18n.SetLanguage(cfg.Language())
-	}
-
 	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		writeHelp(e.Out)
 		return 0
@@ -205,7 +197,7 @@ func runStatus(ctx context.Context, e Env, _ []string) error {
 	}
 
 	newest, oldest := snaps[0], snaps[len(snaps)-1]
-	fmt.Fprintln(e.Out, i18n.N("cli.snapshotsCovering", len(snaps), "Span", coverage(newest.Taken.Sub(oldest.Taken))))
+	fmt.Fprintln(e.Out, i18n.N("cli.snapshotsCovering", len(snaps), "Span", i18n.Span(newest.Taken.Sub(oldest.Taken).Hours())))
 	fmt.Fprintf(e.Out, i18n.T("cli.newest")+"  %s (%s)\n", newest.Stamp, age(e.Now().Sub(newest.Taken)))
 	fmt.Fprintf(e.Out, i18n.T("cli.oldest")+"  %s (%s)\n", oldest.Stamp, age(e.Now().Sub(oldest.Taken)))
 
@@ -280,17 +272,6 @@ func age(d time.Duration) string {
 		return i18n.N("cli.hoursAgo", int(d.Hours()))
 	default:
 		return i18n.N("cli.daysAgo", int(d.Hours()/24))
-	}
-}
-
-func coverage(d time.Duration) string {
-	switch {
-	case d >= 48*time.Hour:
-		return i18n.N("count.days", int(math.Round(d.Hours()/24)))
-	case d >= time.Hour:
-		return i18n.N("count.hours", int(math.Round(d.Hours())))
-	default:
-		return i18n.T("cli.underAnHour")
 	}
 }
 

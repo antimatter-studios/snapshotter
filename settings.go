@@ -6,8 +6,8 @@ import (
 	"context"
 	"log"
 	"path/filepath"
+	"snapshotter/internal/boot"
 	"snapshotter/internal/config"
-	"snapshotter/internal/i18n"
 	"snapshotter/internal/mountmgr"
 	"snapshotter/internal/trace"
 	"snapshotter/internal/verdict"
@@ -44,15 +44,11 @@ func watchSettings(ctx context.Context, p paths, deps services.Deps, win applica
 //     from what was asked for, and a file being saved is not the same as a
 //     request to start taking snapshots.
 func applySettings(cfg config.Config, p paths, deps services.Deps, win application.Window, applyToTray func(config.Config)) {
-	// Turned on and off without a relaunch, which is the point: restarting to
-	// look at a problem is how you lose the problem.
-	trace.SetEnabled(cfg.Logging.Verbose)
-
-	// Before the tray is redrawn, so the menu it builds is in the new language
-	// rather than one change behind. This is what makes choosing a language in
-	// the window reach the menu bar without a relaunch: the window writes the
-	// setting, the watcher above notices the file, and this applies it.
-	i18n.SetLanguage(cfg.Language())
+	// The same set every entry path applies, through the same function — which is
+	// what stops this list and that one drifting apart. Before the tray is
+	// redrawn below, so the menu it builds is in the new language rather than one
+	// change behind.
+	boot.Apply(cfg)
 
 	// Recorded because the effect of this is on the menu bar, which no test and no
 	// log would otherwise show: the one report that reached me about it was a

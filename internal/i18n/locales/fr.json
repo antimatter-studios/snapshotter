@@ -120,9 +120,6 @@
   "cli.tagline": {
     "other": "Parcourir, comparer et planifier des snapshots locaux APFS."
   },
-  "cli.underAnHour": {
-    "other": "moins d'une heure"
-  },
   "cli.usageHeading": {
     "other": "Utilisation :"
   },
@@ -259,6 +256,10 @@
   "status.headline.covered": {
     "one": "{{.Count}} snapshot, {{.Cover}} de couverture",
     "other": "{{.Count}} snapshots, {{.Cover}} de couverture"
+  },
+  "status.headline.coveredWithFindings": {
+    "one": "{{.Snapshots}}, {{.Cover}} de couverture — {{.Count}} point à examiner",
+    "other": "{{.Snapshots}}, {{.Cover}} de couverture — {{.Count}} points à examiner"
   },
   "status.headline.nothingTakingMore": {
     "one": "{{.Count}} snapshot, mais rien n'en crée d'autres",

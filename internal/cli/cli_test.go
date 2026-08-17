@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"snapshotter/internal/config"
+	"snapshotter/internal/i18n"
 	"strings"
 	"testing"
 	"time"
@@ -330,7 +331,7 @@ func TestCoverageIsWordedInTheLargestHonestUnit(t *testing.T) {
 		{47 * time.Hour, "47 hours"},
 		{48 * time.Hour, "2 days"},
 	} {
-		if got := coverage(tc.d); got != tc.want {
+		if got := i18n.Span(tc.d.Hours()); got != tc.want {
 			t.Errorf("%v: want %q, got %q", tc.d, tc.want, got)
 		}
 	}

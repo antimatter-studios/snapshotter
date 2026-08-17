@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"snapshotter/internal/boot"
 	"snapshotter/internal/i18n"
 	"strconv"
 
@@ -28,7 +29,6 @@ import (
 	"snapshotter/internal/notify"
 	"snapshotter/internal/scenario"
 	"snapshotter/internal/schedule"
-	"snapshotter/internal/trace"
 	"snapshotter/internal/verdict"
 	"snapshotter/internal/version"
 	"snapshotter/services"
@@ -110,6 +110,16 @@ func main() {
 		}
 	}
 
+	// Before any branch below, so every path this process can take — the command
+	// line, either agent, the window — speaks the configured language and honours
+	// the verbose setting. Each used to apply its own subset, and two of them were
+	// missing a piece.
+	//
+	// Here rather than inside each entry point: cli.Run is called directly by its
+	// own tests, and reading the developer's settings file there made those tests
+	// depend on whichever language the machine happened to be set to.
+	boot.ApplyFromFile()
+
 	// A verb means the command line; a bare invocation means the window. The
 	// launchd agents still use the original flags, because their installed
 	// plists name them and changing that would orphan an installed agent.
@@ -122,13 +132,6 @@ func main() {
 	paths, err := resolvePaths()
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	// Before the agent branches below. Both run as their own launchd processes and
-	// never reach the window's setup, so without this a scheduled snapshot failing
-	// at 3am would post its notification in English to someone who chose German.
-	if cfg, cerr := config.Load(); cerr == nil {
-		i18n.SetLanguage(cfg.Language())
 	}
 
 	if *takeSnapshot {
@@ -192,7 +195,6 @@ func resolvePaths() (paths, error) {
 	if cfgErr != nil {
 		log.Printf("configuration: %v (continuing with defaults)", cfgErr)
 	}
-	trace.SetEnabled(cfg.Logging.Verbose)
 	return paths{
 		mountRoot: config.ResolvePath(cfg.Paths.MountRoot,
 			filepath.Join(home, "Library", "Application Support", "Snapshotter", "mounts")),
@@ -356,9 +358,6 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 	// already been reported by resolvePaths, so this quietly takes the defaults
 	// rather than saying the same thing twice.
 	cfg, _ := config.Load()
-	// Set before the window, the tray or any notification exists, so nothing is
-	// ever worded in English and then corrected a moment later.
-	i18n.SetLanguage(cfg.Language())
 	windowWidth, windowHeight := cfg.WindowSize()
 
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{

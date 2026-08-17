@@ -120,9 +120,6 @@
   "cli.tagline": {
     "other": "Browse, compare and schedule APFS local snapshots."
   },
-  "cli.underAnHour": {
-    "other": "under an hour"
-  },
   "cli.usageHeading": {
     "other": "Usage:"
   },
@@ -259,6 +256,10 @@
   "status.headline.covered": {
     "one": "{{.Count}} snapshot, {{.Cover}} of cover",
     "other": "{{.Count}} snapshots, {{.Cover}} of cover"
+  },
+  "status.headline.coveredWithFindings": {
+    "one": "{{.Snapshots}}, {{.Cover}} of cover — {{.Count}} thing to look at",
+    "other": "{{.Snapshots}}, {{.Cover}} of cover — {{.Count}} things to look at"
   },
   "status.headline.nothingTakingMore": {
     "one": "{{.Count}} snapshot, but nothing is taking more",

@@ -120,9 +120,6 @@
   "cli.tagline": {
     "other": "APFS-Snapshots durchsehen, vergleichen und planen."
   },
-  "cli.underAnHour": {
-    "other": "weniger als eine Stunde"
-  },
   "cli.usageHeading": {
     "other": "Verwendung:"
   },
@@ -259,6 +256,10 @@
   "status.headline.covered": {
     "one": "{{.Count}} Snapshot, {{.Cover}} Abdeckung",
     "other": "{{.Count}} Snapshots, {{.Cover}} Abdeckung"
+  },
+  "status.headline.coveredWithFindings": {
+    "one": "{{.Snapshots}}, {{.Cover}} Abdeckung — {{.Count}} Sache, die Aufmerksamkeit braucht",
+    "other": "{{.Snapshots}}, {{.Cover}} Abdeckung — {{.Count}} Dinge, die Aufmerksamkeit brauchen"
   },
   "status.headline.nothingTakingMore": {
     "one": "{{.Count}} Snapshot, aber nichts erstellt weitere",

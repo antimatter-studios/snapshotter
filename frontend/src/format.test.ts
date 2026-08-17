@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { age, breadcrumbs, bytes, stamp, statusLabel } from "./format";
+import i18next from "./i18n";
 
 // These four decide almost every piece of text on screen. Nothing here can crash
 // the application, which is exactly why they are worth testing: a wrong answer
@@ -40,7 +41,7 @@ describe("age", () => {
   function at(iso: string, now: string) {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(now));
-    return age(iso);
+    return age(iso, i18next.t);
   }
 
   it("names each span the way someone would say it", () => {

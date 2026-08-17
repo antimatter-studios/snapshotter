@@ -120,9 +120,6 @@
   "cli.tagline": {
     "other": "Explorar, comparar y programar snapshots locales de APFS."
   },
-  "cli.underAnHour": {
-    "other": "menos de una hora"
-  },
   "cli.usageHeading": {
     "other": "Uso:"
   },
@@ -259,6 +256,10 @@
   "status.headline.covered": {
     "one": "{{.Count}} snapshot, {{.Cover}} de cobertura",
     "other": "{{.Count}} snapshots, {{.Cover}} de cobertura"
+  },
+  "status.headline.coveredWithFindings": {
+    "one": "{{.Snapshots}}, {{.Cover}} de cobertura: {{.Count}} cosa que revisar",
+    "other": "{{.Snapshots}}, {{.Cover}} de cobertura: {{.Count}} cosas que revisar"
   },
   "status.headline.nothingTakingMore": {
     "one": "{{.Count}} snapshot, pero nada crea más",

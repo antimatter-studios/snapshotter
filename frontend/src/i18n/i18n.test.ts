@@ -17,6 +17,17 @@ const english = en as Catalogue;
 const catalogues: Record<string, Catalogue> = { de, es, fr };
 
 const placeholders = (text: string) => (text.match(/\{\{(\w+)\}\}/g) ?? []).sort();
+
+// Keys whose final full stop belongs to an abbreviation rather than a sentence.
+// German writes "vor 5 Min." with the point, because Min. is short for Minuten;
+// dropping it to match English's "5 min ago" would be wrong German rather than
+// consistent punctuation. The Go catalogue carries the same exception.
+const abbreviated = new Set([
+  "age.minutes_one",
+  "age.minutes_other",
+  "age.hours_one",
+  "age.hours_other",
+]);
 const ending = (text: string) => (/[.…:]$/.test(text) ? text.slice(-1) : "");
 
 describe("the translation catalogues", () => {
@@ -47,6 +58,7 @@ describe("the translation catalogues", () => {
         // of a clause. Three languages once lost "so they are taken for you" and
         // nobody could see it, because what remained was a grammatical sentence.
         const wrong = Object.keys(english)
+          .filter((key) => !abbreviated.has(key))
           .filter((key) => ending(catalogue[key]) !== ending(english[key]))
           .map((key) => `${key}: English ends ${ending(english[key]) || "(none)"}`);
         expect(wrong).toEqual([]);
