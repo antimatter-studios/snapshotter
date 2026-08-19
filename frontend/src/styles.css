@@ -949,15 +949,14 @@ pre.log {
      colour: the gap technique leaves any unfilled cell looking like a rendering
      fault.
 
-     Four columns at most, rather than auto-fit taking as many as will fit. There
-     are eight facts, so a wide window fitted seven and left the eighth alone on a
-     row of its own, which reads as a mistake. Four divides them evenly.
+     Four or eight, and nothing else. There are eight figures, so those are the
+     two counts that divide them evenly — 4+4, or one row of 8. Anything between
+     leaves a short last row, and auto-fit used to pick seven, which orphaned the
+     eighth on a row of its own.
 
-     This was previously argued against on the grounds that the number of facts is
-     not fixed, so pinning the columns only moves the problem to the ninth. That
-     is true and it is still the better trade: 4+4+1 is a tidy grid with a short
-     last row, where 7+1 is a grid that looks broken. */
-  grid-template-columns: repeat(2, 1fr);
+     Adding a ninth figure will break this, and deliberately: it should be nine
+     that gets reconsidered, not the layout that quietly re-wraps around it. */
+  grid-template-columns: repeat(4, 1fr);
   gap: 0;
   margin: 4px 0 0;
   border: 1px solid var(--line);
@@ -994,15 +993,11 @@ pre.log {
   margin-top: 10px;
 }
 
-/* Widening rather than narrowing: two columns is the base, because that is what
-   the narrowest window has room for, and each step up is a window wide enough to
-   hold another 190px column. */
-@media (min-width: 560px) {
-  .facts { grid-template-columns: repeat(3, 1fr); }
-}
-
-@media (min-width: 760px) {
-  .facts { grid-template-columns: repeat(4, 1fr); }
+/* One row, on a window wide enough for eight columns to still be readable. Below
+   that it stays at four rather than stepping through counts that do not divide
+   eight. */
+@media (min-width: 1500px) {
+  .facts { grid-template-columns: repeat(8, 1fr); }
 }
 
 /* The scheduled task's log, shown only when a finding offers it. Monospaced and

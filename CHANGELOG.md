@@ -7,6 +7,21 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.50.0 — 2026-08-17
+
+**The figures at the foot of the home screen use four columns, or eight.**
+
+v0.49.0 capped them at four and stepped down through three and two as the window
+narrowed. Three does not divide eight, so the narrow layouts had the same short
+last row the cap was meant to remove — 3+3+2 rather than 7+1, but still ragged.
+
+Four and eight are the only counts that divide eight evenly. It is four, and one
+row of eight on a window wide enough to read them.
+
+A ninth figure will break this, and deliberately. The layout no longer quietly
+re-wraps around a number that does not fit, which means adding one is a decision
+about the ninth figure rather than something the grid absorbs and makes ugly.
+
 ## v0.49.0 — 2026-08-17
 
 **The figures at the foot of the home screen stop at four columns.**
