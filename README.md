@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.50.0
+
+The home screen figures use four columns, or eight on a wide window — the only two
+counts that divide eight evenly.
+
 ### v0.49.0
 
 The figures at the foot of the home screen use at most four columns, so eight of
@@ -379,11 +384,6 @@ in place of hand-written versions. Plurals now follow each language's own rules.
 
 The health findings, the menu bar and notifications are translated, so the whole
 application follows the language rather than only the window.
-
-### v0.40.0
-
-Comparing a file that is in neither version explains itself instead of reporting
-a failure.
 
 
 ## Design decisions
