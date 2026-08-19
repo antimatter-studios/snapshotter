@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.49.0
+
+The figures at the foot of the home screen use at most four columns, so eight of
+them read as 4+4 rather than 7+1.
+
 ### v0.48.0
 
 The low-space warning names the amount and the consequence — "Only 45 GB left —
@@ -379,11 +384,6 @@ application follows the language rather than only the window.
 
 Comparing a file that is in neither version explains itself instead of reporting
 a failure.
-
-### v0.39.0
-
-A file is only shown as a picture when its contents agree with its name, so a zip
-called photo.png is not handed to an image tag.
 
 
 ## Design decisions
