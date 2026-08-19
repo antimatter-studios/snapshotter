@@ -7,6 +7,34 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.48.0 — 2026-08-17
+
+**"Free space is low" now says how low, and what it costs.**
+
+It read "Free space is low, so retention is not guaranteed", which is true and
+tells nobody anything: not how low, and not what "not guaranteed" means for the
+snapshots they think they have. It reads "Only 45 GB left — old snapshots may
+start being dropped".
+
+The amount is formatted per language rather than with a format string, because
+the decimal separator is a comma in German, Spanish and French: "1.5 GB" is wrong
+in three of the four languages this ships with. `x/text/message` knows the rule
+and was already a dependency.
+
+**Four finding details were still English.** The low-space one, the stale-schedule
+one, the conflicting-agent one and the simulated-readings one. They were details
+rather than titles, which is why a sweep looking at what a menu shows kept missing
+them — and why the claim that everything was translated was wrong.
+
+Three tests found the finding by matching its title text, so improving the wording
+broke tests that had no opinion about the wording. They match on `Kind` now, which
+is the stable identifier and the reason `Kind` exists.
+
+One test fixture described a machine that cannot exist: it set the free
+*percentage* without the free *bytes*, though Check derives the first from the
+second. That was invisible until the finding started naming the amount, at which
+point it reported "0 B".
+
 ## v0.47.0 — 2026-08-17
 
 **The entry point moves to `cmd/snapshotter`, and the repository root holds no Go

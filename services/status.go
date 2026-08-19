@@ -266,7 +266,7 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 	}
 
 	if h.FreePercent > 0 && h.FreePercent < lowFreeSpacePercent {
-		out = append(out, lowFreeSpaceFinding(h.FreePercent))
+		out = append(out, lowFreeSpaceFinding(h.FreePercent, h.VolumeFreeBytes))
 	}
 
 	// Last, and only ever informational: a scenario is not a fault, but nothing
@@ -382,13 +382,10 @@ func findingSimulatedMounts() Finding {
 
 func staleProgramFinding(program string) Finding {
 	return Finding{
-		Level: LevelBad,
-		Kind:  KindStale,
-		Title: i18n.T("status.scheduleMissingBinary.title"),
-		Detail: "launchd still has the job and still reports it as running, but the " +
-			"program it names (" + program + ") no longer exists, so every " +
-			"run fails and no snapshot is taken. Installing the schedule again points " +
-			"it at this copy.",
+		Level:  LevelBad,
+		Kind:   KindStale,
+		Title:  i18n.T("status.scheduleMissingBinary.title"),
+		Detail: i18n.T("status.scheduleMissingBinary.detail", "Program", program),
 		Action: "install-schedule",
 	}
 }
@@ -406,32 +403,35 @@ func overdueFinding(dueAt, newest time.Time) Finding {
 
 func conflictingAgentFinding(agent string) Finding {
 	return Finding{
-		Level: LevelWarn,
-		Title: i18n.T("status.conflict.title"),
-		Kind:  KindConflict,
-		Detail: agent + " looks like it takes local snapshots too. Two agents double the rate and " +
-			"apply two retention windows to one shared set. Install one, not both.",
+		Level:  LevelWarn,
+		Title:  i18n.T("status.conflict.title"),
+		Kind:   KindConflict,
+		Detail: i18n.T("status.conflict.detail", "Agent", agent),
 	}
 }
 
-func lowFreeSpaceFinding(freePercent float64) Finding {
+// lowFreeSpaceFinding names the amount and the consequence.
+//
+// It used to say "Free space is low, so retention is not guaranteed", which is
+// true and tells nobody what to do: neither how low, nor what "not guaranteed"
+// costs. The figure someone acts on is how much is left, and the consequence they
+// care about is losing snapshots they thought they had.
+func lowFreeSpaceFinding(freePercent float64, freeBytes uint64) Finding {
 	return Finding{
 		Level: LevelWarn,
-		Title: i18n.T("status.lowSpace.title"),
+		Title: i18n.T("status.lowSpace.title", "Free", i18n.Bytes(freeBytes)),
 		Kind:  KindSpace,
-		Detail: fmt.Sprintf("%.0f%% free. Snapshots are purgeable: macOS reclaims the oldest under "+
-			"space pressure rather than failing a write, whatever retention is set.", freePercent),
+		Detail: i18n.T("status.lowSpace.detail",
+			"Percent", fmt.Sprintf("%.0f%%", freePercent)),
 	}
 }
 
 func simulatedReadingsFinding(scenario string) Finding {
 	return Finding{
-		Level: LevelInfo,
-		Title: i18n.T("status.simulated.title"),
-		Kind:  KindSimulated,
-		Detail: "Scenario " + scenario + " is loaded. Every snapshot, schedule and " +
-			"figure on this screen was invented to drive the interface, and none of it " +
-			"describes this Mac.",
+		Level:  LevelInfo,
+		Title:  i18n.T("status.simulated.title"),
+		Kind:   KindSimulated,
+		Detail: i18n.T("status.simulated.detail", "Scenario", scenario),
 	}
 }
 

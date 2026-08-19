@@ -244,6 +244,9 @@
   "search.stoppedAtLimit": {
     "other": "Arrêt à la limite de résultats — affinez la recherche pour voir le reste."
   },
+  "status.conflict.detail": {
+    "other": "{{.Agent}} semble créer aussi des snapshots locaux. Deux agents doublent la cadence et appliquent deux fenêtres de rétention au même ensemble. Installez-en un, pas les deux."
+  },
   "status.conflict.title": {
     "other": "Un autre agent crée aussi des snapshots"
   },
@@ -265,8 +268,11 @@
     "one": "{{.Count}} snapshot, mais rien n'en crée d'autres",
     "other": "{{.Count}} snapshots, mais rien n'en crée d'autres"
   },
+  "status.lowSpace.detail": {
+    "other": "{{.Percent}} du volume est libre. Les snapshots sont libérables : sous pression disque, macOS récupère les plus anciens plutôt que d'échouer une écriture, quelle que soit la rétention configurée. Libérer de l'espace est ce qui les préserve."
+  },
   "status.lowSpace.title": {
-    "other": "L'espace libre est faible ; la rétention n'est donc pas garantie"
+    "other": "Il ne reste que {{.Free}} — d'anciens snapshots pourraient être supprimés"
   },
   "status.noSchedule.detail": {
     "other": "macOS ne planifie des snapshots locaux que si Time Machine dispose d'une destination de sauvegarde. Sans elle, et sans cette planification, le snapshot d'aujourd'hui est le dernier."
@@ -295,6 +301,9 @@
   "status.overdue.title": {
     "other": "Le dernier snapshot est en retard"
   },
+  "status.scheduleMissingBinary.detail": {
+    "other": "launchd a toujours la tâche et la signale comme active, mais le programme qu'elle nomme ({{.Program}}) n'existe plus : chaque exécution échoue et aucun snapshot n'est créé. Réinstaller la planification la fait pointer vers cette copie."
+  },
   "status.scheduleMissingBinary.title": {
     "other": "La planification pointe vers une copie de Snapshotter qui n'existe plus"
   },
@@ -303,6 +312,9 @@
   },
   "status.scheduleNotRunning.title": {
     "other": "La planification est installée mais ne s'exécute pas"
+  },
+  "status.simulated.detail": {
+    "other": "Le scénario {{.Scenario}} est chargé. Chaque snapshot, planification et chiffre de cet écran a été inventé pour faire fonctionner l'interface, et rien n'y décrit ce Mac."
   },
   "status.simulated.title": {
     "other": "Ces relevés sont simulés"

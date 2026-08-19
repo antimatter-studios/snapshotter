@@ -244,6 +244,9 @@
   "search.stoppedAtLimit": {
     "other": "Stopped early at the match limit — narrow the search to see the rest."
   },
+  "status.conflict.detail": {
+    "other": "{{.Agent}} looks like it takes local snapshots too. Two agents double the rate and apply two retention windows to one shared set. Install one, not both."
+  },
   "status.conflict.title": {
     "other": "Another agent is also taking snapshots"
   },
@@ -265,8 +268,11 @@
     "one": "{{.Count}} snapshot, but nothing is taking more",
     "other": "{{.Count}} snapshots, but nothing is taking more"
   },
+  "status.lowSpace.detail": {
+    "other": "{{.Percent}} of the volume is free. Snapshots are purgeable: under space pressure macOS reclaims the oldest rather than failing a write, whatever retention is set. Freeing space is what keeps them."
+  },
   "status.lowSpace.title": {
-    "other": "Free space is low, so retention is not guaranteed"
+    "other": "Only {{.Free}} left — old snapshots may start being dropped"
   },
   "status.noSchedule.detail": {
     "other": "macOS only schedules local snapshots when Time Machine has a backup destination. Without one, and without this schedule, today's snapshot is the last one."
@@ -295,6 +301,9 @@
   "status.overdue.title": {
     "other": "The last snapshot is overdue"
   },
+  "status.scheduleMissingBinary.detail": {
+    "other": "launchd still has the job and still reports it as running, but the program it names ({{.Program}}) no longer exists, so every run fails and no snapshot is taken. Installing the schedule again points it at this copy."
+  },
   "status.scheduleMissingBinary.title": {
     "other": "The schedule points at a copy of Snapshotter that is gone"
   },
@@ -303,6 +312,9 @@
   },
   "status.scheduleNotRunning.title": {
     "other": "The schedule is installed but not running"
+  },
+  "status.simulated.detail": {
+    "other": "Scenario {{.Scenario}} is loaded. Every snapshot, schedule and figure on this screen was invented to drive the interface, and none of it describes this Mac."
   },
   "status.simulated.title": {
     "other": "These readings are simulated"

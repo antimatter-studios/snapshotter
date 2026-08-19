@@ -244,6 +244,9 @@
   "search.stoppedAtLimit": {
     "other": "Se detuvo en el límite de coincidencias: acote la búsqueda para ver el resto."
   },
+  "status.conflict.detail": {
+    "other": "{{.Agent}} parece crear snapshots locales también. Dos agentes duplican el ritmo y aplican dos ventanas de retención al mismo conjunto. Instale uno, no ambos."
+  },
   "status.conflict.title": {
     "other": "Otro agente también crea snapshots"
   },
@@ -265,8 +268,11 @@
     "one": "{{.Count}} snapshot, pero nada crea más",
     "other": "{{.Count}} snapshots, pero nada crea más"
   },
+  "status.lowSpace.detail": {
+    "other": "El {{.Percent}} del volumen está libre. Los snapshots son liberables: ante la falta de espacio macOS recupera los más antiguos en vez de fallar una escritura, sea cual sea la retención configurada. Liberar espacio es lo que los conserva."
+  },
   "status.lowSpace.title": {
-    "other": "Queda poco espacio libre, así que la retención no está garantizada"
+    "other": "Solo quedan {{.Free}}: podrían empezar a eliminarse snapshots antiguos"
   },
   "status.noSchedule.detail": {
     "other": "macOS solo programa snapshots locales cuando Time Machine tiene un destino de copia. Sin él, y sin esta programación, el snapshot de hoy es el último."
@@ -295,6 +301,9 @@
   "status.overdue.title": {
     "other": "El último snapshot está atrasado"
   },
+  "status.scheduleMissingBinary.detail": {
+    "other": "launchd sigue teniendo la tarea y la da por activa, pero el programa que nombra ({{.Program}}) ya no existe, así que cada ejecución falla y no se crea ningún snapshot. Instalar la programación de nuevo la apunta a esta copia."
+  },
   "status.scheduleMissingBinary.title": {
     "other": "La programación apunta a una copia de Snapshotter que ya no existe"
   },
@@ -303,6 +312,9 @@
   },
   "status.scheduleNotRunning.title": {
     "other": "La programación está instalada pero no se ejecuta"
+  },
+  "status.simulated.detail": {
+    "other": "El escenario {{.Scenario}} está cargado. Cada snapshot, programación y cifra de esta pantalla se inventó para mover la interfaz, y nada de ello describe este Mac."
   },
   "status.simulated.title": {
     "other": "Estas lecturas son simuladas"

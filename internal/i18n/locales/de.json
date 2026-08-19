@@ -244,6 +244,9 @@
   "search.stoppedAtLimit": {
     "other": "Bei der Trefferobergrenze abgebrochen — grenzen Sie die Suche ein, um den Rest zu sehen."
   },
+  "status.conflict.detail": {
+    "other": "{{.Agent}} erstellt offenbar ebenfalls lokale Snapshots. Zwei Agenten verdoppeln die Rate und wenden zwei Aufbewahrungszeiträume auf denselben Satz an. Richten Sie einen ein, nicht beide."
+  },
   "status.conflict.title": {
     "other": "Ein weiterer Agent erstellt ebenfalls Snapshots"
   },
@@ -265,8 +268,11 @@
     "one": "{{.Count}} Snapshot, aber nichts erstellt weitere",
     "other": "{{.Count}} Snapshots, aber nichts erstellt weitere"
   },
+  "status.lowSpace.detail": {
+    "other": "{{.Percent}} des Volumes sind frei. Snapshots sind freigebbar: Bei Speicherdruck gibt macOS die ältesten frei, statt einen Schreibvorgang scheitern zu lassen — unabhängig von der eingestellten Aufbewahrung. Nur freier Speicher hält sie."
+  },
   "status.lowSpace.title": {
-    "other": "Wenig freier Speicher — die Aufbewahrung ist nicht garantiert"
+    "other": "Nur noch {{.Free}} frei — alte Snapshots könnten entfernt werden"
   },
   "status.noSchedule.detail": {
     "other": "macOS plant lokale Snapshots nur, wenn für Time Machine ein Backup-Ziel eingerichtet ist. Ohne eines und ohne diesen Zeitplan ist der heutige Snapshot der letzte."
@@ -295,6 +301,9 @@
   "status.overdue.title": {
     "other": "Der letzte Snapshot ist überfällig"
   },
+  "status.scheduleMissingBinary.detail": {
+    "other": "launchd hat den Auftrag weiterhin und meldet ihn als laufend, aber das darin genannte Programm ({{.Program}}) existiert nicht mehr — jeder Lauf schlägt fehl und es wird kein Snapshot erstellt. Den Zeitplan erneut einzurichten richtet ihn auf diese Kopie aus."
+  },
   "status.scheduleMissingBinary.title": {
     "other": "Der Zeitplan verweist auf eine nicht mehr vorhandene Kopie von Snapshotter"
   },
@@ -303,6 +312,9 @@
   },
   "status.scheduleNotRunning.title": {
     "other": "Der Zeitplan ist eingerichtet, läuft aber nicht"
+  },
+  "status.simulated.detail": {
+    "other": "Szenario {{.Scenario}} ist geladen. Jeder Snapshot, jeder Zeitplan und jede Zahl auf diesem Bildschirm wurde erfunden, um die Oberfläche zu betreiben; nichts davon beschreibt diesen Mac."
   },
   "status.simulated.title": {
     "other": "Diese Werte sind simuliert"
