@@ -7,6 +7,22 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.49.0 — 2026-08-17
+
+**The figures at the foot of the home screen stop at four columns.**
+
+They were laid out with `auto-fit`, which takes as many columns as will fit. There
+are eight figures, so a wide window fitted seven and left the eighth alone on a row
+of its own — a grid that looks broken rather than a grid with a short last row.
+
+Four divides eight evenly. The layout still narrows to three and then two as the
+window does, so nothing is cramped on a small screen.
+
+The comment that used to sit here argued against pinning the column count, on the
+grounds that the number of figures is not fixed and a fixed count only moves the
+problem to the ninth. That is true, and it is still the better trade: 4+4+1 is a
+tidy grid with a short last row, where 7+1 is a grid that looks like a fault.
+
 ## v0.48.0 — 2026-08-17
 
 **"Free space is low" now says how low, and what it costs.**
