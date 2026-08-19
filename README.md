@@ -332,6 +332,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.48.0
+
+The low-space warning names the amount and the consequence — "Only 45 GB left —
+old snapshots may start being dropped" — and formats the size the way each
+language writes numbers.
+
 ### v0.47.0
 
 The program's entry point lives in `cmd/snapshotter` and the repository root holds
@@ -378,11 +384,6 @@ a failure.
 
 A file is only shown as a picture when its contents agree with its name, so a zip
 called photo.png is not handed to an image tag.
-
-### v0.38.0
-
-Images can be compared: side by side, cross-faded, or as a mask of exactly which
-pixels changed.
 
 
 ## Design decisions

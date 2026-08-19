@@ -47,6 +47,21 @@ func titles(fs []Finding) []string {
 	return out
 }
 
+// hasKind finds a finding by what it is about rather than by what it says.
+//
+// Kind is the stable identifier and the reason it exists; the title is prose and
+// is expected to improve. Matching on the title meant that rewording "Free space
+// is low" into something that names the amount broke three tests that had no
+// opinion about the wording at all.
+func hasKind(fs []Finding, kind string) *Finding {
+	for i := range fs {
+		if fs[i].Kind == kind {
+			return &fs[i]
+		}
+	}
+	return nil
+}
+
 func has(fs []Finding, substr string) *Finding {
 	for i := range fs {
 		if strings.Contains(fs[i].Title, substr) {
@@ -67,6 +82,8 @@ func TestAProtectedMachineHasNothingToSay(t *testing.T) {
 // Each row breaks one thing and names what must be reported, at what severity,
 // and with which one-click fix. The action matters as much as the text: a finding
 // you cannot act on from where you read it is just anxiety.
+const gigabyte = 1 << 30
+
 func TestEachFailureIsReportedWithItsFix(t *testing.T) {
 	now := time.Now()
 	overdue := now.Add(-8 * time.Hour) // due 8h ago, interval 6h, so past the grace
@@ -121,9 +138,16 @@ func TestEachFailureIsReportedWithItsFix(t *testing.T) {
 			action: "install-tripwire",
 		},
 		{
-			name:   "disk nearly full",
-			change: func(h *Health) { h.FreePercent = 3 },
-			want:   "Free space is low",
+			name: "disk nearly full",
+			// Both, and consistent with each other: FreePercent is derived from
+			// VolumeFreeBytes in Check, so a fixture setting only the percentage
+			// describes a machine that cannot exist — and the finding now names
+			// the amount, which such a fixture reports as "0 B".
+			change: func(h *Health) {
+				h.VolumeTotalBytes, h.VolumeFreeBytes = 1_000*gigabyte, 30*gigabyte
+				h.FreePercent = 3
+			},
+			want:   "Only 30 GB left",
 			level:  LevelWarn,
 			action: "", // nothing this application can do about a full disk
 		},
@@ -246,7 +270,7 @@ func TestLowSpaceOnlyWhenKnownAndActuallyLow(t *testing.T) {
 	} {
 		h := protected(now)
 		h.FreePercent = tc.percent
-		got := has(findings(h, false, nil, now), "Free space") != nil
+		got := hasKind(findings(h, false, nil, now), KindSpace) != nil
 		if got != tc.want {
 			t.Errorf("%.1f%% free: want reported=%v, got %v", tc.percent, tc.want, got)
 		}

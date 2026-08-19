@@ -148,7 +148,7 @@ func TestAFullDiskIsReportedAsUnreliableRetention(t *testing.T) {
 	if h.FreePercent <= 0 || h.FreePercent >= 10 {
 		t.Fatalf("the preset did not produce a tight disk: %.1f%% free", h.FreePercent)
 	}
-	if has(h.Findings, "Free space") == nil {
+	if hasKind(h.Findings, KindSpace) == nil {
 		t.Errorf("low space was not reported: %v", titles(h.Findings))
 	}
 }

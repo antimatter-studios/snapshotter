@@ -15,26 +15,26 @@ import (
 // dropped clause, a placeholder that did not survive translation, a language
 // carrying a message nothing will ever ask for.
 
-type message struct {
+type entry struct {
 	One   string `json:"one"`
 	Other string `json:"other"`
 }
 
-func load(t *testing.T, code string) map[string]message {
+func load(t *testing.T, code string) map[string]entry {
 	t.Helper()
 
 	data, err := locales.ReadFile("locales/" + code + ".json")
 	if err != nil {
 		t.Fatalf("reading %s: %v", code, err)
 	}
-	var out map[string]message
+	var out map[string]entry
 	if err := json.Unmarshal(data, &out); err != nil {
 		t.Fatalf("parsing %s: %v", code, err)
 	}
 	return out
 }
 
-func ids(m map[string]message) []string {
+func ids(m map[string]entry) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
