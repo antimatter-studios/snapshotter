@@ -14,26 +14,33 @@ import (
 	"time"
 )
 
-// Coverage draws one cell per hour across the window, filled where a snapshot
-// exists and empty where none does, oldest on the left.
-//
-// The gaps are the point. A count says how many restore points there are; this
-// says when they are, which is the question someone actually has — a machine
-// with twelve snapshots taken in one hour is not covered, and the count alone
-// cannot tell you that.
-//
-// The image is drawn at twice its display size, because macOS scales menu images
-// down and a strip drawn at 1× on a Retina display is visibly soft.
-// hoursFilled marks each hour of the window in which at least one snapshot was
-// taken. It is the single statement of the rule the strip draws and the caption
-// describes, so the two cannot come to disagree about what a mark means.
-func hoursFilled(taken []time.Time, now time.Time, window time.Duration, fallbackHours int) []bool {
-	hours := int(window.Hours())
-	if hours <= 0 {
-		hours = fallbackHours
-	}
+// Cells is how many periods the strip shows. Sixteen because that is a readable
+// number of marks in a menu, and because at the default schedule it comes to two
+// days of history.
+const Cells = 16
 
-	filled := make([]bool, hours)
+// periodsFilled marks each scheduled period in which at least one snapshot was
+// taken, oldest first.
+//
+// One cell per period rather than per hour, and that is the whole point. An
+// hourly cell measured against a schedule nobody configured: on a three-hourly
+// schedule two cells in every three are empty however well the machine is doing,
+// so a healthy strip and a failing one looked nearly the same. Measured in
+// periods, a working schedule is solid and every gap is a snapshot that genuinely
+// did not happen.
+//
+// It is the single statement of the rule the strip draws and the caption
+// describes, so the two cannot come to disagree about what a mark means.
+func periodsFilled(taken []time.Time, now time.Time, period time.Duration, cells int) []bool {
+	if period <= 0 {
+		period = time.Hour
+	}
+	if cells <= 0 {
+		cells = Cells
+	}
+	window := period * time.Duration(cells)
+
+	filled := make([]bool, cells)
 	for _, t := range taken {
 		age := now.Sub(t)
 		if age < 0 || age >= window {
@@ -41,21 +48,21 @@ func hoursFilled(taken []time.Time, now time.Time, window time.Duration, fallbac
 		}
 		// Oldest on the left, so the newest snapshot is the rightmost cell —
 		// the same direction as every other timeline a person reads.
-		i := hours - 1 - int(age.Hours())
-		if i >= 0 && i < hours {
+		i := cells - 1 - int(age/period)
+		if i >= 0 && i < cells {
 			filled[i] = true
 		}
 	}
 	return filled
 }
 
-// HoursCovered counts the hours of the window holding at least one snapshot.
+// PeriodsCovered counts the scheduled periods holding at least one snapshot.
 //
-// The menu needs this to say what the strip means. Twenty-two snapshots can fill
-// three marks, and without a sentence saying so the strip reads as broken rather
-// than as the answer to a different question than the one being asked.
-func HoursCovered(taken []time.Time, now time.Time, window time.Duration) (covered, total int) {
-	filled := hoursFilled(taken, now, window, 48)
+// The menu needs this to say what the strip means: without a sentence naming the
+// unit, a strip reads as broken rather than as the answer to a different question
+// than the one being asked.
+func PeriodsCovered(taken []time.Time, now time.Time, period time.Duration, cells int) (covered, total int) {
+	filled := periodsFilled(taken, now, period, cells)
 	for _, f := range filled {
 		if f {
 			covered++
@@ -64,19 +71,30 @@ func HoursCovered(taken []time.Time, now time.Time, window time.Duration) (cover
 	return covered, len(filled)
 }
 
-func Coverage(taken []time.Time, now time.Time, window time.Duration, dark bool) ([]byte, error) {
+// Coverage draws one cell per scheduled period, filled where a snapshot exists
+// and empty where none does, oldest on the left.
+//
+// The gaps are the point, and they only mean something because the cell is the
+// schedule's own period: an empty cell is a snapshot that was due and did not
+// happen. A count says how many restore points there are; this says whether the
+// schedule is keeping its promise.
+//
+// The image is drawn at twice its display size, because macOS scales menu images
+// down and a strip drawn at 1× on a Retina display is visibly soft.
+func Coverage(taken []time.Time, now time.Time, period time.Duration, cells int, dark bool) ([]byte, error) {
 	const (
-		scale     = 2
-		cellW     = 3 * scale // wide enough that a single hour is still visible
-		cellH     = 11 * scale
-		gap       = 1 * scale
-		hoursWide = 48 // two days: far enough back to show a nightly rhythm
+		scale = 2
+		// Wider than the hourly strip's cells were: there are a third as many of
+		// them now, and a mark standing for three hours of work deserves the room.
+		cellW = 8 * scale
+		cellH = 11 * scale
+		gap   = 1 * scale
 	)
 
-	filled := hoursFilled(taken, now, window, hoursWide)
-	hours := len(filled)
+	filled := periodsFilled(taken, now, period, cells)
+	count := len(filled)
 
-	width := hours*cellW + (hours-1)*gap
+	width := count*cellW + (count-1)*gap
 	img := image.NewNRGBA(image.Rect(0, 0, width, cellH))
 
 	// Two greys rather than a colour: the level already has a colour of its own on
@@ -88,12 +106,12 @@ func Coverage(taken []time.Time, now time.Time, window time.Duration, dark bool)
 		off = color.NRGBA{0xeb, 0xeb, 0xf5, 0x28}
 	}
 
-	for h := 0; h < hours; h++ {
+	for c := 0; c < count; c++ {
 		shade := off
-		if filled[h] {
+		if filled[c] {
 			shade = on
 		}
-		x0 := h * (cellW + gap)
+		x0 := c * (cellW + gap)
 		for x := x0; x < x0+cellW && x < width; x++ {
 			for y := 0; y < cellH; y++ {
 				img.SetNRGBA(x, y, shade)

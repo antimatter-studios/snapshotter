@@ -338,7 +338,7 @@
     "other": "Snapshot-Status konnte nicht gelesen werden"
   },
   "tray.coverageCaption": {
-    "other": "Letzte zwei Tage (eine Marke entspricht einer Stunde)"
+    "other": "Letzte {{.Span}} (jede Marke entspricht {{.Period}})"
   },
   "tray.newest": {
     "other": "Neuester: {{.when}}"

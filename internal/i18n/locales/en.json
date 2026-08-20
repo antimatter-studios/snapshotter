@@ -338,7 +338,7 @@
     "other": "Could not read snapshot state"
   },
   "tray.coverageCaption": {
-    "other": "Last two days (mark represents an hour)"
+    "other": "Last {{.Span}} (each mark is {{.Period}})"
   },
   "tray.newest": {
     "other": "Newest: {{.when}}"
