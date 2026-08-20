@@ -7,6 +7,36 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.51.0 — 2026-08-20
+
+**Each mark in the menu bar strip is one scheduled snapshot, not one hour.**
+
+The strip measured the machine against a schedule nobody had chosen. On a
+three-hourly schedule two marks in every three were empty however well it was
+doing — the most a working machine could reach was 33% filled, and a real machine
+sat at 29%. A healthy strip and a failing one looked nearly the same, which makes
+the graphic worse than absent: it reported success as failure.
+
+A mark is now one period of the configured schedule. A schedule that never misses
+draws a solid strip, and a gap is a snapshot that was due and did not happen —
+which is the only thing the strip was ever meant to say.
+
+Changing the interval re-buckets the history rather than invalidating it. Moving
+from three hours to six leaves the strip solid: the extra snapshots taken under
+the denser schedule share a cell, which is what "at least one snapshot in this
+period" means. Moving the other way shows gaps for history taken before the
+change, and those gaps are honest — that history did miss, against the schedule
+now in force.
+
+The caption names the unit and the span, because a mark standing for three hours
+looks exactly like one standing for an hour.
+
+**Two translations were wrong in a way worth naming.** Spanish and French put an
+adjective before the interpolated span — "Últimas {{.Span}}" — and the gender of
+that value changes with the unit: "2 días" is masculine, "3 horas" is feminine. No
+single form agrees, so the construction had to go rather than the word be swapped.
+Both now avoid the agreement entirely.
+
 ## v0.50.0 — 2026-08-17
 
 **The figures at the foot of the home screen use four columns, or eight.**

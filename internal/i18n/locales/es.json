@@ -338,7 +338,7 @@
     "other": "No se pudo leer el estado de los snapshots"
   },
   "tray.coverageCaption": {
-    "other": "Últimos dos días (cada marca es una hora)"
+    "other": "Cobertura de {{.Span}} (cada marca son {{.Period}})"
   },
   "tray.newest": {
     "other": "Más reciente: {{.when}}"

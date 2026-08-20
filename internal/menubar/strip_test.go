@@ -25,7 +25,7 @@ func decode(t *testing.T, data []byte) image.Image {
 // read, which shows up as a menu item with no image rather than as an error.
 func TestItProducesAPNG(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
-	data, err := Coverage([]time.Time{now.Add(-time.Hour)}, now, 48*time.Hour, false)
+	data, err := Coverage([]time.Time{now.Add(-time.Hour)}, now, time.Hour, 48, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestAnHourWithASnapshotIsDrawnDifferentlyFromOneWithout(t *testing.T) {
 	const hours = 48
 
 	// One snapshot, an hour ago: the newest cells differ from the oldest.
-	data, err := Coverage([]time.Time{now.Add(-90 * time.Minute)}, now, hours*time.Hour, false)
+	data, err := Coverage([]time.Time{now.Add(-90 * time.Minute)}, now, time.Hour, hours, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestTheNewestSnapshotIsOnTheRight(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	const hours = 48
 
-	data, err := Coverage([]time.Time{now.Add(-30 * time.Minute)}, now, hours*time.Hour, false)
+	data, err := Coverage([]time.Time{now.Add(-30 * time.Minute)}, now, time.Hour, hours, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,14 +95,14 @@ func TestSnapshotsOutsideTheWindowAreNotDrawn(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	const hours = 48
 
-	empty, err := Coverage(nil, now, hours*time.Hour, false)
+	empty, err := Coverage(nil, now, time.Hour, hours, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	old, err := Coverage([]time.Time{
 		now.Add(-72 * time.Hour), // older than the window
 		now.Add(time.Hour),       // in the future, which a clock change can produce
-	}, now, hours*time.Hour, false)
+	}, now, time.Hour, hours, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,11 +117,11 @@ func TestLightAndDarkAreDrawnDifferently(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	snaps := []time.Time{now.Add(-time.Hour)}
 
-	light, err := Coverage(snaps, now, 48*time.Hour, false)
+	light, err := Coverage(snaps, now, time.Hour, 48, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dark, err := Coverage(snaps, now, 48*time.Hour, true)
+	dark, err := Coverage(snaps, now, time.Hour, 48, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestLightAndDarkAreDrawnDifferently(t *testing.T) {
 // and it arrives from a settings file somebody edited.
 func TestAnEmptyWindowStillProducesSomething(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
-	data, err := Coverage(nil, now, 0, false)
+	data, err := Coverage(nil, now, time.Hour, 48, false)
 	if err != nil {
 		t.Fatalf("a zero window failed: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestManySnapshotsInOneHourCoverOneHour(t *testing.T) {
 		taken = append(taken, now.Add(-time.Duration(i)*2*time.Minute))
 	}
 
-	covered, total := HoursCovered(taken, now, 48*time.Hour)
+	covered, total := PeriodsCovered(taken, now, time.Hour, 48)
 	if total != 48 {
 		t.Errorf("the window is not 48 hours wide: %d", total)
 	}
@@ -173,8 +173,71 @@ func TestSnapshotsSpreadAcrossHoursCoverEachOfThem(t *testing.T) {
 		now.Add(-60 * time.Hour),
 	}
 
-	covered, _ := HoursCovered(taken, now, 48*time.Hour)
+	covered, _ := PeriodsCovered(taken, now, time.Hour, 48)
 	if covered != 3 {
 		t.Errorf("three snapshots inside the window covered %d hours", covered)
+	}
+}
+
+// The fault this replaced: an hourly mark measured the machine against a schedule
+// nobody had chosen. On a three-hourly schedule two marks in every three were
+// empty however well it was doing, so a healthy strip and a failing one looked
+// nearly the same.
+func TestAHealthyScheduleFillsTheStrip(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+
+	for _, every := range []time.Duration{time.Hour, 3 * time.Hour, 6 * time.Hour, 24 * time.Hour} {
+		var taken []time.Time
+		for i := 0; i < Cells; i++ {
+			taken = append(taken, now.Add(-time.Duration(i)*every))
+		}
+		filled := periodsFilled(taken, now, every, Cells)
+		for i, f := range filled {
+			if !f {
+				t.Errorf("every %v: cell %d empty on a schedule that never missed", every, i)
+			}
+		}
+	}
+}
+
+// A missed snapshot is the only thing that should leave a gap.
+func TestAMissedSnapshotLeavesOneGap(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	const every = 3 * time.Hour
+
+	var taken []time.Time
+	for i := 0; i < Cells; i++ {
+		if i == 5 {
+			continue // the one that did not happen
+		}
+		taken = append(taken, now.Add(-time.Duration(i)*every))
+	}
+
+	filled := periodsFilled(taken, now, every, Cells)
+	gaps := 0
+	for _, f := range filled {
+		if !f {
+			gaps++
+		}
+	}
+	if gaps != 1 {
+		t.Errorf("one missed snapshot produced %d gaps", gaps)
+	}
+}
+
+// Moving to a longer interval must not invent gaps: the extra snapshots taken
+// under the denser schedule simply share a cell.
+func TestALongerIntervalAbsorbsTheDenserHistory(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+
+	var everyThree []time.Time
+	for i := 0; i < Cells*2; i++ {
+		everyThree = append(everyThree, now.Add(-time.Duration(i)*3*time.Hour))
+	}
+
+	for _, f := range periodsFilled(everyThree, now, 6*time.Hour, Cells) {
+		if !f {
+			t.Error("history taken every three hours showed a gap when read at six")
+		}
 	}
 }

@@ -34,11 +34,6 @@ var menuIsDark = func() bool {
 	return err == nil && strings.Contains(string(out), "Dark")
 }
 
-// coverageWindow is how far back the menu's strip reaches. Two days is far
-// enough to show a nightly rhythm and close enough that each hour is still wide
-// enough to see.
-const coverageWindow = 48 * time.Hour
-
 // trayRefreshDefault is how often the menu bar recomputes when nothing is
 // configured. The underlying state moves on the schedule's interval — hours, not
 // seconds — so this is about noticing a snapshot taken elsewhere rather than about
@@ -64,10 +59,19 @@ func installTray(app *application.App, status *services.StatusService, win appli
 	// refresh loop below reads it.
 	var mu sync.Mutex
 	trayRefresh := cfg.MenuBarRefresh()
+	// The strip draws one mark per scheduled period, so it needs the interval the
+	// schedule is set to. Held here rather than read per render for the same
+	// reason as the refresh: the applier below updates it when the settings change.
+	trayInterval := time.Duration(cfg.Schedule.IntervalHours * float64(time.Hour))
 	interval := func() time.Duration {
 		mu.Lock()
 		defer mu.Unlock()
 		return trayRefresh
+	}
+	snapshotEvery := func() time.Duration {
+		mu.Lock()
+		defer mu.Unlock()
+		return trayInterval
 	}
 
 	tray := app.SystemTray.New()
@@ -136,7 +140,12 @@ func installTray(app *application.App, status *services.StatusService, win appli
 				for _, snap := range snaps {
 					taken = append(taken, snap.Taken)
 				}
-				if strip, drawErr := menubar.Coverage(taken, time.Now(), coverageWindow, menuIsDark()); drawErr == nil {
+				// One mark per scheduled period. An hourly mark measured the machine
+				// against a schedule nobody had chosen: on a three-hourly schedule two
+				// marks in three were empty however well it was doing, so a healthy
+				// strip and a failing one looked alike.
+				every := snapshotEvery()
+				if strip, drawErr := menubar.Coverage(taken, time.Now(), every, menubar.Cells, menuIsDark()); drawErr == nil {
 					// The caption sits above the strip rather than beside it: macOS
 					// draws an item's image before its label, so a labelled strip
 					// reads as a picture with its caption trailing off to the right.
@@ -146,7 +155,12 @@ func installTray(app *application.App, status *services.StatusService, win appli
 					// point of showing when rather than how many — but without the
 					// unit written down it reads as a strip that has stopped
 					// updating.
-					menu.Add(i18n.T("tray.coverageCaption")).OnClick(reveal)
+					// The caption names the unit, because the strip cannot: a mark that
+					// stands for three hours looks exactly like one that stands for an
+					// hour.
+					menu.Add(i18n.T("tray.coverageCaption",
+						"Span", i18n.Span(every.Hours()*float64(menubar.Cells)),
+						"Period", i18n.Span(every.Hours()))).OnClick(reveal)
 					menu.Add("").SetBitmap(strip).OnClick(reveal)
 				}
 			}
@@ -205,6 +219,7 @@ func installTray(app *application.App, status *services.StatusService, win appli
 	return func(next config.Config) {
 		mu.Lock()
 		trayRefresh = next.MenuBarRefresh()
+		trayInterval = time.Duration(next.Schedule.IntervalHours * float64(time.Hour))
 		mu.Unlock()
 
 		// Always, rather than only when the interval changed. Deciding which

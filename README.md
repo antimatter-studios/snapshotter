@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.51.0
+
+The menu bar strip draws one mark per scheduled snapshot rather than per hour, so
+a working schedule fills it and a gap means a snapshot that did not happen.
+
 ### v0.50.0
 
 The home screen figures use four columns, or eight on a wide window — the only two
@@ -379,11 +384,6 @@ prompts, the notifications the background agents post, and the retention sentenc
 
 Translation is handled by i18next and go-i18n, and image comparison by pixelmatch,
 in place of hand-written versions. Plurals now follow each language's own rules.
-
-### v0.41.0
-
-The health findings, the menu bar and notifications are translated, so the whole
-application follows the language rather than only the window.
 
 
 ## Design decisions
