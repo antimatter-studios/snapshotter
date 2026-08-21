@@ -7,6 +7,25 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.52.0 — 2026-08-21
+
+**The menu says what the schedule is, under the strip that says whether it was
+kept.**
+
+"Every 3 hours, kept 14 days", or "No schedule — snapshots only when you take
+one".
+
+The two lines are only readable together. A solid strip means nothing until you
+know whether a mark stands for an hour or a day, and an interval means nothing
+without seeing whether it was actually kept. Until now the strip was there and
+the schedule it measured against was not, so the reader had to infer the interval
+from the spacing of the marks.
+
+**Four menu items were still English.** "Next due", "Take a snapshot now", "Open
+Snapshotter" and "Quit". Three of them already had messages in the catalogue that
+nothing was calling — translated once and then never wired, which no test can
+catch: an unused message is not a missing one.
+
 ## v0.51.0 — 2026-08-20
 
 **Each mark in the menu bar strip is one scheduled snapshot, not one hour.**

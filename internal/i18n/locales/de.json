@@ -340,8 +340,17 @@
   "tray.coverageCaption": {
     "other": "Letzte {{.Span}} (jede Marke entspricht {{.Period}})"
   },
+  "tray.mode.manual": {
+    "other": "Kein Zeitplan — Snapshots nur, wenn Sie einen erstellen"
+  },
+  "tray.mode.scheduled": {
+    "other": "Alle {{.Every}}, aufbewahrt {{.Kept}}"
+  },
   "tray.newest": {
     "other": "Neuester: {{.when}}"
+  },
+  "tray.nextDue": {
+    "other": "Nächster fällig: {{.When}}"
   },
   "tray.openWindow": {
     "other": "Snapshotter öffnen"

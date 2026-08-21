@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.52.0
+
+The menu bar names the schedule under the coverage strip, so the marks can be read
+against what they are measuring.
+
 ### v0.51.0
 
 The menu bar strip draws one mark per scheduled snapshot rather than per hour, so
@@ -379,11 +384,6 @@ everything else. Command syntax stays in English, being what you type.
 
 Every piece of text a person reads is translated, including the macOS password
 prompts, the notifications the background agents post, and the retention sentence.
-
-### v0.42.0
-
-Translation is handled by i18next and go-i18n, and image comparison by pixelmatch,
-in place of hand-written versions. Plurals now follow each language's own rules.
 
 
 ## Design decisions
