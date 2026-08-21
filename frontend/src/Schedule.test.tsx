@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Schedule } from "./Schedule";
-import { Schedule as ScheduleAPI } from "./api";
+import { Schedule as ScheduleAPI, type ScheduleView } from "./api";
 import "./i18n";
 
 // Choosing what is kept, which is the one screen that decides what gets deleted.
@@ -23,7 +23,9 @@ const view = {
   retained: 113,
   conflicts: [],
   logPath: "/tmp/log",
-} as never;
+  // Typed rather than cast to never: the cases below spread it to vary one
+  // field, and never cannot be spread.
+} as unknown as ScheduleView;
 
 const policies = [
   { id: "flat", name: "Flat window", summary: "Everything for 14 days.", tiers: [], retained: 113, reachDays: 14 },
@@ -31,7 +33,7 @@ const policies = [
 ] as never;
 
 function stub() {
-  vi.spyOn(ScheduleAPI, "Status").mockResolvedValue(view);
+  vi.spyOn(ScheduleAPI, "Status").mockResolvedValue(view as never);
   vi.spyOn(ScheduleAPI, "Policies").mockResolvedValue(policies);
   vi.spyOn(ScheduleAPI, "Log").mockResolvedValue("" as never);
 }
@@ -64,7 +66,7 @@ describe("choosing what is kept", () => {
 
   it("sends the chosen policy, interval and retention to be installed", async () => {
     stub();
-    const install = vi.spyOn(ScheduleAPI, "InstallPolicy").mockResolvedValue(view);
+    const install = vi.spyOn(ScheduleAPI, "InstallPolicy").mockResolvedValue(view as never);
     render(<Schedule onStatus={() => {}} />);
 
     const group = await screen.findByRole("radiogroup");
