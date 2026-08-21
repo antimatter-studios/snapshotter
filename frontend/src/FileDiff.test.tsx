@@ -113,4 +113,75 @@ describe("comparing one file", () => {
     expect(await screen.findByText(/binary file/i)).toBeTruthy();
     expect(screen.getByText(/2\.0 MB/)).toBeTruthy();
   });
+  it("says a whole side was added rather than showing an empty pane", async () => {
+    vi.spyOn(Diff, "FileVersions").mockResolvedValue(text({ leftExists: false, left: "" }) as never);
+    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/new.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+
+    // A file that is not in the snapshot presents as every line added, which is
+    // true but unhelpful: what happened is that the file is newer than the
+    // snapshot, and that is the sentence someone came here for.
+    expect(await screen.findByText(/added|not in/i)).toBeTruthy();
+  });
+
+  it("says a whole side was removed", async () => {
+    vi.spyOn(Diff, "FileVersions").mockResolvedValue(text({ rightExists: false, right: "" }) as never);
+    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+
+    // The case someone browsing a snapshot is most often here to find.
+    expect(await screen.findByText(/removed|deleted|no longer/i)).toBeTruthy();
+  });
+
+  it("hands a picture to the image view instead of comparing its bytes as lines", async () => {
+    vi.spyOn(Diff, "FileVersions").mockResolvedValue(
+      text({ kind: "image", leftImage: "data:image/png;base64,AAAA", rightImage: "data:image/png;base64,AAAA" }) as never,
+    );
+    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/shot.png" snapshots={snapshots} dark={false} onClose={() => {}} />);
+
+    // A line-by-line comparison has nothing to say about a screenshot.
+    await waitFor(() => expect(document.querySelector(".image-diff")).not.toBeNull());
+  });
+
+  it("says why the versions could not be read", async () => {
+    vi.spyOn(Diff, "FileVersions").mockRejectedValue(new Error("the snapshot is no longer mounted"));
+    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+
+    expect(await screen.findByText(/no longer mounted/)).toBeTruthy();
+    // And not still claiming to be reading, which is what an error left the panel
+    // saying when it only ever cleared on success.
+    expect(screen.queryByText(/reading/i)).toBeNull();
+  });
+
+  it("says it is reading before either version arrives", async () => {
+    vi.spyOn(Diff, "FileVersions").mockReturnValue(new Promise(() => {}) as never);
+    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+
+    // Reading two versions of a large file off a mounted snapshot is not instant,
+    // and a blank panel reads as a file with nothing in it.
+    expect(await screen.findByText(/reading/i)).toBeTruthy();
+  });
+
+  // A target unmounted while the panel was open is no longer offered, and the
+  // panel falls back to the disk rather than reading from a snapshot that is gone.
+  it("falls back to the live disk when the chosen target goes away", async () => {
+    const read = vi.spyOn(Diff, "FileVersions").mockResolvedValue(text() as never);
+    const { rerender } = render(
+      <FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />,
+    );
+    await waitFor(() => expect(read).toHaveBeenCalled());
+    await userEvent.selectOptions(screen.getByRole("combobox"), "snap-b");
+    await waitFor(() => expect(read).toHaveBeenLastCalledWith("snap-a", "/Users/someone/notes.md", "snap-b"));
+
+    rerender(
+      <FileDiff
+        snapshot="snap-a"
+        livePath="/Users/someone/notes.md"
+        snapshots={snapshots.filter((s) => s.name !== "snap-b")}
+        dark={false}
+        onClose={() => {}}
+      />,
+    );
+
+    // The empty string is the live disk, which is always readable.
+    await waitFor(() => expect(read).toHaveBeenLastCalledWith("snap-a", "/Users/someone/notes.md", ""));
+  });
 });

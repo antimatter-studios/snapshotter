@@ -254,3 +254,32 @@ describe("moving around", () => {
     expect(await screen.findByText(/empty|nothing/i)).toBeTruthy();
   });
 });
+
+describe("when the folder cannot be listed", () => {
+  it("says why, and shows no table rather than an empty one", async () => {
+    vi.spyOn(Browse, "Merged").mockRejectedValue(new Error("no snapshot covers this folder"));
+
+    render(<Browser snapshot={snapshot} path="/Volumes/other" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    expect(await screen.findByText(/no snapshot covers/)).toBeTruthy();
+    // An empty table under a heading reads as a folder with nothing in it, which
+    // is a different and much more alarming fact than a folder that could not be
+    // read.
+    expect(document.querySelector("tbody tr")).toBeNull();
+  });
+
+  it("passes on a note from the service without treating it as a failure", async () => {
+    vi.spyOn(Browse, "Merged").mockResolvedValue({
+      rows: [],
+      note: "Only the first 5,000 entries are shown.",
+    } as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    const note = await screen.findByText(/first 5,000/);
+    // As a note, not an error: the listing is correct as far as it goes, and
+    // colouring it red would say something went wrong.
+    expect(note.className).toContain("note");
+    expect(note.className).not.toContain("error");
+  });
+});

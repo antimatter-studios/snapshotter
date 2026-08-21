@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
-import { Snapshots, Status, Config, Browse, Schedule } from "./api";
+import { Snapshots, Status, Config, Browse, Schedule, Diff } from "./api";
 import "./i18n";
 
 // The shell: the snapshot list, which one is selected, and the actions that act
@@ -243,5 +243,107 @@ describe("searching", () => {
     // By its placeholder: the field carries no label, and the panel it sits in is
     // the only thing on screen that asks for a name.
     expect(await screen.findByPlaceholderText(/name/i)).toBeTruthy();
+  });
+});
+
+describe("comparing a file from the browser", () => {
+  it("opens the comparison over the listing, and closes it again", async () => {
+    stub();
+    vi.spyOn(Browse, "Merged").mockResolvedValue({
+      rows: [{
+        relPath: "notes.md",
+        absLive: "/Users/someone/notes.md",
+        absSnapshot: "/tmp/a/Users/someone/notes.md",
+        isDir: false,
+        status: "modified",
+        snapSize: 10,
+        liveSize: 12,
+        snapModTime: "2026-08-20T11:00:00Z",
+        liveModTime: "2026-08-20T11:30:00Z",
+      }],
+      note: "",
+    } as never);
+    vi.spyOn(Diff, "FileVersions").mockResolvedValue({
+      kind: "text", readable: true, left: "before", right: "after",
+      rightLabel: "Live disk", leftExists: true, rightExists: true,
+      leftSize: 10, rightSize: 12, note: "",
+    } as never);
+
+    render(<App />);
+    await userEvent.click(await snapshotRow());
+    await userEvent.click(await screen.findByRole("button", { name: /compare/i }));
+
+    // Over the listing rather than beside it: a comparison wants the width, and
+    // it is opened for one file and closed again — by Escape, since the reader's
+    // hands are on the keyboard and the thing is a temporary overlay.
+    expect(await screen.findByText("before")).toBeTruthy();
+    await userEvent.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByText("before")).toBeNull());
+    // And the listing is still there underneath, not reloaded from nothing.
+    expect(screen.getByText("notes.md")).toBeTruthy();
+  });
+});
+
+describe("getting back out", () => {
+  it("leaves a snapshot for the machine itself", async () => {
+    stub();
+
+    render(<App />);
+    await userEvent.click(await snapshotRow());
+    await screen.findByRole("button", { name: /browse/i });
+
+    // Once a snapshot is selected every tab reads as being about that snapshot,
+    // so leaving has to be as explicit as arriving was.
+    await userEvent.click(screen.getByRole("button", { name: /home/i }));
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: /browse/i })).toBeNull());
+  });
+
+  it("closes every open snapshot", async () => {
+    stub();
+    const closed = vi.spyOn(Snapshots, "UnmountAll").mockResolvedValue(undefined as never);
+
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /close all/i }));
+
+    await waitFor(() => expect(closed).toHaveBeenCalled());
+  });
+
+  it("dismisses a status line when it is clicked", async () => {
+    stub();
+    vi.spyOn(Snapshots, "TakeNow").mockResolvedValue({} as never);
+
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /take a snapshot now/i }));
+    const said = await screen.findByText(/snapshot/i, { selector: ".banner.ok" });
+
+    await userEvent.click(said);
+
+    // Dismissible because it stays until something else happens: a line reporting
+    // a snapshot taken ten minutes ago is no longer news.
+    await waitFor(() => expect(document.querySelector(".banner.ok")).toBeNull());
+  });
+});
+
+describe("when the machine cannot be read", () => {
+  it("says why instead of showing an empty list", async () => {
+    stub();
+    vi.spyOn(Snapshots, "Overview").mockRejectedValue(new Error("the volume is not mounted"));
+
+    render(<App />);
+
+    expect(await screen.findByText(/the volume is not mounted/)).toBeTruthy();
+  });
+
+  it("shows no disk gauge when the size is unknown", async () => {
+    stub({ volumeTotalBytes: 0, volumeFreeBytes: 0 });
+
+    render(<App />);
+    await waitFor(() => expect(document.querySelector("ul.snapshot-list")).not.toBeNull());
+
+    // A gauge of an unknown total would draw a bar at some arbitrary fraction,
+    // which states a fact nobody knows.
+    expect(document.querySelector(".disk-text")).toBeNull();
   });
 });
