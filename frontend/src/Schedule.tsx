@@ -136,11 +136,14 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
 
       <section>
         <h2>{t("schedule.whatIsKept")}</h2>
-        <p className="explain">
-          Snapshots can be kept flat — everything inside the window set above — or thinned as they age: everything for
-          the last day or two, then one a day, then one a week. Thinning reaches months back for about the count a flat
-          fortnight already costs, because an old snapshot is wanted for the day it covers rather than for the hour.
-        </p>
+          <p className="explain">{t("schedule.flatOrThinned")}</p>
+
+          {/* Said here rather than discovered later: a snapshot taken between
+              periods is removed, and one of those is the snapshot the tripwire
+              takes when files start disappearing — which the application also
+              sends a notification about. Being told a snapshot exists and then
+              finding it gone is the surprise worth heading off. */}
+          <p className="explain">{t("schedule.onePerPeriod")}</p>
 
         {/* Both numbers are computed by planning a history through the same
             function that does the deleting, so what is promised here is what

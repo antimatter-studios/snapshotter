@@ -225,6 +225,9 @@
   "schedule.noneInstalled": {
     "other": "Kein Zeitplan eingerichtet. Es werden keine Snapshots automatisch erstellt."
   },
+  "schedule.onePerPeriod": {
+    "other": "Pro Zeitraum wird nur ein Snapshot behalten. Weitere im selben Zeitraum — auch einer, der automatisch erstellt wird, wenn Dateien zu verschwinden beginnen — werden entfernt, und behalten wird der früheste, weil er am meisten von dem enthält, was da war."
+  },
   "schedule.taskNotWrittenYet": {
     "other": "Die geplante Aufgabe hat noch nichts geschrieben."
   },

@@ -225,6 +225,9 @@
   "schedule.noneInstalled": {
     "other": "No hay programación instalada. Nada crea snapshots automáticamente."
   },
+  "schedule.onePerPeriod": {
+    "other": "Solo se conserva un snapshot por periodo. Los demás del mismo periodo —incluido uno creado automáticamente cuando empiezan a desaparecer archivos— se eliminan, y se conserva el más antiguo, porque contiene la mayor parte de lo que había."
+  },
   "schedule.taskNotWrittenYet": {
     "other": "La tarea programada aún no ha escrito nada."
   },

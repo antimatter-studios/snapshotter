@@ -225,6 +225,9 @@
   "schedule.noneInstalled": {
     "other": "Aucune planification installée. Rien ne crée de snapshots automatiquement."
   },
+  "schedule.onePerPeriod": {
+    "other": "Un seul snapshot est conservé par période. Les autres de la même période — y compris celui créé automatiquement lorsque des fichiers commencent à disparaître — sont supprimés, et c'est le plus ancien qui est gardé, car il contient le plus de ce qui était là."
+  },
   "schedule.taskNotWrittenYet": {
     "other": "La tâche planifiée n'a encore rien écrit."
   },

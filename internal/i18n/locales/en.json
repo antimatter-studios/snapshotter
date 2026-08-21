@@ -225,6 +225,9 @@
   "schedule.noneInstalled": {
     "other": "No schedule installed. Nothing is taking snapshots automatically."
   },
+  "schedule.onePerPeriod": {
+    "other": "Only one snapshot is kept per period. Any others taken in the same period — including one taken automatically when files start disappearing — are removed, and the earliest is the one kept, because it holds the most of what was there."
+  },
   "schedule.taskNotWrittenYet": {
     "other": "The scheduled task has not written anything yet."
   },
