@@ -290,7 +290,7 @@
     "other": "{{.Count}} snapshots, mais rien n'en crée d'autres"
   },
   "status.lowSpace.detail": {
-    "other": "{{.Percent}} du volume est libre. Les snapshots sont libérables : sous pression disque, macOS récupère les plus anciens plutôt que d'échouer une écriture, quelle que soit la rétention configurée. Libérer de l'espace est ce qui les préserve."
+    "other": "{{.Percent}} du volume est libre. Les snapshots sont purgeables : lorsque l'espace disque devient insuffisant, macOS récupère les plus anciens plutôt que d'échouer une écriture, quelle que soit la rétention configurée. Libérer de l'espace est ce qui les préserve."
   },
   "status.lowSpace.title": {
     "other": "Il ne reste que {{.Free}} — d'anciens snapshots pourraient être supprimés"

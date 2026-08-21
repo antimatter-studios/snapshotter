@@ -290,7 +290,7 @@
     "other": "{{.Count}} Snapshots, aber nichts erstellt weitere"
   },
   "status.lowSpace.detail": {
-    "other": "{{.Percent}} des Volumes sind frei. Snapshots sind freigebbar: Bei Speicherdruck gibt macOS die ältesten frei, statt einen Schreibvorgang scheitern zu lassen — unabhängig von der eingestellten Aufbewahrung. Nur freier Speicher hält sie."
+    "other": "{{.Percent}} des Volumes sind frei. Snapshots gelten als bereinigbarer Speicherplatz: Wird der Speicherplatz knapp, gibt macOS die ältesten frei, statt einen Schreibvorgang scheitern zu lassen — unabhängig von der eingestellten Aufbewahrung. Nur freier Speicherplatz erhält sie."
   },
   "status.lowSpace.title": {
     "other": "Nur noch {{.Free}} frei — alte Snapshots könnten entfernt werden"
