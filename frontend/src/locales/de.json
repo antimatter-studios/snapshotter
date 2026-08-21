@@ -12,7 +12,6 @@
   "app.closed": "Geschlossen",
   "app.closedEvery": "Alle Snapshots geschlossen",
   "app.free": "frei",
-  "app.fullDiskAccess": "Voller Festplattenzugriff",
   "app.macosRefused": "macOS konnte den Snapshot nicht einbinden.",
   "app.mountsSimulated": "Einbindungen sind simuliert.",
   "app.mountsSimulatedLead": "Einbindungen sind simuliert.",

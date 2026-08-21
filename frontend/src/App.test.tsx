@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { Snapshots, Status, Config, Browse, Schedule, Diff } from "./api";
-import "./i18n";
+import i18n from "./i18n";
 
 // The shell: the snapshot list, which one is selected, and the actions that act
 // on the machine rather than on a snapshot.
@@ -345,5 +345,36 @@ describe("when the machine cannot be read", () => {
     // A gauge of an unknown total would draw a bar at some arbitrary fraction,
     // which states a fact nobody knows.
     expect(document.querySelector(".disk-text")).toBeNull();
+  });
+});
+
+// The bug this guards: the phrase was looked up in the catalogue, so the check
+// compared a German phrase against an English error and never matched. Every
+// language but English lost the instructions and the settings button, and got the
+// raw refusal instead — with nothing to do about it.
+describe("the refusal is recognised whatever the window speaks", () => {
+  for (const language of ["de", "es", "fr"]) {
+    it(`shows the instructions in ${language}`, async () => {
+      stub();
+      vi.spyOn(Snapshots, "Mount").mockRejectedValue(
+        new Error("macOS refused to mount the snapshot. Mounting needs Full Disk Access as well as an administrator password"),
+      );
+      vi.spyOn(Status, "MountHelp").mockResolvedValue("Wie man den Zugriff erteilt." as never);
+      await i18n.changeLanguage(language);
+
+      render(<App />);
+      // By position, not by the word on it: the button says Öffnen, Abrir or
+      // Ouvrir here. snap-b is the closed one, so its only action is to open it.
+      await userEvent.click(within(await snapshotRow(1)).getByRole("button"));
+
+      expect(await screen.findByText("Wie man den Zugriff erteilt.")).toBeTruthy();
+      // The raw English refusal is not what is shown, which is the whole point of
+      // recognising it.
+      expect(screen.queryByText(/administrator password/)).toBeNull();
+    });
+  }
+
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
   });
 });

@@ -29,6 +29,22 @@ type Tab = "browse" | "search";
  *  whole-machine; snapshots is the one that depends on what is selected. */
 type View = "home" | "snapshots" | "schedule";
 
+/**
+ * The phrase that identifies a mount refused for want of Full Disk Access.
+ *
+ * Matched literally, and deliberately not through the catalogue. It was a
+ * translation key, which meant the check compared a German phrase against an
+ * English error message and never matched: for every language but English the
+ * instructions and the settings button silently never appeared, and the reader
+ * got the raw refusal with nothing to do about it.
+ *
+ * The error is produced by mountmgr.ErrNeedsFullDiskAccess and is English
+ * whatever the window is set to, because it names a permission macOS itself only
+ * names in English. That package has a test asserting the message still contains
+ * this, so rewording it there fails there rather than silently here.
+ */
+const refusalMarker = "Full Disk Access";
+
 export default function App() {
   const { t } = useTranslation();
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -56,7 +72,7 @@ export default function App() {
   // A refusal to mount is not an ordinary error: it names a permission, and the
   // place to grant it is four levels into System Settings. Recognising it here
   // is what turns a dead end into something with a next step.
-  const mountRefused = error.includes(t("app.fullDiskAccess"));
+  const mountRefused = error.includes(refusalMarker);
 
   const refresh = useCallback(async () => {
     try {

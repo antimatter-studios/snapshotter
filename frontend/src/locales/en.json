@@ -12,7 +12,6 @@
   "app.closed": "Closed",
   "app.closedEvery": "Closed every snapshot",
   "app.free": "free",
-  "app.fullDiskAccess": "Full Disk Access",
   "app.macosRefused": "macOS would not mount the snapshot.",
   "app.mountsSimulated": "Mounts are simulated.",
   "app.mountsSimulatedLead": "Mounts are simulated.",

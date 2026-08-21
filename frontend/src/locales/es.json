@@ -12,7 +12,6 @@
   "app.closed": "Cerrado",
   "app.closedEvery": "Se cerraron todos los snapshots",
   "app.free": "libre",
-  "app.fullDiskAccess": "Acceso total al disco",
   "app.macosRefused": "macOS no pudo montar el snapshot.",
   "app.mountsSimulated": "Los montajes son simulados.",
   "app.mountsSimulatedLead": "Los montajes son simulados.",
