@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Browser } from "./Browser";
-import { Browse } from "./api";
+import { Browse, Restore } from "./api";
 import type { SnapshotView } from "./api";
 import "./i18n";
 
@@ -131,5 +131,126 @@ describe("browsing a folder", () => {
     await userEvent.click(screen.getByRole("checkbox"));
     await waitFor(() => expect(screen.queryByText("archive/")).toBeNull());
     expect(screen.getByText("projects/")).toBeTruthy();
+  });
+  it("offers a way in when no snapshot is chosen yet", () => {
+    render(<Browser snapshot={null} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    expect(screen.getByRole("heading")).toHaveTextContent(/snapshot/i);
+  });
+
+  // A snapshot that exists but is not mounted has no files to show. The screen
+  // has to say so and offer the one action that changes it, because otherwise an
+  // empty table reads as a snapshot that captured nothing.
+  it("offers to open a snapshot that is not mounted", async () => {
+    const open = vi.fn();
+    render(<Browser snapshot={{ ...snapshot, mounted: false }} path="/Users/someone" onPathChange={() => {}} onMount={open} onDiff={() => {}} onStatus={() => {}} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /open/i }));
+    expect(open).toHaveBeenCalled();
+  });
+});
+
+describe("putting a file back", () => {
+  const file = row("notes.md", false, "modified");
+
+  it("says where the file went, and that the old one was kept", async () => {
+    mount([file]);
+    vi.spyOn(Restore, "Restore").mockResolvedValue({
+      destination: "/Users/someone/notes.md",
+      backedUp: "/Users/someone/notes.md.before-restore",
+    } as never);
+    const status = vi.fn();
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={status} />);
+    await userEvent.click(await screen.findByRole("button", { name: /copy/i }));
+
+    // Both halves matter: where it landed, and that nothing was destroyed to put
+    // it there. A restore that silently overwrote would be reported the same way.
+    await waitFor(() => expect(status).toHaveBeenCalled());
+    const said = status.mock.calls[0][0] as string;
+    expect(said).toContain("/Users/someone/notes.md");
+    expect(said).toContain("notes.md.before-restore");
+  });
+
+  it("replaces in place only for a file that differs", async () => {
+    mount([file, row("photo.jpg", false, "onlyInSnapshot")]);
+    const restore = vi.spyOn(Restore, "Restore").mockResolvedValue({ destination: "/x", backedUp: "" } as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+    await screen.findByText("notes.md");
+
+    // Only the changed file offers Replace: for a file that exists on one side
+    // alone there is nothing to replace, and offering it would imply otherwise.
+    const replace = screen.getAllByRole("button", { name: /replace/i });
+    expect(replace).toHaveLength(1);
+
+    await userEvent.click(replace[0]);
+    await waitFor(() => expect(restore).toHaveBeenCalledWith(expect.objectContaining({ replace: true })));
+  });
+
+  it("shows why a restore failed rather than reporting success", async () => {
+    mount([file]);
+    vi.spyOn(Restore, "Restore").mockRejectedValue(new Error("the destination is read-only"));
+    const status = vi.fn();
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={status} />);
+    await userEvent.click(await screen.findByRole("button", { name: /copy/i }));
+
+    expect(await screen.findByText(/read-only/)).toBeTruthy();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  // A file that exists only on disk was never in the snapshot, so there is
+  // nothing to put back and the button would fail if pressed.
+  it("offers nothing to put back for a file the snapshot never held", async () => {
+    mount([row("draft.txt", false, "onlyOnDisk")]);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+    await screen.findByText("draft.txt");
+
+    expect(screen.queryByRole("button", { name: /copy/i })).toBeNull();
+    // Comparing it is still offered: one whole side added is worth seeing.
+    expect(screen.getByRole("button", { name: /compare/i })).toBeTruthy();
+  });
+});
+
+describe("moving around", () => {
+  it("walks into a folder by its name", async () => {
+    mount([row("projects", true)]);
+    vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "modified", why: "" } as never);
+    const went = vi.fn();
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={went} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+    await userEvent.click(await screen.findByText("projects/"));
+
+    expect(went).toHaveBeenCalledWith("/Users/someone/projects");
+  });
+
+  it("walks back out through a breadcrumb", async () => {
+    mount([]);
+    const went = vi.fn();
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={went} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "Users" }));
+
+    expect(went).toHaveBeenCalledWith("/Users");
+  });
+
+  it("says why Finder could not be opened instead of appearing to work", async () => {
+    mount([]);
+    vi.spyOn(Browse, "RevealInFinder").mockRejectedValue(new Error("no such folder on disk"));
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: /finder/i }));
+
+    expect(await screen.findByText(/no such folder/)).toBeTruthy();
+  });
+
+  it("says the folder is empty rather than showing a bare table", async () => {
+    mount([]);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    expect(await screen.findByText(/empty|nothing/i)).toBeTruthy();
   });
 });

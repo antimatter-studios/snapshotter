@@ -25,5 +25,26 @@ export default defineConfig({
     environmentOptions: { jsdom: { url: "http://localhost/" } },
     setupFiles: ["./src/test-setup.ts"],
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+      coverage: {
+        // The window's own code, and nothing else. Left to itself the report is
+        // dominated by the generated bindings — thousands of lines of model
+        // constructors nobody writes and nobody should be asked to test — which
+        // pulled the headline figure to 40% while the code people actually edit
+        // sat at 75%. A number that misleads in that direction is worse than
+        // none, because it makes real progress invisible.
+        include: ["src/**/*.ts", "src/**/*.tsx"],
+        exclude: [
+          "src/**/*.test.ts",
+          "src/**/*.test.tsx",
+          "src/test-setup.ts",
+          // Catalogues are data, and their contents are checked by i18n.test.ts
+          // rather than by being executed.
+          "src/locales/**",
+          "src/i18n/**",
+          // The mount point. Rendering the whole application to execute four
+          // lines would be testing the harness.
+          "src/main.tsx",
+        ],
+      },
   },
 });

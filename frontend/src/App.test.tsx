@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
-import { Snapshots, Status, Config, Browse } from "./api";
+import { Snapshots, Status, Config, Browse, Schedule } from "./api";
 import "./i18n";
 
 // The shell: the snapshot list, which one is selected, and the actions that act
@@ -42,6 +42,19 @@ function stub(over: Record<string, unknown> = {}) {
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+/** The nth snapshot row, once the list has arrived.
+ *
+ *  By position in the list rather than by the date it shows: the row renders a
+ *  localised timestamp and a relative age, and asserting on either would make
+ *  these fail when the clock moves rather than when the list breaks. */
+async function snapshotRow(n = 0) {
+  return await waitFor(() => {
+    const rows = document.querySelectorAll("ul.snapshot-list li");
+    expect(rows.length).toBeGreaterThan(n);
+    return rows[n] as HTMLElement;
+  });
+}
 
 describe("the application shell", () => {
   it("lists every snapshot on the machine", async () => {
@@ -117,5 +130,118 @@ describe("the application shell", () => {
     render(<App />);
 
     expect(await screen.findByText(/backup destination configured/i)).toBeTruthy();
+  });
+});
+
+// The one failure that needs a different answer from every other: macOS refusing
+// the mount for want of Full Disk Access. It is not a fault to report — nothing
+// this application can do will fix it — so the banner carries the instructions
+// and the way to the settings pane instead of an error message.
+describe("when macOS refuses", () => {
+  it("explains what to grant and offers the settings pane", async () => {
+    stub();
+    vi.spyOn(Snapshots, "Mount").mockRejectedValue(
+      new Error("mounting was refused: grant Full Disk Access to snapshotter"),
+    );
+    vi.spyOn(Status, "MountHelp").mockResolvedValue("Grant Full Disk Access in System Settings." as never);
+    const settings = vi.spyOn(Status, "OpenPrivacySettings").mockResolvedValue(undefined as never);
+
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /^open$/i }));
+
+    expect(await screen.findByText(/Grant Full Disk Access in System Settings/)).toBeTruthy();
+    // The raw error is not shown alongside it: two messages read as two problems,
+    // and the one from Go says nothing the instructions do not.
+    expect(screen.queryByText(/mounting was refused/)).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: /settings/i }));
+    expect(settings).toHaveBeenCalled();
+  });
+
+  it("reports an ordinary failure as itself", async () => {
+    stub();
+    vi.spyOn(Snapshots, "Mount").mockRejectedValue(new Error("the snapshot has gone"));
+
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /^open$/i }));
+
+    expect(await screen.findByText(/the snapshot has gone/)).toBeTruthy();
+  });
+});
+
+describe("choosing a snapshot", () => {
+  it("shows what is in it as soon as it is picked", async () => {
+    stub();
+
+    render(<App />);
+    // Clicking the row, not a button in it: picking a snapshot from the list is
+    // how the browser is reached, and it was the only route never exercised.
+    await userEvent.click(await snapshotRow());
+
+    expect(await screen.findByRole("button", { name: /browse/i })).toBeTruthy();
+  });
+
+  it("closes a snapshot without also selecting it", async () => {
+    stub();
+    const closed = vi.spyOn(Snapshots, "Unmount").mockResolvedValue(undefined as never);
+
+    render(<App />);
+    // Scoped to the row: the screen has more than one Close, and the one that
+    // matters is the one sitting inside the snapshot it closes.
+    await userEvent.click(within(await snapshotRow()).getByRole("button", { name: /close/i }));
+
+    // The button stops the click reaching the row. Without that, closing a
+    // snapshot also navigated into the one just closed.
+    await waitFor(() => expect(closed).toHaveBeenCalledWith(["snap-a"]));
+    expect(screen.queryByRole("button", { name: /browse/i })).toBeNull();
+  });
+
+  it("opens every closed snapshot at once, and only those", async () => {
+    stub();
+    const opened = vi.spyOn(Snapshots, "Mount").mockResolvedValue(undefined as never);
+
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /^open all/i }));
+
+    // snap-a is already open. Asking for it again is a second authorization
+    // prompt for no gain.
+    await waitFor(() => expect(opened).toHaveBeenCalledWith(["snap-b"]));
+  });
+});
+
+describe("the options panel", () => {
+  it("returns to where it was opened from", async () => {
+    stub();
+    vi.spyOn(Schedule, "Status").mockResolvedValue({
+      installed: true, running: true, intervalHours: 3, retentionDays: 14, retentionPolicy: "",
+    } as never);
+    vi.spyOn(Schedule, "Policies").mockResolvedValue([] as never);
+
+    render(<App />);
+    await userEvent.click(await snapshotRow());
+    await screen.findByRole("button", { name: /browse/i });
+
+    const options = screen.getByRole("button", { name: /options/i });
+    await userEvent.click(options);
+    // Pressing it again is how it is closed, and closing it has to land back on
+    // the snapshot rather than on the home screen — which is what happened when
+    // the previous view was not remembered.
+    await userEvent.click(options);
+
+    expect(await screen.findByRole("button", { name: /browse/i })).toBeTruthy();
+  });
+});
+
+describe("searching", () => {
+  it("switches between browsing and searching within a snapshot", async () => {
+    stub();
+
+    render(<App />);
+    await userEvent.click(await snapshotRow());
+    await userEvent.click(await screen.findByRole("button", { name: /search/i }));
+
+    // By its placeholder: the field carries no label, and the panel it sits in is
+    // the only thing on screen that asks for a name.
+    expect(await screen.findByPlaceholderText(/name/i)).toBeTruthy();
   });
 });

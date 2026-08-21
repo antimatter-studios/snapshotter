@@ -62,13 +62,24 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
   // The verdict on this machine changes without anyone pressing anything here.
   useLiveRefresh(refresh);
 
-  if (error) return <p className="banner error">{error}</p>;
+  // Only when there is nothing else to show. An action failing used to take this
+  // branch too, which replaced the whole screen — verdict, findings and all —
+  // with one sentence, and the reader lost both the reason they came and any
+  // other button they might have pressed. The banner belongs above the findings,
+  // which are all still true.
+  if (error && !health) return <p className="banner error">{error}</p>;
   if (!health) return <p className="empty">{t("health.checking")}</p>;
 
   const act = (fn: () => Promise<unknown>, done: string) => run(fn, done, refresh);
 
   return (
     <div className="health">
+      {/* Above the content, not instead of it: what failed was one action, and
+          every other thing this screen says is still worth reading. Left up
+          until something else happens, because refresh runs on a timer and would
+          otherwise clear the reason before it could be read. */}
+      {error && <p className="banner error" onClick={() => setError("")}>{error}</p>}
+
       <div className={`verdict ${health.level}`}>
         <span className="verdict-mark" aria-hidden="true" />
         <div>
