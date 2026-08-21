@@ -73,6 +73,11 @@ export function FileDiff({
   }, [onClose]);
 
   const left = snapshots.find((s) => s.name === snapshot);
+  // The service returns a stamp, or nothing at all for the live disk — a stamp
+  // reads the same in every language and a phrase does not, so the phrase is
+  // ours. Worded once here because three sentences below name this side, and they
+  // must not disagree about what it is called.
+  const rightLabel = versions?.rightLabel || t("diff.theLiveDisk");
 
   return (
     <div className="file-diff">
@@ -114,7 +119,7 @@ export function FileDiff({
       {versions?.kind === "absent" && <p className="empty-note">{t("diff.nothingToShow")}</p>}
 
       {versions?.kind === "image" && (
-        <ImageDiff versions={versions} leftLabel={left?.stamp ?? t("diff.theSnapshot")} />
+        <ImageDiff versions={versions} leftLabel={left?.stamp ?? t("diff.theSnapshot")} rightLabel={rightLabel} />
       )}
 
       {versions && !versions.readable && versions.kind !== "image" && versions.kind !== "absent" && (
@@ -122,7 +127,7 @@ export function FileDiff({
           {versions.note || t("diff.cannotCompare")}{" "}
           {/* The sizes are what is left to say, and they are worth saying. */}
           {versions.leftExists ? bytes(versions.leftSize) : t("diff.notInThisSnapshot")} →{" "}
-          {versions.rightExists ? bytes(versions.rightSize) : t("diff.notIn", { version: versions.rightLabel })}
+          {versions.rightExists ? bytes(versions.rightSize) : t("diff.notIn", { version: rightLabel })}
         </p>
       )}
 
@@ -130,7 +135,7 @@ export function FileDiff({
         <p className="empty-note">
           {!versions.leftExists
             ? t("diff.addedWhole", { version: left?.stamp ?? t("diff.theSnapshot") })
-            : t("diff.removedWhole", { version: versions.rightLabel })}
+            : t("diff.removedWhole", { version: rightLabel })}
         </p>
       )}
 

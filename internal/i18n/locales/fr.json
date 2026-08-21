@@ -148,6 +148,22 @@
     "one": "{{.Count}} semaine",
     "other": "{{.Count}} semaines"
   },
+  "diff.inNeitherVersion": {
+    "one": "Ce fichier n'existe dans aucune des deux versions.",
+    "other": "Ce fichier n'existe dans aucune des deux versions."
+  },
+  "diff.looksBinary": {
+    "one": "Ceci semble être un fichier binaire ; il n'y a donc aucune ligne à comparer.",
+    "other": "Ceci semble être un fichier binaire ; il n'y a donc aucune ligne à comparer."
+  },
+  "diff.tooLargeForLines": {
+    "one": "Trop volumineux pour une comparaison ligne par ligne.",
+    "other": "Trop volumineux pour une comparaison ligne par ligne."
+  },
+  "diff.tooLargeToShow": {
+    "one": "Trop volumineux pour être affiché.",
+    "other": "Trop volumineux pour être affiché."
+  },
   "mount.closing": {
     "one": "Snapshotter ferme {{.What}}. Seul un administrateur peut démonter un système de fichiers.",
     "other": "Snapshotter ferme {{.What}}. Seul un administrateur peut démonter un système de fichiers."
@@ -238,8 +254,16 @@
     "one": "Aucun snapshot n'est ouvert, rien n'a donc été recherché. Ouvrez le {{.Count}} snapshot pour y chercher.",
     "other": "Aucun snapshot n'est ouvert, rien n'a donc été recherché. Ouvrez l'un des {{.Count}} snapshots pour y chercher."
   },
+  "search.someNotOpen": {
+    "one": "{{.Count}} snapshot n'a pas été parcouru car il n'est pas ouvert ; ceci n'est donc pas tout l'historique.",
+    "other": "{{.Count}} snapshots n'ont pas été parcourus car ils ne sont pas ouverts ; ceci n'est donc pas tout l'historique."
+  },
   "search.stoppedAtLimit": {
     "other": "Arrêt à la limite de résultats — affinez la recherche pour voir le reste."
+  },
+  "search.stoppedEarly": {
+    "one": "Un snapshot couvre tout le volume ; la recherche s'est donc arrêtée avant de l'avoir parcouru en entier. Cherchez à l'intérieur d'un dossier — votre dossier personnel, par exemple — pour le couvrir complètement.",
+    "other": "Un snapshot couvre tout le volume ; la recherche s'est donc arrêtée avant de l'avoir parcouru en entier. Cherchez à l'intérieur d'un dossier — votre dossier personnel, par exemple — pour le couvrir complètement."
   },
   "status.conflict.detail": {
     "other": "{{.Agent}} semble créer aussi des snapshots locaux. Deux agents doublent la cadence et appliquent deux fenêtres de rétention au même ensemble. Installez-en un, pas les deux."

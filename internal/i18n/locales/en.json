@@ -148,6 +148,22 @@
     "one": "{{.Count}} week",
     "other": "{{.Count}} weeks"
   },
+  "diff.inNeitherVersion": {
+    "one": "This file is in neither version.",
+    "other": "This file is in neither version."
+  },
+  "diff.looksBinary": {
+    "one": "This looks like a binary file, so there are no lines to compare.",
+    "other": "This looks like a binary file, so there are no lines to compare."
+  },
+  "diff.tooLargeForLines": {
+    "one": "Too large to compare line by line.",
+    "other": "Too large to compare line by line."
+  },
+  "diff.tooLargeToShow": {
+    "one": "Too large to show.",
+    "other": "Too large to show."
+  },
   "mount.closing": {
     "one": "Snapshotter is closing {{.What}}. Only an administrator may detach a filesystem.",
     "other": "Snapshotter is closing {{.What}}. Only an administrator may detach a filesystem."
@@ -238,8 +254,16 @@
     "one": "No snapshot is open, so nothing was searched. Open the {{.Count}} snapshot to search inside it.",
     "other": "No snapshot is open, so nothing was searched. Open one of the {{.Count}} snapshots to search inside them."
   },
+  "search.someNotOpen": {
+    "one": "{{.Count}} snapshot was not searched because it is not open, so this is not the whole history.",
+    "other": "{{.Count}} snapshots were not searched because they are not open, so this is not the whole history."
+  },
   "search.stoppedAtLimit": {
     "other": "Stopped early at the match limit — narrow the search to see the rest."
+  },
+  "search.stoppedEarly": {
+    "one": "A snapshot covers the whole volume, so this stopped before reading all of it. Search inside a folder — your home directory, say — to cover it properly.",
+    "other": "A snapshot covers the whole volume, so this stopped before reading all of it. Search inside a folder — your home directory, say — to cover it properly."
   },
   "status.conflict.detail": {
     "other": "{{.Agent}} looks like it takes local snapshots too. Two agents double the rate and apply two retention windows to one shared set. Install one, not both."

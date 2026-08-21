@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"snapshotter/internal/diffs"
+	"snapshotter/internal/i18n"
 )
 
 // Words this package chooses and the window has to recognise.
@@ -170,4 +171,60 @@ func levelsOnFindings(t *testing.T) []Level {
 		}
 	}
 	return out
+}
+
+// Notes are prose, and prose crossing this boundary has to be translated before
+// it leaves. The window shows Note verbatim — it has no way to know what it says
+// — so an untranslated one arrives intact in the middle of a German screen. Every
+// note this package can produce used to be English; two of search's four were
+// already translated and two were not, which is how it went unnoticed.
+func TestEveryNoteFollowsTheLanguage(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLanguage("en") })
+
+	svc, seed := compareFixture(t, map[string]string{"solid.bin": "head\x00tail"})
+	binary := filepath.Join(seed, "solid.bin")
+
+	i18n.SetLanguage("en")
+	english := versionsOf(t, svc, binary).Note
+	if english == "" {
+		t.Fatal("a binary file came back with nothing said about it")
+	}
+
+	i18n.SetLanguage("de")
+	german := versionsOf(t, svc, binary).Note
+	if german == english {
+		t.Errorf("the note is the same in German as in English: %q", german)
+	}
+	if german == "" || strings.HasPrefix(german, "diff.") {
+		t.Errorf("the German note came back as %q", german)
+	}
+}
+
+// The other half of the same rule: a note that is a key rather than a sentence
+// means the catalogue is missing an entry, and it renders as "diff.looksBinary"
+// where a sentence belongs.
+func TestEveryNoteThisPackageAsksForExists(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLanguage("en") })
+
+	body, err := os.ReadFile("diff.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	searchBody, err := os.ReadFile("search.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	asked := regexp.MustCompile(`i18n\.[TN]\("([a-zA-Z.]+)"`).FindAllStringSubmatch(string(body)+string(searchBody), -1)
+	if len(asked) == 0 {
+		t.Fatal("no catalogue lookups found, so this test is checking nothing")
+	}
+
+	for _, code := range []string{"en", "de", "es", "fr"} {
+		i18n.SetLanguage(code)
+		for _, m := range asked {
+			if got := i18n.T(m[1]); got == m[1] {
+				t.Errorf("%s has no entry for %q, so it renders as its own key", code, m[1])
+			}
+		}
+	}
 }

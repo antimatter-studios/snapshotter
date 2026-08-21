@@ -18,7 +18,18 @@ import { comparePixels, type PixelComparison } from "./comparePixels";
  * becomes obvious; laid side by side those are nearly impossible to spot, since
  * the eye has to carry a memory across the gap.
  */
-export function ImageDiff({ versions, leftLabel }: { versions: FileVersions; leftLabel: string }) {
+export function ImageDiff({
+  versions,
+  leftLabel,
+  rightLabel,
+}: {
+  versions: FileVersions;
+  leftLabel: string;
+  // Both labels come from the caller. The right one used to be read off the data,
+  // where it arrived as English prose for the live disk and landed untranslated in
+  // the middle of a sentence.
+  rightLabel: string;
+}) {
   const { t } = useTranslation();
   type Mode = "side" | "fade" | "difference";
   const [mode, setMode] = useState<Mode>("side");
@@ -120,13 +131,13 @@ export function ImageDiff({ versions, leftLabel }: { versions: FileVersions; lef
           />
           <ImageSide
             src={versions.rightImage}
-            label={versions.rightLabel}
+            label={rightLabel}
             dims={versions.rightDims}
             size={versions.rightSize}
             exists={versions.rightExists}
             // Missing on the right means it is gone — the case someone browsing a
             // snapshot is most often here to find.
-            missing={t("diff.imageDeleted", { version: versions.rightLabel })}
+            missing={t("diff.imageDeleted", { version: rightLabel })}
           />
         </div>
       )}

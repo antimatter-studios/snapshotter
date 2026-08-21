@@ -148,6 +148,22 @@
     "one": "{{.Count}} semana",
     "other": "{{.Count}} semanas"
   },
+  "diff.inNeitherVersion": {
+    "one": "Este archivo no está en ninguna de las dos versiones.",
+    "other": "Este archivo no está en ninguna de las dos versiones."
+  },
+  "diff.looksBinary": {
+    "one": "Parece un archivo binario, por lo que no hay líneas que comparar.",
+    "other": "Parece un archivo binario, por lo que no hay líneas que comparar."
+  },
+  "diff.tooLargeForLines": {
+    "one": "Demasiado grande para comparar línea por línea.",
+    "other": "Demasiado grande para comparar línea por línea."
+  },
+  "diff.tooLargeToShow": {
+    "one": "Demasiado grande para mostrarse.",
+    "other": "Demasiado grande para mostrarse."
+  },
   "mount.closing": {
     "one": "Snapshotter está cerrando {{.What}}. Solo un administrador puede desmontar un sistema de archivos.",
     "other": "Snapshotter está cerrando {{.What}}. Solo un administrador puede desmontar un sistema de archivos."
@@ -238,8 +254,16 @@
     "one": "No hay ningún snapshot abierto, así que no se buscó nada. Abra el {{.Count}} snapshot para buscar dentro.",
     "other": "No hay ningún snapshot abierto, así que no se buscó nada. Abra uno de los {{.Count}} snapshots para buscar dentro."
   },
+  "search.someNotOpen": {
+    "one": "No se buscó en {{.Count}} snapshot porque no está abierto, así que este no es todo el historial.",
+    "other": "No se buscó en {{.Count}} snapshots porque no están abiertos, así que este no es todo el historial."
+  },
   "search.stoppedAtLimit": {
     "other": "Se detuvo en el límite de coincidencias: acote la búsqueda para ver el resto."
+  },
+  "search.stoppedEarly": {
+    "one": "Un snapshot abarca todo el volumen, así que esto se detuvo antes de leerlo por completo. Busque dentro de una carpeta — su carpeta personal, por ejemplo — para abarcarla del todo.",
+    "other": "Un snapshot abarca todo el volumen, así que esto se detuvo antes de leerlo por completo. Busque dentro de una carpeta — su carpeta personal, por ejemplo — para abarcarla del todo."
   },
   "status.conflict.detail": {
     "other": "{{.Agent}} parece crear snapshots locales también. Dos agentes duplican el ritmo y aplican dos ventanas de retención al mismo conjunto. Instale uno, no ambos."

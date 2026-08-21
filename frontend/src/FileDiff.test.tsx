@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { FileDiff } from "./FileDiff";
 import { Diff } from "./api";
 import type { FileVersions, SnapshotView } from "./api";
-import "./i18n";
+import i18n from "./i18n";
 
 // One file, as two chosen versions hold it.
 //
@@ -183,5 +183,48 @@ describe("comparing one file", () => {
 
     // The empty string is the live disk, which is always readable.
     await waitFor(() => expect(read).toHaveBeenLastCalledWith("snap-a", "/Users/someone/notes.md", ""));
+  });
+});
+
+// The service returns a stamp for a snapshot and nothing at all for the live
+// disk, and the window supplies the word. It used to return the English words
+// "the live disk", which the window interpolated into "no longer in {{version}}"
+// — so a German reader got "nicht mehr in the live disk".
+describe("naming the side being compared against", () => {
+  it("words the live disk itself rather than showing what the service called it", async () => {
+    vi.spyOn(Diff, "FileVersions").mockResolvedValue(
+      text({ rightExists: false, right: "", rightLabel: "" }) as never,
+    );
+    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+
+    expect(await screen.findByText(/The live disk|the live disk/)).toBeTruthy();
+  });
+
+  it("says it in the language the window is set to", async () => {
+    vi.spyOn(Diff, "FileVersions").mockResolvedValue(
+      text({ rightExists: false, right: "", rightLabel: "" }) as never,
+    );
+    await i18n.changeLanguage("de");
+    try {
+      render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+
+      // Whatever German calls it, it is not this.
+      const german = await screen.findByText(new RegExp(i18n.t("diff.theLiveDisk")));
+      expect(german).toBeTruthy();
+      expect(screen.queryByText(/the live disk/i)).toBeNull();
+    } finally {
+      await i18n.changeLanguage("en");
+    }
+  });
+
+  it("uses the snapshot's own stamp when that is what is being compared against", async () => {
+    vi.spyOn(Diff, "FileVersions").mockResolvedValue(
+      text({ rightExists: false, right: "", rightLabel: "2026-08-18-120000" }) as never,
+    );
+    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+
+    // A stamp reads the same in every language, which is why the service returns
+    // one rather than a phrase.
+    expect(await screen.findByText(/2026-08-18-120000/)).toBeTruthy();
   });
 });

@@ -22,6 +22,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/diffs"
+	"snapshotter/internal/i18n"
 	"snapshotter/internal/vfs"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -328,6 +329,12 @@ type FileVersions struct {
 	RightExists bool `json:"rightExists"`
 	// RightLabel names what the right side turned out to be, so the window can say
 	// so without repeating the rule for resolving it.
+	//
+	// A snapshot's stamp, or empty for the live disk. Empty rather than a phrase
+	// because the window interpolates this into a sentence — "no longer in
+	// {{version}}" — and it used to be the English words "the live disk", which
+	// arrived intact in the middle of a German sentence. A stamp is the same in
+	// every language; prose is not, and the window has its own word for this one.
 	RightLabel string `json:"rightLabel"`
 	// Kind is how the window should show this, and is one of:
 	//
@@ -394,7 +401,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	// the same reason the left side must be — an unmounted snapshot has no paths
 	// to read.
 	rightPath := filepath.Clean(livePath)
-	out.RightLabel = "the live disk"
+	// Left empty: the window words the live disk itself. See RightLabel.
 	if targetSnapshot != "" {
 		if targetSnapshot == snapshotName {
 			return out, fmt.Errorf("services: %s cannot be compared with itself", snapshotName)
@@ -415,7 +422,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		// before it was made — and there is nothing wrong with asking. An error
 		// would put a red banner over a question that simply has no answer.
 		out.Kind = "absent"
-		out.Note = "this file is in neither version"
+		out.Note = i18n.T("diff.inNeitherVersion")
 		return out, nil
 	}
 	if out.LeftExists {
@@ -444,7 +451,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		out.RightDims = pixelDimensions(rightPath, out.RightExists)
 		out.Identical = sameBytes(leftPath, rightPath, out.LeftExists, out.RightExists, out.LeftSize, out.RightSize)
 		if out.LeftImage == "" && out.RightImage == "" {
-			out.Note = "too large to show"
+			out.Note = i18n.T("diff.tooLargeToShow")
 		}
 		return out, nil
 	}
@@ -458,13 +465,13 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	// This costs one small read of each side rather than a full one.
 	if looksBinary(leftPath, out.LeftExists) || looksBinary(rightPath, out.RightExists) {
 		out.Kind = "binary"
-		out.Note = "this looks like a binary file, so there are no lines to compare"
+		out.Note = i18n.T("diff.looksBinary")
 		return out, nil
 	}
 
 	if out.LeftSize > maxDiffableBytes || out.RightSize > maxDiffableBytes {
 		out.Kind = "large"
-		out.Note = "too large to compare line by line"
+		out.Note = i18n.T("diff.tooLargeForLines")
 		return out, nil
 	}
 
@@ -477,7 +484,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		// field said "binary" for one of the three ways of reaching this and
 		// nothing for the other two.
 		out.Kind = "binary"
-		out.Note = "this looks like a binary file, so there are no lines to compare"
+		out.Note = i18n.T("diff.looksBinary")
 		return out, nil
 	}
 

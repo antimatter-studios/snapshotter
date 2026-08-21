@@ -148,6 +148,22 @@
     "one": "{{.Count}} Woche",
     "other": "{{.Count}} Wochen"
   },
+  "diff.inNeitherVersion": {
+    "one": "Diese Datei ist in keiner der beiden Versionen vorhanden.",
+    "other": "Diese Datei ist in keiner der beiden Versionen vorhanden."
+  },
+  "diff.looksBinary": {
+    "one": "Dies scheint eine Binärdatei zu sein, daher gibt es keine Zeilen zu vergleichen.",
+    "other": "Dies scheint eine Binärdatei zu sein, daher gibt es keine Zeilen zu vergleichen."
+  },
+  "diff.tooLargeForLines": {
+    "one": "Zu groß für einen zeilenweisen Vergleich.",
+    "other": "Zu groß für einen zeilenweisen Vergleich."
+  },
+  "diff.tooLargeToShow": {
+    "one": "Zu groß zur Anzeige.",
+    "other": "Zu groß zur Anzeige."
+  },
   "mount.closing": {
     "one": "Snapshotter schließt {{.What}}. Nur ein Administrator darf ein Dateisystem aushängen.",
     "other": "Snapshotter schließt {{.What}}. Nur ein Administrator darf ein Dateisystem aushängen."
@@ -238,8 +254,16 @@
     "one": "Kein Snapshot ist geöffnet, es wurde also nichts durchsucht. Öffnen Sie den {{.Count}} Snapshot, um darin zu suchen.",
     "other": "Kein Snapshot ist geöffnet, es wurde also nichts durchsucht. Öffnen Sie einen der {{.Count}} Snapshots, um darin zu suchen."
   },
+  "search.someNotOpen": {
+    "one": "{{.Count}} Snapshot wurde nicht durchsucht, weil er nicht geöffnet ist — dies ist also nicht der gesamte Verlauf.",
+    "other": "{{.Count}} Snapshots wurden nicht durchsucht, weil sie nicht geöffnet sind — dies ist also nicht der gesamte Verlauf."
+  },
   "search.stoppedAtLimit": {
     "other": "Bei der Trefferobergrenze abgebrochen — grenzen Sie die Suche ein, um den Rest zu sehen."
+  },
+  "search.stoppedEarly": {
+    "one": "Ein Snapshot umfasst das gesamte Volume, daher wurde hier abgebrochen, bevor alles gelesen war. Suchen Sie innerhalb eines Ordners — etwa Ihres Benutzerordners —, um ihn vollständig zu erfassen.",
+    "other": "Ein Snapshot umfasst das gesamte Volume, daher wurde hier abgebrochen, bevor alles gelesen war. Suchen Sie innerhalb eines Ordners — etwa Ihres Benutzerordners —, um ihn vollständig zu erfassen."
   },
   "status.conflict.detail": {
     "other": "{{.Agent}} erstellt offenbar ebenfalls lokale Snapshots. Zwei Agenten verdoppeln die Rate und wenden zwei Aufbewahrungszeiträume auf denselben Satz an. Richten Sie einen ein, nicht beide."

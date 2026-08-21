@@ -3,12 +3,11 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
-	"snapshotter/internal/i18n"
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/diffs"
 	"snapshotter/internal/find"
+	"snapshotter/internal/i18n"
 	"snapshotter/internal/vfs"
 )
 
@@ -91,8 +90,10 @@ func (s *SearchService) Search(ctx context.Context, term, under string) (SearchR
 	case len(out.Searched) == 0 && len(out.Skipped) > 0:
 		out.Note = i18n.N("search.nothingOpen", len(out.Skipped))
 	case len(out.Skipped) > 0:
-		out.Note = fmt.Sprintf("%d snapshot(s) were not searched because they are not open, so "+
-			"this is not the whole history.", len(out.Skipped))
+		// Through the catalogue like its siblings, and with a real plural rule:
+		// this said "1 snapshot(s)", which is the shape a plural rule exists to
+		// avoid, and it said it in English whatever language the rest was in.
+		out.Note = i18n.N("search.someNotOpen", len(out.Skipped))
 	case out.Truncated:
 		out.Note = i18n.T("search.stoppedAtLimit")
 	case out.Incomplete:
@@ -100,8 +101,7 @@ func (s *SearchService) Search(ctx context.Context, term, under string) (SearchR
 		// application and framework on the disk before it reaches anything the
 		// user recognises. Saying so is the difference between "not found" and
 		// "not looked at".
-		out.Note = "A snapshot covers the whole volume, so this stopped before reading all of " +
-			"it. Search inside a folder — your home directory, say — to cover it properly."
+		out.Note = i18n.T("search.stoppedEarly")
 	}
 	return out, nil
 }
