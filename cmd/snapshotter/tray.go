@@ -162,6 +162,12 @@ func installTray(app *application.App, status *services.StatusService, win appli
 						"Span", i18n.Span(every.Hours()*float64(menubar.Cells)),
 						"Period", i18n.Span(every.Hours()))).OnClick(reveal)
 					menu.Add("").SetBitmap(strip).OnClick(reveal)
+
+					// What the strip is measuring against. Without it a reader has to
+					// infer the schedule from the spacing of the marks, and a solid
+					// strip means nothing until you know whether it stands for hourly
+					// snapshots or daily ones.
+					menu.Add(scheduleMode(health)).OnClick(reveal)
 				}
 			}
 
@@ -169,7 +175,7 @@ func installTray(app *application.App, status *services.StatusService, win appli
 				menu.Add(i18n.T("tray.newest", "when", health.Newest.Format("Mon 2 Jan, 15:04"))).OnClick(reveal)
 			}
 			if health.ScheduleInstalled && health.NextDue != nil {
-				menu.Add("Next due: " + health.NextDue.Format("Mon 2 Jan, 15:04")).OnClick(reveal)
+				menu.Add(i18n.T("tray.nextDue", "When", health.NextDue.Format("Mon 2 Jan, 15:04"))).OnClick(reveal)
 			}
 			// Findings are the reason to have looked at all, so they sit above the
 			// actions rather than below them. Each carries its level as an image,
@@ -189,18 +195,18 @@ func installTray(app *application.App, status *services.StatusService, win appli
 		}
 
 		menu.AddSeparator()
-		menu.Add("Take a snapshot now").OnClick(func(*application.Context) {
+		menu.Add(i18n.T("tray.takeSnapshot")).OnClick(func(*application.Context) {
 			if _, err := services.NewSnapshotService(status.Deps).TakeNow(context.Background()); err != nil {
 				log.Printf("menu bar: taking a snapshot: %v", err)
 			}
 			render()
 		})
-		menu.Add("Open Snapshotter").OnClick(func(*application.Context) {
+		menu.Add(i18n.T("tray.openWindow")).OnClick(func(*application.Context) {
 			win.Show()
 			win.Focus()
 		})
 		menu.AddSeparator()
-		menu.Add("Quit").OnClick(func(*application.Context) { app.Quit() })
+		menu.Add(i18n.T("tray.quit")).OnClick(func(*application.Context) { app.Quit() })
 
 		tray.SetMenu(menu)
 	}
@@ -232,6 +238,21 @@ func installTray(app *application.App, status *services.StatusService, win appli
 		// when a person changes them.
 		render()
 	}
+}
+
+// scheduleMode says what the machine is supposed to be doing, as against the
+// strip above it, which says what it actually did.
+//
+// Both are needed to read either. A solid strip means nothing until you know
+// whether a mark stands for an hour or a day, and an interval means nothing
+// without seeing whether it was kept.
+func scheduleMode(h services.Health) string {
+	if !h.ScheduleInstalled {
+		return i18n.T("tray.mode.manual")
+	}
+	return i18n.T("tray.mode.scheduled",
+		"Every", i18n.Span(h.IntervalHours),
+		"Kept", i18n.N("count.days", int(h.RetentionDays)))
 }
 
 // trayIcon is the glyph for a level, translated from the service's vocabulary to

@@ -340,8 +340,17 @@
   "tray.coverageCaption": {
     "other": "Last {{.Span}} (each mark is {{.Period}})"
   },
+  "tray.mode.manual": {
+    "other": "No schedule — snapshots only when you take one"
+  },
+  "tray.mode.scheduled": {
+    "other": "Every {{.Every}}, kept {{.Kept}}"
+  },
   "tray.newest": {
     "other": "Newest: {{.when}}"
+  },
+  "tray.nextDue": {
+    "other": "Next due: {{.When}}"
   },
   "tray.openWindow": {
     "other": "Open Snapshotter"

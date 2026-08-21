@@ -340,8 +340,17 @@
   "tray.coverageCaption": {
     "other": "Couverture sur {{.Span}} (chaque marque représente {{.Period}})"
   },
+  "tray.mode.manual": {
+    "other": "Aucune planification — des snapshots seulement quand vous en créez un"
+  },
+  "tray.mode.scheduled": {
+    "other": "Toutes les {{.Every}}, conservés {{.Kept}}"
+  },
   "tray.newest": {
     "other": "Le plus récent : {{.when}}"
+  },
+  "tray.nextDue": {
+    "other": "Prochain prévu : {{.When}}"
   },
   "tray.openWindow": {
     "other": "Ouvrir Snapshotter"
