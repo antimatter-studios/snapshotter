@@ -329,10 +329,17 @@ type FileVersions struct {
 	// RightLabel names what the right side turned out to be, so the window can say
 	// so without repeating the rule for resolving it.
 	RightLabel string `json:"rightLabel"`
-	// Kind is how the window should show this: "text", "image" or "binary".
+	// Kind is how the window should show this, and is one of:
+	//
+	//	"text"    lines to compare, in Left and Right
+	//	"image"   two pictures, in LeftImage and RightImage
+	//	"binary"  no lines to compare; Note says so
+	//	"absent"  nothing on either side
+	//	"large"   text, but past the size worth rendering; Note says so
 	//
 	// Readable stays what it was — true only for text — so nothing that already
-	// checks it starts rendering an image into a line-by-line view.
+	// checks it starts rendering an image into a line-by-line view. The two agree
+	// by construction, and diffKindsTest pins that they do.
 	Kind string `json:"kind"`
 	// The two pictures, as data URIs, when Kind is "image". Inlined rather than
 	// served from a URL because a snapshot's mountpoint is not reachable from the
@@ -456,6 +463,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	}
 
 	if out.LeftSize > maxDiffableBytes || out.RightSize > maxDiffableBytes {
+		out.Kind = "large"
 		out.Note = "too large to compare line by line"
 		return out, nil
 	}
@@ -464,7 +472,11 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	rightText, okRight := readableFile(rightPath, out.RightExists)
 	if !okLeft || !okRight {
 		// The prefix said text and the whole file disagreed: a NUL a long way in,
-		// or invalid UTF-8 past the sample.
+		// or invalid UTF-8 past the sample. Named the same as a file caught at the
+		// sample, because it is the same answer — it was left unnamed here, so the
+		// field said "binary" for one of the three ways of reaching this and
+		// nothing for the other two.
+		out.Kind = "binary"
 		out.Note = "this looks like a binary file, so there are no lines to compare"
 		return out, nil
 	}
