@@ -332,6 +332,11 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.53.0
+
+Retention rules move into a package with no dependencies, presets are built from
+the period and window actually chosen, and the description that was false is gone.
+
 ### v0.52.0
 
 The menu bar names the schedule under the coverage strip, so the marks can be read
@@ -379,11 +384,6 @@ refresh.
 
 The command line is translated too, following `appearance.language` like
 everything else. Command syntax stays in English, being what you type.
-
-### v0.43.0
-
-Every piece of text a person reads is translated, including the macOS password
-prompts, the notifications the background agents post, and the retention sentence.
 
 
 ## Design decisions

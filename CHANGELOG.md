@@ -7,6 +7,48 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.53.0 — 2026-08-21
+
+**The retention rules move into a package that knows nothing else, and the two
+things they got wrong are fixed.**
+
+`internal/retention` is arithmetic on timestamps. It does not know what a snapshot
+is, that they live on APFS, that deleting one needs a privileged command, or that
+any of it is described to a person in German. `Plan` takes times and returns
+positions, so the caller keeps its own objects and its own tie-break. The rule
+that decides what gets destroyed can now be tested exhaustively, in milliseconds,
+with no filesystem and no language set — which it could not before, and was not.
+
+**Presets ignored the person entirely.** Their first band was hardcoded to
+"everything for two days", so the time period and flat window chosen in the
+interface selected nothing: picking a tiered preset silently discarded both.
+Presets are built from those two choices now, which makes a preset that ignores
+them impossible to construct.
+
+**The line explaining each preset was false.** It claimed tiering costs about half
+a flat fortnight. It was 22% of one at an hourly schedule and 180% at a daily one
+— false at two of the five intervals a person can choose. It is deleted rather
+than corrected: it was a sentence written by hand beside three values derived from
+the policy, and a corrected sentence would drift again at the next change to a
+band. The derived description says the same thing, truthfully by construction.
+
+Five tests asserted that claim, three of them at a single hardcoded interval,
+which is why it survived. They now assert the trade actually on offer, at every
+interval.
+
+**Every preset has three bands**, whatever is chosen. They did not: the later
+bands were spans fixed in absolute days, so a window reaching past one made it
+disappear and a three-band preset quietly became a two-band one. Those bands are
+multiples of the window now, and the preset names describe their shape rather than
+a reach that no longer holds.
+
+**And the interface says that only one snapshot per period is kept.** It already
+worked that way, in the case where it is most surprising: the tripwire takes a
+snapshot when files start disappearing, ten minutes after a scheduled one, and
+retention removes it. The outcome is right — the earlier snapshot holds more of
+what was about to be deleted — but the application sends a notification naming
+that snapshot and then quietly deletes it.
+
 ## v0.52.0 — 2026-08-21
 
 **The menu says what the schedule is, under the strip that says whether it was
