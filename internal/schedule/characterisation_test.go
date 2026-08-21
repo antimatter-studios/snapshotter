@@ -19,12 +19,21 @@ import (
 // checks is stated in the interface as though it held at all of them. It does
 // not, and a single-point test could not see that.
 
+// A fixed instant in UTC, deliberately not the planNow the other tests share.
+//
+// That one is built with time.Local, which is fine for tests asserting shapes and
+// relationships but not for these, which assert exact counts: bucket boundaries
+// are absolute, so a machine an hour off UTC puts a snapshot in a different bucket
+// and the totals move. It passed here and failed in CI, which is the whole reason
+// a count test must name its own zone.
+var characterisationNow = time.Date(2026, 8, 14, 12, 0, 0, 0, time.UTC)
+
 var characterisationIntervals = []time.Duration{
 	time.Hour, 3 * time.Hour, 6 * time.Hour, 12 * time.Hour, 24 * time.Hour,
 }
 
 func TestWhatEachPolicyRetainsAtEveryInterval(t *testing.T) {
-	now := planNow
+	now := characterisationNow
 
 	for _, c := range []struct {
 		name   string
@@ -52,7 +61,7 @@ func TestWhatEachPolicyRetainsAtEveryInterval(t *testing.T) {
 		// nothing. The rise is the point: the policy now keeps what was asked for,
 		// and reaches thirteen and fifty-two times that window rather than a fixed
 		// ninety-one and three hundred and sixty-four days.
-		{"tiered-daily-weekly", presetPolicy(t, "tiered-daily-weekly"), [5]int{399, 175, 119, 90, 76}},
+		{"tiered-daily-weekly", presetPolicy(t, "tiered-daily-weekly"), [5]int{399, 175, 119, 91, 76}},
 		{"tiered-weekly-monthly", presetPolicy(t, "tiered-weekly-monthly"), [5]int{383, 159, 103, 75, 61}},
 	} {
 		for i, interval := range characterisationIntervals {
