@@ -160,7 +160,7 @@ func TestPlanIsStableWhileNothingChangesBand(t *testing.T) {
 	before, _ := Plan(snaps, policy, planNow)
 	after, _ := Plan(snaps, policy, planNow.Add(time.Hour))
 
-	tiers := policy.normalised()
+	tiers := policy.Bands()
 	for _, s := range snaps {
 		if a, b := tierIndex(tiers, planNow.Sub(s.Taken)), tierIndex(tiers, planNow.Add(time.Hour).Sub(s.Taken)); a != b {
 			t.Fatalf("the fixture is wrong: %s changed band between the two plans", s.Stamp)
@@ -177,7 +177,7 @@ func TestPlanIsStableWhileNothingChangesBand(t *testing.T) {
 // of the policy altogether. Anything else is the history rewriting itself.
 func TestPlanNeverPrunesASnapshotForNoNewReason(t *testing.T) {
 	policy := Presets()[1].Policy
-	tiers := policy.normalised()
+	tiers := policy.Bands()
 	const interval = 6 * time.Hour
 	steps := int((400 * day) / interval)
 
@@ -266,7 +266,7 @@ func TestPruningAsItGoesKeepsASubsetOfPlanningTheWholeHistory(t *testing.T) {
 // total, because a total can be right by accident.
 func TestPlanThinsARealisticHistoryBandByBand(t *testing.T) {
 	policy := Presets()[0].Policy
-	tiers := policy.normalised()
+	tiers := policy.Bands()
 	const interval = 6 * time.Hour
 	snaps := history(planNow, interval, int((120*day)/interval))
 
@@ -303,7 +303,7 @@ func TestPlanThinsARealisticHistoryBandByBand(t *testing.T) {
 			if tierIndex(tiers, planNow.Sub(s.Taken)) != i || !kept[s.Stamp] {
 				continue
 			}
-			perBucket[bucketStart(s.Taken, tier.Every)]++
+			perBucket[BucketStart(s.Taken, tier.Every)]++
 		}
 		if len(perBucket) == 0 {
 			t.Errorf("band %d (one every %s) kept nothing at all", i, tier.Every)
@@ -601,7 +601,7 @@ func TestPruneByPolicyDeletesNothingUnderAnEmptyPolicy(t *testing.T) {
 }
 
 func TestDescribeReadsAsASentence(t *testing.T) {
-	got := Presets()[1].Policy.Describe()
+	got := Describe(Presets()[1].Policy)
 	want := "Everything for 2 days, then one a day out to 14 days, then one a week out to 8 weeks, then one every 4 weeks out to 52 weeks."
 	if got != want {
 		t.Errorf("Describe() = %q, want %q", got, want)
@@ -620,9 +620,9 @@ func TestTheDescribedPolicyIsTranslated(t *testing.T) {
 	}}
 
 	i18n.SetLanguage("en")
-	english := p.Describe()
+	english := Describe(p)
 	i18n.SetLanguage("de")
-	german := p.Describe()
+	german := Describe(p)
 
 	if english == german {
 		t.Fatalf("the language did not change the sentence: %q", german)

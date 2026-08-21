@@ -77,7 +77,7 @@ var DefaultConfig = Config{Interval: 6 * time.Hour, Retention: 14 * 24 * time.Ho
 // policy that prunes nothing, which Install refuses and Plan treats as keep
 // everything — both of which are better than a guess.
 func (c Config) EffectivePolicy() Policy {
-	if len(c.Policy.normalised()) > 0 {
+	if len(c.Policy.Bands()) > 0 {
 		return c.Policy
 	}
 	return FlatPolicy(c.Retention)

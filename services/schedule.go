@@ -154,7 +154,7 @@ func optionOf(id, name, why string, policy schedule.Policy, interval time.Durati
 		ID:        id,
 		Name:      name,
 		Why:       why,
-		Summary:   policy.Describe(),
+		Summary:   schedule.Describe(policy),
 		Tiers:     tierViews(policy),
 		Retained:  schedule.Retained(policy, interval, now),
 		ReachDays: inDays(policy.Horizon()),
@@ -246,7 +246,7 @@ func viewOf(st schedule.Status) ScheduleView {
 		LogPath:       st.LogPath,
 		Conflicts:     st.Conflicts,
 		PolicyID:      schedule.IdentifyPolicy(policy),
-		PolicySummary: policy.Describe(),
+		PolicySummary: schedule.Describe(policy),
 		ReachDays:     inDays(policy.Horizon()),
 		Tiers:         tierViews(policy),
 	}
