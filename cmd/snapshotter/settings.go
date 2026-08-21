@@ -64,18 +64,7 @@ func applySettings(cfg config.Config, p paths, deps services.Deps, win applicati
 	// The manager holds the root it was built with; changing it here means the
 	// next mount lands in the new place. Only the concrete type has a root to
 	// change — a fake mounter has its own and is not configurable.
-	if m, ok := deps.Mounts.(*mountmgr.Manager); ok {
-		m.Root = config.ResolvePath(cfg.Paths.MountRoot, p.mountRoot)
-	}
-
-	// Where a future install will point launchd. The plist already on disk keeps
-	// naming the old log until it is written again.
-	if deps.Agent != nil {
-		deps.Agent.LogPath = config.ResolvePath(cfg.Paths.Log, p.logPath)
-	}
-	if deps.Tripwire != nil {
-		deps.Tripwire.LogPath = config.ResolvePath(cfg.Paths.TripwireLog, p.tripwireLogPath)
-	}
+	applyPaths(cfg, p, deps)
 
 	log.Printf("settings reloaded: window %dx%d, menu bar every %s, window every %s",
 		width, height, cfg.MenuBarRefresh(), cfg.WindowRefresh())
@@ -89,6 +78,30 @@ func applySettings(cfg config.Config, p paths, deps services.Deps, win applicati
 // answer for all five above it, because a directory's modification time moves
 // only when something is added, removed or renamed directly inside it. Given the
 // path that changed, though, the ancestors are just that path taken apart.
+// applyPaths pushes the configured locations into the things that hold them.
+//
+// Separated from applySettings because none of it needs a window, and
+// application.Window has ninety-five methods — so the only way to reach this was
+// to stand up a real one. What cannot be tested does not get tested, and this is
+// the part that decides where snapshots are mounted and where the agents write.
+//
+// A mount already attached stays where it is: a mounted filesystem cannot be
+// moved by editing a file, so this takes effect for work that has not started.
+func applyPaths(cfg config.Config, p paths, deps services.Deps) {
+	if m, ok := deps.Mounts.(*mountmgr.Manager); ok {
+		m.Root = config.ResolvePath(cfg.Paths.MountRoot, p.mountRoot)
+	}
+
+	// Where a future install will point launchd. The plist already on disk keeps
+	// naming the old log until it is written again.
+	if deps.Agent != nil {
+		deps.Agent.LogPath = config.ResolvePath(cfg.Paths.Log, p.logPath)
+	}
+	if deps.Tripwire != nil {
+		deps.Tripwire.LogPath = config.ResolvePath(cfg.Paths.TripwireLog, p.tripwireLogPath)
+	}
+}
+
 func watchForChanges(ctx context.Context, root string, cache *verdict.Cache) {
 	events := make(chan notify.EventInfo, 1024)
 	// Recursive, and deliberately every kind of event: a rename is a deletion
