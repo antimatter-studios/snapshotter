@@ -70,14 +70,6 @@ func applySettings(cfg config.Config, p paths, deps services.Deps, win applicati
 		width, height, cfg.MenuBarRefresh(), cfg.WindowRefresh())
 }
 
-// watchForChanges forgets cached folder verdicts as the disk moves under them.
-//
-// A verdict is only ever invalidated by the live side — a snapshot is read-only
-// — and the filesystem is what knows when that happens. What it does not say is
-// which folders an event affects: a file edited five levels down changes the
-// answer for all five above it, because a directory's modification time moves
-// only when something is added, removed or renamed directly inside it. Given the
-// path that changed, though, the ancestors are just that path taken apart.
 // applyPaths pushes the configured locations into the things that hold them.
 //
 // Separated from applySettings because none of it needs a window, and
@@ -102,6 +94,15 @@ func applyPaths(cfg config.Config, p paths, deps services.Deps) {
 	}
 }
 
+// watchForChanges forgets cached folder verdicts as the disk moves under them.
+//
+// A verdict is only ever invalidated by the live side — a snapshot is read-only —
+// and the filesystem is what knows when that happens. What it does not say is
+// which folders an event affects: a file edited five levels down changes the
+// answer for all five above it, because a directory's modification time moves
+// only when something is added, removed or renamed directly inside it. Given the
+// path that changed, though, the ancestors are just that path taken apart, which
+// is what Cache.Touched does with it.
 func watchForChanges(ctx context.Context, root string, cache *verdict.Cache) {
 	events := make(chan notify.EventInfo, 1024)
 	// Recursive, and deliberately every kind of event: a rename is a deletion
