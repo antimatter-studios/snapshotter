@@ -3,6 +3,7 @@ package services
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"snapshotter/internal/schedule"
 )
@@ -17,8 +18,8 @@ func TestEveryPolicyIsOfferedWithNumbersToCompare(t *testing.T) {
 	s := &ScheduleService{}
 	got := s.Policies(6, 14)
 
-	if len(got) != len(schedule.Presets())+1 {
-		t.Fatalf("want flat plus every preset (%d), got %d", len(schedule.Presets())+1, len(got))
+	if len(got) != len(schedule.Presets(6*time.Hour, 14*24*time.Hour))+1 {
+		t.Fatalf("want flat plus every preset (%d), got %d", len(schedule.Presets(6*time.Hour, 14*24*time.Hour))+1, len(got))
 	}
 	if got[0].ID != schedule.FlatID {
 		t.Errorf("flat should be offered first, got %q", got[0].ID)
@@ -33,7 +34,7 @@ func TestEveryPolicyIsOfferedWithNumbersToCompare(t *testing.T) {
 
 		// Each of these is shown to someone deciding. A blank or zero is not a
 		// neutral default here, it is a policy that looks broken.
-		if o.Name == "" || o.Why == "" || o.Summary == "" {
+		if o.Name == "" || o.Summary == "" {
 			t.Errorf("%s: incomplete option %+v", o.ID, o)
 		}
 		if o.Retained <= 0 {
@@ -48,7 +49,13 @@ func TestEveryPolicyIsOfferedWithNumbersToCompare(t *testing.T) {
 // The whole reason tiering is offered: it reaches much further back for a similar
 // number of snapshots. If that ever stops being true the screen is arguing for
 // something that is not so, and this is the test that notices.
-func TestTieringReachesFurtherThanFlatForAComparableCount(t *testing.T) {
+// What tiering offers, once a preset is built from the choices made rather than
+// from hardcoded bands: the same window, and coarser history past it.
+//
+// The comparison that used to be here — fewer snapshots than the flat window —
+// described a preset whose first band was "everything for two days" and which
+// therefore threw the chosen window away.
+func TestTieringKeepsTheChosenWindowAndReachesPastIt(t *testing.T) {
 	s := &ScheduleService{}
 	options := s.Policies(6, 14)
 
@@ -73,9 +80,13 @@ func TestTieringReachesFurtherThanFlatForAComparableCount(t *testing.T) {
 			t.Errorf("%s reaches %.0f days, no further than flat's %.0f — tiering has no argument",
 				o.ID, o.ReachDays, flat.ReachDays)
 		}
-		if o.Retained > flat.Retained {
-			t.Errorf("%s holds %d snapshots against flat's %d: it reaches further AND costs more, "+
-				"which is not the trade being offered", o.ID, o.Retained, flat.Retained)
+		// It must hold at least what the flat window holds, because it opens with
+		// that window: a preset is the person's own choice plus coarser history
+		// beyond it, so costing less would mean it had thrown some of the choice
+		// away — which is exactly the bug this replaced.
+		if o.Retained < flat.Retained {
+			t.Errorf("%s holds %d against the flat window's %d: it has discarded part of the window "+
+				"it is built on", o.ID, o.Retained, flat.Retained)
 		}
 	}
 }

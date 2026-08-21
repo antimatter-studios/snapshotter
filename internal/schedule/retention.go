@@ -167,11 +167,8 @@ func Retained(policy Policy, interval time.Duration, now time.Time) int {
 
 // Preset is a named policy the settings screen offers.
 type Preset struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	// Why is the one line that decides it for someone who does not want to read
-	// the tiers.
-	Why    string `json:"why"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
 	Policy Policy `json:"policy"`
 }
 
@@ -180,56 +177,60 @@ type Preset struct {
 // rather than one fixed here.
 const FlatID = "flat"
 
-// Presets are the tiered policies on offer.
+// Presets are the tiered policies on offer, built from the choices the person
+// actually made.
 //
-// Every period is a whole multiple of the one before it: a day is 24 hours, a
-// week is 7 days, and the longest band is 4 weeks rather than a calendar month.
-// That is what makes the buckets nest, and nesting is what stops coarsening
-// re-choosing: when a snapshot ages out of the daily band into the weekly one,
-// the snapshot the weekly band keeps is one the daily band was already keeping,
-// so no snapshot is deleted merely because the granularity changed. A calendar
-// month is not a whole number of weeks and would break that for the sake of a
-// tidier label. TestPresetPeriodsNest holds this.
+// They used to be fixed values whose first band was hardcoded to "everything for
+// two days". The time period and flat window chosen in the interface selected
+// nothing in them at all: pick a tiered preset and both settings were silently
+// discarded. That is the bug this signature exists to make impossible — a preset
+// cannot be constructed without them.
 //
-// Each band's reach is a whole number of its own periods too, so the oldest
-// bucket in a band is a full one rather than a stub.
-// A function rather than a value: a package-level slice is built at init, before
-// any language has been chosen, and would keep English names for the life of the
-// process. Called where it is used, which is once per settings screen.
-func Presets() []Preset {
-	return []Preset{
-		{
-			ID:   "tiered-13-weeks",
-			Name: i18n.T("retention.tiered13.name"),
-			Why:  i18n.T("retention.tiered13.why"),
-			Policy: Policy{Tiers: []Tier{
-				{Every: 0, For: 2 * day},
-				{Every: day, For: 14 * day},
-				{Every: 7 * day, For: 91 * day},
-			}},
-		},
-		{
-			ID:   "tiered-52-weeks",
-			Name: i18n.T("retention.tiered52.name"),
-			Why:  i18n.T("retention.tiered52.why"),
-			Policy: Policy{Tiers: []Tier{
-				{Every: 0, For: 2 * day},
-				{Every: day, For: 14 * day},
-				{Every: 7 * day, For: 56 * day},
-				{Every: 28 * day, For: 364 * day},
-			}},
-		},
+// The first band is the choice: every {period} for {window}. The bands after it
+// are the shape of the preset, and are kept only where they reach further than
+// the window does. One that did not would sort ahead of the first band and govern
+// the newest snapshots at its own coarser density, overriding the very period the
+// person picked.
+func Presets(period, window time.Duration) []Preset {
+	base := Tier{Every: period, For: window}
+
+	shapes := []struct {
+		id      string
+		name    string
+		coarser []Tier
+	}{
+		{"tiered-13-weeks", i18n.T("retention.tiered13.name"), []Tier{
+			{Every: day, For: 14 * day},
+			{Every: 7 * day, For: 91 * day},
+		}},
+		{"tiered-52-weeks", i18n.T("retention.tiered52.name"), []Tier{
+			{Every: day, For: 14 * day},
+			{Every: 7 * day, For: 56 * day},
+			{Every: 28 * day, For: 364 * day},
+		}},
 	}
+
+	out := make([]Preset, 0, len(shapes))
+	for _, shape := range shapes {
+		tiers := []Tier{base}
+		for _, t := range shape.coarser {
+			// Further back, and no finer. Both are required: a band that reaches
+			// no further adds nothing, and one that is finer than the band before
+			// it would refine with age, which is not a policy anyone means.
+			if t.For > base.For && t.Every >= base.Every {
+				tiers = append(tiers, t)
+			}
+		}
+		out = append(out, Preset{ID: shape.id, Name: shape.name, Policy: Policy{Tiers: tiers}})
+	}
+	return out
 }
 
-// PolicyByID resolves what the settings screen sends back. The flat window needs
-// the retention the user chose, since that is the only part of it not fixed
-// here.
-func PolicyByID(id string, flatRetention time.Duration) (Policy, bool) {
+func PolicyByID(id string, period, window time.Duration) (Policy, bool) {
 	if id == FlatID {
-		return FlatPolicy(flatRetention), true
+		return FlatPolicy(window), true
 	}
-	for _, p := range Presets() {
+	for _, p := range Presets(period, window) {
 		if p.ID == id {
 			return p.Policy, true
 		}
@@ -243,7 +244,15 @@ func PolicyByID(id string, flatRetention time.Duration) (Policy, bool) {
 // Reporting a hand-edited plist as "custom" rather than as the nearest preset
 // keeps the settings screen honest about what launchd will actually do.
 func IdentifyPolicy(p Policy) string {
-	for _, preset := range Presets() {
+	// The period and window a preset was built from are recoverable from the
+	// policy itself: they are its first band. So a policy can be recognised
+	// without being told what it was made with, which is what keeps a plist
+	// written months ago identifiable today.
+	bands := p.Bands()
+	if len(bands) == 0 {
+		return "custom"
+	}
+	for _, preset := range Presets(bands[0].Every, bands[0].For) {
 		if preset.Policy.Equal(p) {
 			return preset.ID
 		}

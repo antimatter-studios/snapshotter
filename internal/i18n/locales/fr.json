@@ -225,8 +225,8 @@
   "retention.tiered52.why": {
     "other": "Un an de portée pour à peu près le nombre qu'une quinzaine uniforme coûte déjà."
   },
-  "schedule.flatWhy": {
-    "other": "Tous les snapshots dans la fenêtre et aucun en dehors — ce que cette planification a toujours fait."
+  "schedule.flatWindowName": {
+    "other": "Fenêtre uniforme"
   },
   "schedule.noneInstalled": {
     "other": "Aucune planification installée. Rien ne crée de snapshots automatiquement."

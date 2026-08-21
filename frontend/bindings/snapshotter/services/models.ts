@@ -738,12 +738,6 @@ export class Overview {
 export class PolicyOption {
     "id": string;
     "name": string;
-
-    /**
-     * Why decides it for someone who will not read the bands; Summary is the
-     * bands themselves, for someone who will.
-     */
-    "why": string;
     "summary": string;
     "tiers": TierView[];
 
@@ -767,9 +761,6 @@ export class PolicyOption {
         if (!("name" in $$source)) {
             this["name"] = "";
         }
-        if (!("why" in $$source)) {
-            this["why"] = "";
-        }
         if (!("summary" in $$source)) {
             this["summary"] = "";
         }
@@ -790,10 +781,10 @@ export class PolicyOption {
      * Creates a new PolicyOption instance from a string or object.
      */
     static createFrom($$source: any = {}): PolicyOption {
-        const $$createField4_0 = $$createType10;
+        const $$createField3_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tiers" in $$parsedSource) {
-            $$parsedSource["tiers"] = $$createField4_0($$parsedSource["tiers"]);
+            $$parsedSource["tiers"] = $$createField3_0($$parsedSource["tiers"]);
         }
         return new PolicyOption($$parsedSource as Partial<PolicyOption>);
     }

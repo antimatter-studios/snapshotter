@@ -42,11 +42,25 @@ func TestWhatEachPolicyRetainsAtEveryInterval(t *testing.T) {
 		// bands keep the same number however often snapshots are taken. That is
 		// why it holds fewer than a flat fortnight at one hour and more at
 		// twenty-four, and why any claim comparing the two is interval-dependent.
-		{"tiered-13-weeks", presetPolicy(t, "tiered-13-weeks"), [5]int{74, 42, 34, 29, 27}},
-		{"tiered-52-weeks", presetPolicy(t, "tiered-52-weeks"), [5]int{81, 49, 41, 36, 34}},
+		// Presets are now built from the chosen period and window, so a preset has
+		// no single count: it has one per period. These are taken at a fourteen-day
+		// window, the same window the flat row above uses, which is what makes the
+		// two rows comparable at all.
+		//
+		// They were 74/42/34/29/27 and 81/49/41/36/34 when the first band was
+		// hardcoded to "everything for two days" and the person's choices selected
+		// nothing. The rise is the point: the policy now keeps what was asked for.
+		{"tiered-13-weeks", presetPolicy(t, "tiered-13-weeks"), [5]int{349, 125, 69, 41, 27}},
+		{"tiered-52-weeks", presetPolicy(t, "tiered-52-weeks"), [5]int{356, 132, 76, 48, 34}},
 	} {
 		for i, interval := range characterisationIntervals {
-			got := Retained(c.policy, interval, now)
+			policy := c.policy
+			// A preset is a function of the period, so the row is rebuilt per
+			// column. A flat policy is not, and passes through unchanged.
+			if !policy.IsFlat() {
+				policy = presetAt(t, c.name, interval)
+			}
+			got := Retained(policy, interval, now)
 			if got != c.want[i] {
 				t.Errorf("%s at %v: retains %d, was %d", c.name, interval, got, c.want[i])
 			}
@@ -54,41 +68,41 @@ func TestWhatEachPolicyRetainsAtEveryInterval(t *testing.T) {
 	}
 }
 
-// The claim the interface makes about the tiered presets, checked at every
-// interval rather than at one.
+// The bug that characterisation existed to record, now asserted as fixed.
 //
-// It fails at twelve and twenty-four hours: the tiered policies keep more than
-// the flat fortnight they are described as costing less than. Recorded here as
-// the current truth rather than asserted as a requirement, because the fix is a
-// design decision — whether the presets should scale with the chosen interval —
-// and not a number to adjust.
-func TestTheTieringClaimHoldsOnlyAtSomeIntervals(t *testing.T) {
-	flat := FlatPolicy(14 * day)
-
-	holds := map[time.Duration]bool{}
-	for _, interval := range characterisationIntervals {
-		flatCount := Retained(flat, interval, planNow)
-		fewer := true
-		for _, preset := range Presets() {
-			if Retained(preset.Policy, interval, planNow) > flatCount {
-				fewer = false
+// A preset's first band is the period and window the person chose. Before, it was
+// hardcoded to "everything for two days" and both settings selected nothing at
+// all: picking a tiered preset silently discarded them.
+//
+// The claim that used to sit here — that tiering costs less than a flat fortnight
+// — is gone rather than corrected. It was a sentence written by hand next to three
+// values derived from the policy, it was false at two of the five intervals, and a
+// corrected sentence would have drifted again at the next change to a band.
+func TestAPresetOpensWithTheChosenPeriodAndWindow(t *testing.T) {
+	for _, window := range []time.Duration{3 * day, 7 * day, 14 * day, 30 * day} {
+		for _, period := range characterisationIntervals {
+			for _, preset := range Presets(period, window) {
+				bands := preset.Policy.Bands()
+				if len(bands) == 0 {
+					t.Fatalf("%s at %v/%v has no bands", preset.ID, period, window)
+				}
+				if bands[0].Every != period || bands[0].For != window {
+					t.Errorf("%s at every %v for %v opens with every %v for %v",
+						preset.ID, period, window, bands[0].Every, bands[0].For)
+				}
+				// And nothing after it may be finer, or the newest snapshots would
+				// be governed by a coarser band than the one chosen.
+				for k := 1; k < len(bands); k++ {
+					if bands[k].Every < bands[k-1].Every {
+						t.Errorf("%s at %v/%v refines with age: %v then %v",
+							preset.ID, period, window, bands[k-1], bands[k])
+					}
+					if bands[k].For <= bands[k-1].For {
+						t.Errorf("%s at %v/%v does not reach further: %v then %v",
+							preset.ID, period, window, bands[k-1], bands[k])
+					}
+				}
 			}
-		}
-		holds[interval] = fewer
-	}
-
-	for _, c := range []struct {
-		interval time.Duration
-		want     bool
-	}{
-		{time.Hour, true},
-		{3 * time.Hour, true},
-		{6 * time.Hour, true}, // the only one the neighbouring test checks
-		{12 * time.Hour, false},
-		{24 * time.Hour, false},
-	} {
-		if holds[c.interval] != c.want {
-			t.Errorf("at %v: tiered-keeps-fewer is %v, was %v", c.interval, holds[c.interval], c.want)
 		}
 	}
 }
@@ -114,9 +128,16 @@ func TestAPolicyMayCurrentlyRefineWithAge(t *testing.T) {
 	}
 }
 
+// presetPolicy builds a preset the way the interface does: from a period and a
+// window. The period here varies per column, so it is passed in per lookup.
 func presetPolicy(t *testing.T, id string) Policy {
 	t.Helper()
-	for _, p := range Presets() {
+	return presetAt(t, id, 6*time.Hour)
+}
+
+func presetAt(t *testing.T, id string, period time.Duration) Policy {
+	t.Helper()
+	for _, p := range Presets(period, 14*day) {
 		if p.ID == id {
 			return p.Policy
 		}

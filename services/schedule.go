@@ -63,11 +63,8 @@ type TierView struct {
 // whether they end up with more or fewer restore points than they have now,
 // which is the only question anyone actually has about retention.
 type PolicyOption struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	// Why decides it for someone who will not read the bands; Summary is the
-	// bands themselves, for someone who will.
-	Why     string     `json:"why"`
+	ID      string     `json:"id"`
+	Name    string     `json:"name"`
 	Summary string     `json:"summary"`
 	Tiers   []TierView `json:"tiers"`
 	// Retained is how many snapshots the policy holds once the schedule has been
@@ -115,7 +112,7 @@ func (s *ScheduleService) InstallPolicy(ctx context.Context, intervalHours, rete
 			log.Printf("schedule: recording the choice in the configuration: %v", err)
 		}
 	}
-	policy, ok := schedule.PolicyByID(policyID, days(retentionDays))
+	policy, ok := schedule.PolicyByID(policyID, time.Duration(intervalHours*float64(time.Hour)), days(retentionDays))
 	if !ok {
 		return ScheduleView{}, fmt.Errorf("services: %q is not a retention policy", policyID)
 	}
@@ -138,22 +135,23 @@ func (s *ScheduleService) Policies(intervalHours, retentionDays float64) []Polic
 	interval := time.Duration(intervalHours * float64(time.Hour))
 	now := time.Now()
 
+	window := days(retentionDays)
 	options := []PolicyOption{optionOf(
-		schedule.FlatID, "Flat window",
-		i18n.T("schedule.flatWhy"),
-		schedule.FlatPolicy(days(retentionDays)), interval, now,
+		schedule.FlatID, i18n.T("schedule.flatWindowName"),
+		schedule.FlatPolicy(window), interval, now,
 	)}
-	for _, preset := range schedule.Presets() {
-		options = append(options, optionOf(preset.ID, preset.Name, preset.Why, preset.Policy, interval, now))
+	// Built from the same two choices the flat option uses, so every preset's
+	// first band is the period and window that were actually picked.
+	for _, preset := range schedule.Presets(interval, window) {
+		options = append(options, optionOf(preset.ID, preset.Name, preset.Policy, interval, now))
 	}
 	return options
 }
 
-func optionOf(id, name, why string, policy schedule.Policy, interval time.Duration, now time.Time) PolicyOption {
+func optionOf(id, name string, policy schedule.Policy, interval time.Duration, now time.Time) PolicyOption {
 	return PolicyOption{
 		ID:        id,
 		Name:      name,
-		Why:       why,
 		Summary:   schedule.Describe(policy),
 		Tiers:     tierViews(policy),
 		Retained:  schedule.Retained(policy, interval, now),

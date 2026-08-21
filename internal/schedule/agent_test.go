@@ -236,7 +236,7 @@ func TestUninstallIsSafeWhenNothingIsInstalled(t *testing.T) {
 func TestInstallWritesThePolicyAndAFlatValueAtItsHorizon(t *testing.T) {
 	r := &fakeRunner{}
 	a := newAgent(t, r)
-	preset := Presets()[0]
+	preset := Presets(6*time.Hour, 14*day)[0]
 
 	cfg := Config{Interval: 6 * time.Hour, Policy: preset.Policy}
 	if err := a.Install(context.Background(), cfg); err != nil {
@@ -263,7 +263,7 @@ func TestInstallWritesThePolicyAndAFlatValueAtItsHorizon(t *testing.T) {
 
 func TestStatusReadsBackAnInstalledPolicy(t *testing.T) {
 	a := newAgent(t, &fakeRunner{})
-	preset := Presets()[1]
+	preset := Presets(6*time.Hour, 14*day)[1]
 	if err := a.Install(context.Background(), Config{Interval: 6 * time.Hour, Policy: preset.Policy}); err != nil {
 		t.Fatal(err)
 	}
@@ -346,14 +346,14 @@ func TestPolicyFromEnvReadsTheFlatValueWhenNoPolicyIsSet(t *testing.T) {
 }
 
 func TestPolicyFromEnvReadsAPolicy(t *testing.T) {
-	t.Setenv(policyEnv, Presets()[0].Policy.String())
+	t.Setenv(policyEnv, Presets(6*time.Hour, 14*day)[0].Policy.String())
 
 	policy, err := PolicyFromEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !policy.Equal(Presets()[0].Policy) {
-		t.Errorf("got %+v, want %+v", policy.Bands(), Presets()[0].Policy.Bands())
+	if !policy.Equal(Presets(6*time.Hour, 14*day)[0].Policy) {
+		t.Errorf("got %+v, want %+v", policy.Bands(), Presets(6*time.Hour, 14*day)[0].Policy.Bands())
 	}
 }
 

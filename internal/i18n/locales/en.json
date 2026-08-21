@@ -225,8 +225,8 @@
   "retention.tiered52.why": {
     "other": "A year of reach for about the count a flat fortnight already costs."
   },
-  "schedule.flatWhy": {
-    "other": "Every snapshot inside the window and nothing outside it — what this schedule has always done."
+  "schedule.flatWindowName": {
+    "other": "Flat window"
   },
   "schedule.noneInstalled": {
     "other": "No schedule installed. Nothing is taking snapshots automatically."

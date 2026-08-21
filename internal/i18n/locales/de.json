@@ -225,8 +225,8 @@
   "retention.tiered52.why": {
     "other": "Ein Jahr Reichweite für etwa die Anzahl, die zwei gleichmäßige Wochen ohnehin kosten."
   },
-  "schedule.flatWhy": {
-    "other": "Jeder Snapshot innerhalb des Zeitraums und keiner außerhalb — so hat dieser Zeitplan es immer gehalten."
+  "schedule.flatWindowName": {
+    "other": "Gleichmäßiger Zeitraum"
   },
   "schedule.noneInstalled": {
     "other": "Kein Zeitplan eingerichtet. Es werden keine Snapshots automatisch erstellt."

@@ -225,8 +225,8 @@
   "retention.tiered52.why": {
     "other": "Un año de alcance por aproximadamente la cantidad que ya cuesta una quincena uniforme."
   },
-  "schedule.flatWhy": {
-    "other": "Todos los snapshots dentro de la ventana y ninguno fuera — lo que esta programación siempre ha hecho."
+  "schedule.flatWindowName": {
+    "other": "Ventana uniforme"
   },
   "schedule.noneInstalled": {
     "other": "No hay programación instalada. Nada crea snapshots automáticamente."

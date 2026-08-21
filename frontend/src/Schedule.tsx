@@ -157,7 +157,6 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
               />
               <div className="policy-body">
                 <div className="policy-name">{option.name}</div>
-                <p className="policy-why">{option.why}</p>
                 <p className="policy-bands">{option.summary}</p>
                 <div className="policy-numbers">
                   <span>
