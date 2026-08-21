@@ -186,40 +186,55 @@ const FlatID = "flat"
 // discarded. That is the bug this signature exists to make impossible — a preset
 // cannot be constructed without them.
 //
-// The first band is the choice: every {period} for {window}. The bands after it
-// are the shape of the preset, and are kept only where they reach further than
-// the window does. One that did not would sort ahead of the first band and govern
-// the newest snapshots at its own coarser density, overriding the very period the
-// person picked.
+// Three bands, always. The first is the choice: every {period} for {window}. The
+// two after it are multiples of that window, which is what keeps the count at
+// three whatever is chosen — spans fixed in absolute days disappeared whenever
+// the window already reached past them, so a fortnight's window turned a
+// three-band preset into a two-band one without saying so.
+//
+// A band is dropped only if it would be finer than the one before it, which the
+// multipliers make impossible; the check stays because the invariant is the
+// thing that matters, not the arithmetic that currently satisfies it.
 func Presets(period, window time.Duration) []Preset {
 	base := Tier{Every: period, For: window}
 
 	shapes := []struct {
-		id      string
-		name    string
-		coarser []Tier
+		id   string
+		name string
+		// Each band beyond the first: how coarse, and how far as a multiple of
+		// the window. Named for their shape rather than an absolute reach,
+		// because the reach now follows the window and any number in the name
+		// would be wrong for four of the five windows.
+		bands []struct {
+			every time.Duration
+			times int
+		}
 	}{
-		{"tiered-13-weeks", i18n.T("retention.tiered13.name"), []Tier{
-			{Every: day, For: 14 * day},
-			{Every: 7 * day, For: 91 * day},
-		}},
-		{"tiered-52-weeks", i18n.T("retention.tiered52.name"), []Tier{
-			{Every: day, For: 14 * day},
-			{Every: 7 * day, For: 56 * day},
-			{Every: 28 * day, For: 364 * day},
-		}},
+		{"tiered-daily-weekly", i18n.T("retention.dailyWeekly.name"), []struct {
+			every time.Duration
+			times int
+		}{{day, 4}, {7 * day, 13}}},
+		{"tiered-weekly-monthly", i18n.T("retention.weeklyMonthly.name"), []struct {
+			every time.Duration
+			times int
+		}{{7 * day, 13}, {28 * day, 52}}},
 	}
 
 	out := make([]Preset, 0, len(shapes))
 	for _, shape := range shapes {
 		tiers := []Tier{base}
-		for _, t := range shape.coarser {
-			// Further back, and no finer. Both are required: a band that reaches
-			// no further adds nothing, and one that is finer than the band before
-			// it would refine with age, which is not a policy anyone means.
-			if t.For > base.For && t.Every >= base.Every {
-				tiers = append(tiers, t)
+		previous := base
+		for _, b := range shape.bands {
+			// Never finer than the band before it. A policy that refines with age
+			// keeps the newest snapshots at the coarsest density, which is not a
+			// thing anyone means to ask for.
+			every := b.every
+			if every < previous.Every {
+				every = previous.Every
 			}
+			t := Tier{Every: every, For: window * time.Duration(b.times)}
+			tiers = append(tiers, t)
+			previous = t
 		}
 		out = append(out, Preset{ID: shape.id, Name: shape.name, Policy: Policy{Tiers: tiers}})
 	}

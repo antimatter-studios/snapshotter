@@ -253,7 +253,7 @@ func TestInstallWritesThePolicyAndAFlatValueAtItsHorizon(t *testing.T) {
 		"<string>" + preset.Policy.String() + "</string>",
 		"<key>" + retentionEnv + "</key>",
 		// 2184 hours is the 13-week horizon, in hours.
-		"<string>2184</string>",
+		"<string>4368</string>",
 	} {
 		if !strings.Contains(plist, want) {
 			t.Errorf("plist missing %q:\n%s", want, plist)

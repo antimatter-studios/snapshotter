@@ -195,6 +195,9 @@
   "retention.clause.rateOutTo": {
     "other": "{{.Rate}} bis {{.Span}}"
   },
+  "retention.dailyWeekly.name": {
+    "other": "Gestaffelt — täglich, dann wöchentlich"
+  },
   "retention.everyDay": {
     "other": "einer pro Tag"
   },
@@ -213,17 +216,8 @@
   "retention.nothingPruned": {
     "other": "Es wird nichts entfernt."
   },
-  "retention.tiered13.name": {
-    "other": "Gestaffelt — 13 Wochen"
-  },
-  "retention.tiered13.why": {
-    "other": "Etwa halb so viele Snapshots wie zwei gleichmäßige Wochen, dabei sechsmal weiter zurückreichend."
-  },
-  "retention.tiered52.name": {
-    "other": "Gestaffelt — ein Jahr"
-  },
-  "retention.tiered52.why": {
-    "other": "Ein Jahr Reichweite für etwa die Anzahl, die zwei gleichmäßige Wochen ohnehin kosten."
+  "retention.weeklyMonthly.name": {
+    "other": "Gestaffelt — wöchentlich, dann monatlich"
   },
   "schedule.flatWindowName": {
     "other": "Gleichmäßiger Zeitraum"

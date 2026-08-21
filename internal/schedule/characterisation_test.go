@@ -49,9 +49,11 @@ func TestWhatEachPolicyRetainsAtEveryInterval(t *testing.T) {
 		//
 		// They were 74/42/34/29/27 and 81/49/41/36/34 when the first band was
 		// hardcoded to "everything for two days" and the person's choices selected
-		// nothing. The rise is the point: the policy now keeps what was asked for.
-		{"tiered-13-weeks", presetPolicy(t, "tiered-13-weeks"), [5]int{349, 125, 69, 41, 27}},
-		{"tiered-52-weeks", presetPolicy(t, "tiered-52-weeks"), [5]int{356, 132, 76, 48, 34}},
+		// nothing. The rise is the point: the policy now keeps what was asked for,
+		// and reaches thirteen and fifty-two times that window rather than a fixed
+		// ninety-one and three hundred and sixty-four days.
+		{"tiered-daily-weekly", presetPolicy(t, "tiered-daily-weekly"), [5]int{399, 175, 119, 90, 76}},
+		{"tiered-weekly-monthly", presetPolicy(t, "tiered-weekly-monthly"), [5]int{383, 159, 103, 75, 61}},
 	} {
 		for i, interval := range characterisationIntervals {
 			policy := c.policy

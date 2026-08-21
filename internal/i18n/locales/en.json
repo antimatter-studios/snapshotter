@@ -195,6 +195,9 @@
   "retention.clause.rateOutTo": {
     "other": "{{.Rate}} out to {{.Span}}"
   },
+  "retention.dailyWeekly.name": {
+    "other": "Tiered — daily, then weekly"
+  },
   "retention.everyDay": {
     "other": "one a day"
   },
@@ -213,17 +216,8 @@
   "retention.nothingPruned": {
     "other": "Nothing is pruned."
   },
-  "retention.tiered13.name": {
-    "other": "Tiered — 13 weeks"
-  },
-  "retention.tiered13.why": {
-    "other": "Roughly half as many snapshots as a flat fortnight, reaching six times further back."
-  },
-  "retention.tiered52.name": {
-    "other": "Tiered — a year"
-  },
-  "retention.tiered52.why": {
-    "other": "A year of reach for about the count a flat fortnight already costs."
+  "retention.weeklyMonthly.name": {
+    "other": "Tiered — weekly, then monthly"
   },
   "schedule.flatWindowName": {
     "other": "Flat window"

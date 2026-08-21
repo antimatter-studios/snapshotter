@@ -195,6 +195,9 @@
   "retention.clause.rateOutTo": {
     "other": "{{.Rate}} jusqu'à {{.Span}}"
   },
+  "retention.dailyWeekly.name": {
+    "other": "Échelonné — quotidien, puis hebdomadaire"
+  },
   "retention.everyDay": {
     "other": "un par jour"
   },
@@ -213,17 +216,8 @@
   "retention.nothingPruned": {
     "other": "Rien n'est supprimé."
   },
-  "retention.tiered13.name": {
-    "other": "Échelonné — 13 semaines"
-  },
-  "retention.tiered13.why": {
-    "other": "Environ deux fois moins de snapshots qu'une quinzaine uniforme, en remontant six fois plus loin."
-  },
-  "retention.tiered52.name": {
-    "other": "Échelonné — un an"
-  },
-  "retention.tiered52.why": {
-    "other": "Un an de portée pour à peu près le nombre qu'une quinzaine uniforme coûte déjà."
+  "retention.weeklyMonthly.name": {
+    "other": "Échelonné — hebdomadaire, puis mensuel"
   },
   "schedule.flatWindowName": {
     "other": "Fenêtre uniforme"

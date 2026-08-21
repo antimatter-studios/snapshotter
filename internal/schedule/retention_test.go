@@ -247,7 +247,11 @@ func TestPruningAsItGoesKeepsASubsetOfPlanningTheWholeHistory(t *testing.T) {
 		live, _ = Plan(live, policy, now)
 	}
 
-	whole, _ := Plan(history(now, interval, steps+1), policy, now)
+	// The same snapshots the loop above saw, not one more. The extra one used to
+	// be beyond every preset's reach and pruned either way; a preset's reach now
+	// follows the window, and at fifty-two times a fortnight it outruns the four
+	// hundred days simulated here, so the difference stopped cancelling.
+	whole, _ := Plan(history(now, interval, steps), policy, now)
 	inWhole := map[string]bool{}
 	for _, s := range whole {
 		inWhole[s.Stamp] = true
@@ -519,8 +523,10 @@ func TestTieringCostsFarLessThanFlatAtTheSameReach(t *testing.T) {
 }
 
 func TestHorizonIsTheOldestAgeKept(t *testing.T) {
-	if got := Presets(6*time.Hour, 14*day)[1].Policy.Horizon(); got != 364*day {
-		t.Errorf("horizon %s, want 364 days", got)
+	// Fifty-two times the window, so it follows the choice rather than being a
+	// fixed year.
+	if got := Presets(6*time.Hour, 14*day)[1].Policy.Horizon(); got != 52*14*day {
+		t.Errorf("horizon %s, want 52 windows", got)
 	}
 	if got := (Policy{}).Horizon(); got != 0 {
 		t.Errorf("an empty policy reaches %s, want zero", got)
@@ -624,7 +630,7 @@ func TestDescribeReadsAsASentence(t *testing.T) {
 	// the property that makes this description trustworthy where the hand-written
 	// one was not.
 	got := Describe(Presets(6*time.Hour, 14*day)[1].Policy)
-	want := "One every 6 hours for 14 days, then one a week out to 8 weeks, then one every 4 weeks out to 52 weeks."
+	want := "One every 6 hours for 14 days, then one a week out to 26 weeks, then one every 4 weeks out to 104 weeks."
 	if got != want {
 		t.Errorf("Describe() = %q, want %q", got, want)
 	}

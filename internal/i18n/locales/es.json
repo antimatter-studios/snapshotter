@@ -195,6 +195,9 @@
   "retention.clause.rateOutTo": {
     "other": "{{.Rate}} hasta {{.Span}}"
   },
+  "retention.dailyWeekly.name": {
+    "other": "Escalonado: diario y luego semanal"
+  },
   "retention.everyDay": {
     "other": "uno al día"
   },
@@ -213,17 +216,8 @@
   "retention.nothingPruned": {
     "other": "No se elimina nada."
   },
-  "retention.tiered13.name": {
-    "other": "Escalonado: 13 semanas"
-  },
-  "retention.tiered13.why": {
-    "other": "Aproximadamente la mitad de snapshots que una quincena uniforme, llegando seis veces más atrás."
-  },
-  "retention.tiered52.name": {
-    "other": "Escalonado: un año"
-  },
-  "retention.tiered52.why": {
-    "other": "Un año de alcance por aproximadamente la cantidad que ya cuesta una quincena uniforme."
+  "retention.weeklyMonthly.name": {
+    "other": "Escalonado: semanal y luego mensual"
   },
   "schedule.flatWindowName": {
     "other": "Ventana uniforme"
