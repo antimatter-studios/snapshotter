@@ -279,3 +279,85 @@ describe("when the check itself fails", () => {
     expect(screen.queryByText(/checking/i)).toBeNull();
   });
 });
+
+describe("the verdict line", () => {
+  it("checks again when asked", async () => {
+    check();
+    render(<Health onStatus={() => {}} />);
+    await screen.findByText("You are covered");
+
+    // Called once on mount; pressing it has to actually ask again, or a fix made
+    // elsewhere never shows up here.
+    await userEvent.click(screen.getByRole("button", { name: /check/i }));
+
+    await waitFor(() => expect(vi.mocked(Status.Check).mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("says nothing has been recorded rather than showing an empty date", async () => {
+    check({ snapshotCount: 0, newest: "" });
+    render(<Health onStatus={() => {}} />);
+
+    // Exactly, not by fragment: "nothing" appears elsewhere on a machine with no
+    // snapshots, and matching loosely would pass on the wrong sentence.
+    expect(await screen.findByText("Nothing has been recorded.")).toBeTruthy();
+  });
+
+  it("says when the next one is due, once there is a schedule to be due under", async () => {
+    check({ newest: "2026-08-20T12:00:00Z", nextDue: "2026-08-20T18:00:00Z" });
+    render(<Health onStatus={() => {}} />);
+
+    expect(await screen.findByText(/next/i)).toBeTruthy();
+  });
+
+  // How far back the history reaches, which is the number that answers "can I get
+  // Tuesday's version back". Its wording changes scale twice, and each scale is a
+  // separate plural rule in every language.
+  it("gives the depth in days once there is more than two of them", async () => {
+    check({ coverageHours: 168 });
+    render(<Health onStatus={() => {}} />);
+
+    expect(await screen.findByText("7 days")).toBeTruthy();
+  });
+
+  it("gives it in hours below two days", async () => {
+    check({ coverageHours: 6 });
+    render(<Health onStatus={() => {}} />);
+
+    expect(await screen.findByText("6 hours")).toBeTruthy();
+  });
+
+  it("says under an hour rather than rounding to zero", async () => {
+    check({ coverageHours: 0.4 });
+    render(<Health onStatus={() => {}} />);
+
+    // "0 hours" of history reads as no history at all, when what is true is that
+    // the first snapshot was taken minutes ago.
+    expect(await screen.findByText(/under an hour/i)).toBeTruthy();
+    expect(screen.queryByText("0 hours")).toBeNull();
+  });
+});
+
+describe("silencing a folder that will not silence", () => {
+  it("says why instead of appearing to have worked", async () => {
+    vi.spyOn(Status, "Check").mockResolvedValue(base as never);
+    vi.spyOn(Config, "Get").mockResolvedValue({ config: { tripwire: { ignore: [] } } } as never);
+    vi.spyOn(Status, "RecentWarnings").mockResolvedValue([
+      {
+        at: "2026-08-20T03:10:00Z",
+        kind: "bulk-deletion",
+        where: ["/Users/someone/Library/Caches"],
+        labels: ["~/Library/Caches"],
+        snapshot: "",
+        note: "",
+      },
+    ] as never);
+    vi.spyOn(Config, "IgnoreFolder").mockRejectedValue(new Error("the settings file is read-only"));
+
+    render(<Health onStatus={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /ignore/i }));
+
+    // Otherwise the row stays, the warning returns tomorrow, and nothing ever
+    // said the setting was not saved.
+    expect(await screen.findByText(/read-only/)).toBeTruthy();
+  });
+});
