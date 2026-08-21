@@ -333,6 +333,11 @@ function BulkDeletionWarnings() {
                   usually spans two or three folders and only one of them is the
                   noisy one. */}
               <td className="warning-where">
+                {/* The response failing is the one outcome worth surfacing. The
+                    column that used to sit here read "snapshot taken" on every
+                    healthy row — the expected case, stated at length — and its
+                    absence was the only informative part. */}
+                {!w.snapshot && <p className="warning-failed">{w.note || t("health.responseFailed")}</p>}
                 {w.where?.length ? (
                   <ul>
                     {w.where.map((folder, n) => (
