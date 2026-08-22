@@ -395,11 +395,6 @@ formatter, one set of message keys — and fixes the CLI silently ignoring
 Switching language updates the menu bar immediately rather than at the next
 refresh.
 
-### v0.44.0
-
-The command line is translated too, following `appearance.language` like
-everything else. Command syntax stays in English, being what you type.
-
 
 ## Design decisions
 
