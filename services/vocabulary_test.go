@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -279,5 +280,83 @@ func TestTheScheduleWordingReachesTheReaders(t *testing.T) {
 	}
 	if !strings.Contains(traySource(t), "ScheduleHeadline") {
 		t.Error("the menu bar does not read ScheduleHeadline")
+	}
+}
+
+// Every message in the window's catalogue has to be reached by something.
+//
+// This exists because the opposite of a missing translation has now happened five
+// times here, and no test could see any of it: a key was added and translated into
+// four languages, and the English stayed written into the markup. The screen looked
+// finished in English and was hardcoded in every other language.
+//
+// Nothing catches that. An unused message does not render wrong, does not throw,
+// and leaves the four catalogues perfectly consistent with each other — the
+// i18n tests all pass, because they compare the catalogues to each other rather
+// than to the code. A key nothing calls is either dead weight or, far more often,
+// a translation somebody wired up and then didn't.
+func TestNothingInTheWindowsCatalogueGoesUnasked(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join(windowRoot, "locales", "en.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var catalogue map[string]string
+	if err := json.Unmarshal(body, &catalogue); err != nil {
+		t.Fatal(err)
+	}
+	source := windowSource(t)
+
+	// Prefixes whose keys are assembled at runtime — t(`status.${status}`) — so the
+	// whole key never appears in the source. Each is a hole in this test, so each
+	// names the file that builds it.
+	builtAtRuntime := []string{
+		"status.",         // Browser.tsx: one per row verdict
+		"tripwire.level.", // Schedule.tsx: one per sensitivity
+		"count.",          // passed with { count }, which i18next suffixes itself
+		"age.",            // the same, from format.ts
+	}
+
+	plural := regexp.MustCompile(`_(one|other|zero|two|few|many)$`)
+	var unused []string
+	seen := map[string]bool{}
+	for key := range catalogue {
+		stem := plural.ReplaceAllString(key, "")
+		if seen[stem] {
+			continue
+		}
+		seen[stem] = true
+
+		exempt := false
+		for _, prefix := range builtAtRuntime {
+			if strings.HasPrefix(stem, prefix) {
+				exempt = true
+				break
+			}
+		}
+		if exempt {
+			continue
+		}
+		if !strings.Contains(source, `"`+stem+`"`) && !strings.Contains(source, "`"+stem+"`") {
+			unused = append(unused, stem)
+		}
+	}
+
+	sort.Strings(unused)
+	for _, key := range unused {
+		// Named one by one: "fourteen unused keys" sends someone hunting, and the
+		// whole point is that the key names the screen it was meant for.
+		t.Errorf("nothing asks for %q — either it is dead, or the English is still written into the markup", key)
+	}
+}
+
+// And the exemptions must correspond to real code. One left behind after its call
+// site went away would hide a whole family of unused keys.
+func TestEveryRuntimeBuiltPrefixIsReallyBuilt(t *testing.T) {
+	source := windowSource(t)
+
+	for _, prefix := range []string{"status.", "tripwire.level.", "count.", "age."} {
+		if !strings.Contains(source, "`"+prefix) && !strings.Contains(source, `"`+prefix) {
+			t.Errorf("%q is exempted from the unused-key check and nothing builds it", prefix)
+		}
 	}
 }

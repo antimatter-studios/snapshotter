@@ -262,7 +262,7 @@ export default function App() {
                   ) : (
                     <>
                       {snapshot.mounted ? (
-                        <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), "Closed"))}>
+                        <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), t("app.closed")))}>
                           {t("app.close")}
                         </button>
                       ) : (
@@ -392,6 +392,7 @@ export default function App() {
  * disagree about whether this Mac is running out.
  */
 function DiskSpace({ free, total }: { free: number; total: number }) {
+  const { t } = useTranslation();
   if (!total) return null;
 
   const freeRatio = free / total;
@@ -400,14 +401,18 @@ function DiskSpace({ free, total }: { free: number; total: number }) {
   return (
     <span
       className={`disk ${level}`}
-      title={`${bytes(free)} free of ${bytes(total)} — ${Math.round(freeRatio * 100)}% free`}
+      title={t("app.diskFree", {
+        free: bytes(free),
+        total: bytes(total),
+        percent: Math.round(freeRatio * 100),
+      })}
     >
       {/* The bar fills with what is USED, because one that empties as things get
           worse reads backwards: a full bar looks like a full disk. */}
       <span className="disk-bar" aria-hidden="true">
         <span className="disk-used" style={{ width: `${Math.min(100, (1 - freeRatio) * 100)}%` }} />
       </span>
-      <span className="disk-text">{bytes(free)} free</span>
+      <span className="disk-text">{t("app.freeSpace", { size: bytes(free) })}</span>
     </span>
   );
 }
