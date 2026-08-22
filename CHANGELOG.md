@@ -78,6 +78,32 @@ The audit that found them is a test now: every bound method must be reachable, o
 listed as deliberately not, with the reason. The eight remaining have theirs
 written down.
 
+### One account of what the schedule does
+
+Three places said what the schedule does, and all three built the sentence
+themselves from the interval and the retention window. That ignores the policy,
+so all three were wrong for every tiered schedule: they read the horizon as the
+retention, which is true of a flat window and of nothing else.
+
+The menu bar announced "Every 3 hours, kept 364 days" for a policy that keeps one
+snapshot every four weeks past the twenty-sixth. The window's figure grid said
+"Every 3h, kept 14d" — the same mistake, in English, written into the markup. The
+settings screen read the policy properly and said something different and correct.
+Nothing noticed, because no two of them were ever compared.
+
+There is one place now, and it names the mode, which is the thing a reader most
+wants and never had: "Flat window: every 3 hours, kept 14 days", or "Tiered —
+daily, then weekly: every 3 hours, thinning out to 26 weeks". It words itself by
+kind rather than from one template, because a flat window keeps everything for its
+span and a tiered one does not.
+
+Three views, sized to their space: the menu bar's line with the full sentence on
+its tooltip, the window's four-column grid with the mode's name and the line on
+its tooltip, and the settings screen's full sentence.
+
+Four more blocks of English were written into the settings screen's markup, two of
+them with catalogue entries that nothing called — translated once and never wired.
+
 ### A refusal that only English speakers could act on
 
 macOS refusing to mount a snapshot for want of Full Disk Access is the one failure
