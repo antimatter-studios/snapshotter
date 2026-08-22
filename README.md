@@ -403,6 +403,8 @@ formatter, one set of message keys — and fixes the CLI silently ignoring
 ## Design decisions
 
 [docs/DECISIONS.md](docs/DECISIONS.md) records why things are the way they are,
-including the traps that cost real debugging. [docs/ROADMAP.md](docs/ROADMAP.md)
-orders the outstanding work by what can be verified rather than by what is worth
-most.
+including the traps that cost real debugging.
+[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) records the faults that have
+actually happened, with the fix for each — start there when something is wrong
+rather than reading the decisions. [docs/ROADMAP.md](docs/ROADMAP.md) orders the
+outstanding work by what can be verified rather than by what is worth most.
