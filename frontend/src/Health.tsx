@@ -105,10 +105,8 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
       <div className="health-body">
 
         {health.findings.length === 0 && (
-          <p className="empty">
-            Nothing to act on. Snapshots exist, something is taking more, and the retention you set
-            is the retention you will get.
-          </p>
+          // This had a catalogue entry all along while the English sat here.
+          <p className="empty">{t("health.nothingToActOn")}</p>
         )}
 
         {health.findings.map((f: Finding, i: number) => (
