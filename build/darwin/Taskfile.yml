@@ -130,7 +130,22 @@ tasks:
 
   build:universal:
     summary: Builds darwin universal binary (arm64 + amd64)
-    deps:
+    # Sequential, and the frontend built once before either compile.
+    #
+    # These were deps, which Task runs in parallel, and each arch build pulls in
+    # common:build:frontend — which runs `vite build`, and vite EMPTIES dist
+    # before writing to it. So one compile read that directory while the other's
+    # frontend build had just emptied it, and embedded a window with no
+    # index.html in it.
+    #
+    # The result is the worst shape a build can fail in: lipo joins a good slice
+    # to a bad one, the fat binary contains the assets, every check that greps it
+    # finds them — and the Mac executing the bad slice shows a white window saying
+    # "no index.html could be found in your Assets fs.FS". v0.54.0 shipped with the
+    # assets in x86_64 and not arm64, so it worked on Intel and not on Apple
+    # Silicon. See docs/TROUBLESHOOTING.md.
+    cmds:
+      - task: common:build:frontend
       - task: build
         vars:
           ARCH: amd64
@@ -139,7 +154,6 @@ tasks:
         vars:
           ARCH: arm64
           OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
-    cmds:
       - task: '{{if eq OS "darwin"}}build:universal:lipo:native{{else}}build:universal:lipo:go{{end}}'
 
   build:universal:lipo:native:
