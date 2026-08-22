@@ -203,7 +203,7 @@ jobs:
       # window paints it as a white page and nothing reaches stderr or an exit
       # code. A release shipped that way, and the only thing that noticed was
       # somebody opening it.
-      - name: The window is really in the bundle
+      - name: The window is really in the bundle, in every slice
         run: |
           set -euo pipefail
           test -s frontend/dist/index.html \
@@ -211,6 +211,22 @@ jobs:
           # Against the same asset handler the window uses, over the same embedded
           # filesystem the binary just took.
           go test ./frontend
+
+          # And in each slice separately, because lipo will happily join a good
+          # one to a bad one. v0.54.0 shipped with the window embedded in x86_64
+          # and not arm64: it worked on Intel, showed a white error page on Apple
+          # Silicon, and every check against the fat binary found the assets in
+          # the half nobody was running.
+          marker=$(grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' frontend/dist/index.html | head -1)
+          test -n "$marker" || { echo "::error::cannot find the bundle name in index.html"; exit 1; }
+          for arch in arm64 x86_64; do
+            lipo -thin "$arch" bin/snapshotter -output "$RUNNER_TEMP/$arch.bin"
+            if ! grep -qa "$marker" "$RUNNER_TEMP/$arch.bin"; then
+              echo "::error::the $arch slice has no window in it — $marker is missing from its embedded assets"
+              exit 1
+            fi
+            echo "$arch: carries $marker"
+          done
 
       - name: Sign for distribution
         env:
