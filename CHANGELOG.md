@@ -5,7 +5,29 @@ summarized in the README; the full history lives here.
 
 ## Unreleased
 
-Nothing yet.
+**How readily the bulk-deletion watcher trips is a setting.**
+
+It was two hundred deletions in five seconds, hardcoded, with no caller able to
+say otherwise. There is a dropdown now, on the options screen beside the
+watcher's log: Cautious, Balanced, Sensitive, Very sensitive.
+
+A name rather than a number, because the number alone is unanswerable — whether
+two hundred files in five seconds is a lot depends entirely on what the machine
+does all day, which is the thing being configured. Each option shows the count it
+stands for, with the window beside it, since "25 files" would otherwise read as
+"25 files ever".
+
+Balanced is the old threshold itself rather than a copy of it, so adding this
+cannot quietly change what an existing installation does.
+
+The change applies the next time the watcher starts, and says so: it is a
+separate background task that reads the setting at startup. If it is not
+installed at all, that is said above the dropdown rather than below it.
+
+Also: `snapshotter config set` refused a bad theme and a non-number but accepted
+any string for `appearance.language`, which the window refused — so a value typed
+at the command line was accepted and then silently ignored. Both that and the new
+setting are validated now, listing what is on offer.
 
 ## v0.53.1 — 2026-08-22
 
