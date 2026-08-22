@@ -49,6 +49,108 @@ retention removes it. The outcome is right — the earlier snapshot holds more o
 what was about to be deleted — but the application sends a notification naming
 that snapshot and then quietly deletes it.
 
+### Three capabilities that existed and could not be used
+
+Every exported service method is bound into the window, and eleven of them had no
+caller anywhere — not the window, not the menu bar, not the command line. They
+were implemented and tested and impossible to invoke. Three now have a way in.
+
+**What has gone since**, a second mode on the search screen. Searching by name
+assumes you know what the file was called; this assumes you do not, only that
+something is missing from a folder you remember. It lists what the folder held
+when the snapshot was taken and holds no longer, with a restore beside each row.
+The date shown is when the file was last written, not when it went — nothing
+records the moment of a deletion.
+
+**Deleting one snapshot.** Retention deletes on a schedule, so someone reading a
+low-space warning had no lever at all. Asked twice, because a snapshot cannot be
+recreated, and one question at a time: two identical prompts a row apart is how
+the wrong one gets answered.
+
+**The bulk-deletion watcher's log**, beside the scheduled task's. The task's log
+answers "why is my history thinner than I asked for". The watcher's answers the
+harder one — why a deletion went by without a snapshot — and reaching it needed
+the path and a terminal. "Not installed" now says so, rather than showing an empty
+log, which reads as "nothing has happened" when the truth is "nothing is
+watching".
+
+The audit that found them is a test now: every bound method must be reachable, or
+listed as deliberately not, with the reason. The eight remaining have theirs
+written down.
+
+### A refusal that only English speakers could act on
+
+macOS refusing to mount a snapshot for want of Full Disk Access is the one failure
+here that needs an explanation rather than a message, so the window replaces it
+with instructions and a button to the settings pane. It recognised the refusal by
+looking the phrase up in the translation catalogue and searching the error for the
+result — but the error is hardcoded English, so in German it searched an English
+message for "Voller Festplattenzugriff". For every language but English there were
+no instructions, no button, and the raw refusal instead.
+
+### The words the service sends are the reader's words too
+
+The window shows what the service gives it and cannot know what any of it says, so
+whatever language a message arrives in is the language it is read in.
+
+`services/diff.go` used the catalogue zero times while its sibling used it
+twenty-nine, so all five of its notes were English: a file in neither version, a
+picture too large to show, a file that looks binary, a file too large to compare by
+lines. `search.go` was half done — two of four notes translated, and one of the
+others built "1 snapshot(s) were not searched" by hand, which is the exact shape a
+plural rule exists to avoid.
+
+The right-hand side of a comparison was named with the English words "the live
+disk", which the window interpolates into a sentence: "nicht mehr in the live
+disk". It sends a stamp or nothing now, and the window supplies the word.
+
+Two more were English written into the markup: the search screen built "1 open
+snapshot" / "2 open snapshots" with a conditional "s", and a row's tooltip said
+"Open" as a bare literal.
+
+### Five corrections to the translations themselves
+
+German said `Speicherdruck`, which reads as memory pressure — the message is about
+the disk filling, so it sent the reader to look at the wrong thing. `freigebbar` is
+not a German word; Apple's German for purgeable space is `bereinigbar`, and French
+uses `purgeable` rather than `libérables`. `Zusicherungen` means assurances, where
+"reservations" here means reserved space. And `sous pression disque` is a calque.
+
+Checked across all 858 translations and found correct: the register is consistent,
+French keeps its space before `;` and `:`, German and Spanish theirs before `%`,
+Spanish opens its questions with `¿`, no string is left in English, and every
+macOS name that must not be translated survived.
+
+### The health screen no longer disappears when an action fails
+
+An action that failed took the early-return error branch, which replaced the whole
+screen — verdict, findings, and the button that failed — with a single sentence.
+The banner sits above the findings now, all of which are still true.
+
+### Words that cross from Go to TypeScript are checked
+
+A status, a finding's action, a finding's level: each is a string invented in Go
+and read in TypeScript, and each fails silently in a way that looks like
+sloppiness rather than breakage. A status with no catalogue entry shows its own key
+where a word belongs; an action nothing branches on gives a finding no button.
+Nothing checked any of them.
+
+`Kind` had already drifted from itself: a file found to be binary at the sniff
+sample said "binary", one found past it said nothing at all, and a file too large
+said nothing either. All five values are named now.
+
+### Tests
+
+The window went from 26 tests to 210, and from an unmeasured 75% of its own
+statements to 97%. Go went from 443 to 626 across 24 packages, and the frontend
+coverage report stopped counting generated bindings, which had been holding the
+headline figure at 40% while the hand-written code sat at 75%.
+
+Two of those tests found the bugs above. `comparePixels` had never executed at
+all — jsdom implements neither canvas nor ImageData — and the folder-verdict
+watcher, whose failure is a browser that goes on calling a folder identical after
+the user has changed it, had nothing pinning it either.
+
 ## v0.52.0 — 2026-08-21
 
 **The menu says what the schedule is, under the strip that says whether it was
