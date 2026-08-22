@@ -148,6 +148,22 @@
     "one": "{{.Count}} Woche",
     "other": "{{.Count}} Wochen"
   },
+  "diff.inNeitherVersion": {
+    "one": "Diese Datei ist in keiner der beiden Versionen vorhanden.",
+    "other": "Diese Datei ist in keiner der beiden Versionen vorhanden."
+  },
+  "diff.looksBinary": {
+    "one": "Dies scheint eine Binärdatei zu sein, daher gibt es keine Zeilen zu vergleichen.",
+    "other": "Dies scheint eine Binärdatei zu sein, daher gibt es keine Zeilen zu vergleichen."
+  },
+  "diff.tooLargeForLines": {
+    "one": "Zu groß für einen zeilenweisen Vergleich.",
+    "other": "Zu groß für einen zeilenweisen Vergleich."
+  },
+  "diff.tooLargeToShow": {
+    "one": "Zu groß zur Anzeige.",
+    "other": "Zu groß zur Anzeige."
+  },
   "mount.closing": {
     "one": "Snapshotter schließt {{.What}}. Nur ein Administrator darf ein Dateisystem aushängen.",
     "other": "Snapshotter schließt {{.What}}. Nur ein Administrator darf ein Dateisystem aushängen."
@@ -195,6 +211,9 @@
   "retention.clause.rateOutTo": {
     "other": "{{.Rate}} bis {{.Span}}"
   },
+  "retention.dailyWeekly.name": {
+    "other": "Gestaffelt — täglich, dann wöchentlich"
+  },
   "retention.everyDay": {
     "other": "einer pro Tag"
   },
@@ -207,29 +226,43 @@
   "retention.everyWeek": {
     "other": "einer pro Woche"
   },
+  "retention.headline.flat": {
+    "one": "{{.Mode}}: alle {{.Every}}, {{.Reach}} aufbewahrt",
+    "other": "{{.Mode}}: alle {{.Every}}, {{.Reach}} aufbewahrt"
+  },
+  "retention.headline.tiered": {
+    "one": "{{.Mode}}: alle {{.Every}}, ausgedünnt bis {{.Reach}}",
+    "other": "{{.Mode}}: alle {{.Every}}, ausgedünnt bis {{.Reach}}"
+  },
   "retention.join": {
     "other": ", dann "
+  },
+  "retention.mode.custom": {
+    "one": "Angepasst",
+    "other": "Angepasst"
+  },
+  "retention.mode.flat": {
+    "one": "Gleichmäßiges Fenster",
+    "other": "Gleichmäßiges Fenster"
+  },
+  "retention.mode.none": {
+    "one": "Nichts wird entfernt",
+    "other": "Nichts wird entfernt"
   },
   "retention.nothingPruned": {
     "other": "Es wird nichts entfernt."
   },
-  "retention.tiered13.name": {
-    "other": "Gestaffelt — 13 Wochen"
+  "retention.weeklyMonthly.name": {
+    "other": "Gestaffelt — wöchentlich, dann monatlich"
   },
-  "retention.tiered13.why": {
-    "other": "Etwa halb so viele Snapshots wie zwei gleichmäßige Wochen, dabei sechsmal weiter zurückreichend."
-  },
-  "retention.tiered52.name": {
-    "other": "Gestaffelt — ein Jahr"
-  },
-  "retention.tiered52.why": {
-    "other": "Ein Jahr Reichweite für etwa die Anzahl, die zwei gleichmäßige Wochen ohnehin kosten."
-  },
-  "schedule.flatWhy": {
-    "other": "Jeder Snapshot innerhalb des Zeitraums und keiner außerhalb — so hat dieser Zeitplan es immer gehalten."
+  "schedule.flatWindowName": {
+    "other": "Gleichmäßiger Zeitraum"
   },
   "schedule.noneInstalled": {
     "other": "Kein Zeitplan eingerichtet. Es werden keine Snapshots automatisch erstellt."
+  },
+  "schedule.onePerPeriod": {
+    "other": "Pro Zeitraum wird nur ein Snapshot behalten. Weitere im selben Zeitraum — auch einer, der automatisch erstellt wird, wenn Dateien zu verschwinden beginnen — werden entfernt, und behalten wird der früheste, weil er am meisten von dem enthält, was da war."
   },
   "schedule.taskNotWrittenYet": {
     "other": "Die geplante Aufgabe hat noch nichts geschrieben."
@@ -241,8 +274,16 @@
     "one": "Kein Snapshot ist geöffnet, es wurde also nichts durchsucht. Öffnen Sie den {{.Count}} Snapshot, um darin zu suchen.",
     "other": "Kein Snapshot ist geöffnet, es wurde also nichts durchsucht. Öffnen Sie einen der {{.Count}} Snapshots, um darin zu suchen."
   },
+  "search.someNotOpen": {
+    "one": "{{.Count}} Snapshot wurde nicht durchsucht, weil er nicht geöffnet ist — dies ist also nicht der gesamte Verlauf.",
+    "other": "{{.Count}} Snapshots wurden nicht durchsucht, weil sie nicht geöffnet sind — dies ist also nicht der gesamte Verlauf."
+  },
   "search.stoppedAtLimit": {
     "other": "Bei der Trefferobergrenze abgebrochen — grenzen Sie die Suche ein, um den Rest zu sehen."
+  },
+  "search.stoppedEarly": {
+    "one": "Ein Snapshot umfasst das gesamte Volume, daher wurde hier abgebrochen, bevor alles gelesen war. Suchen Sie innerhalb eines Ordners — etwa Ihres Benutzerordners —, um ihn vollständig zu erfassen.",
+    "other": "Ein Snapshot umfasst das gesamte Volume, daher wurde hier abgebrochen, bevor alles gelesen war. Suchen Sie innerhalb eines Ordners — etwa Ihres Benutzerordners —, um ihn vollständig zu erfassen."
   },
   "status.conflict.detail": {
     "other": "{{.Agent}} erstellt offenbar ebenfalls lokale Snapshots. Zwei Agenten verdoppeln die Rate und wenden zwei Aufbewahrungszeiträume auf denselben Satz an. Richten Sie einen ein, nicht beide."
@@ -269,7 +310,7 @@
     "other": "{{.Count}} Snapshots, aber nichts erstellt weitere"
   },
   "status.lowSpace.detail": {
-    "other": "{{.Percent}} des Volumes sind frei. Snapshots sind freigebbar: Bei Speicherdruck gibt macOS die ältesten frei, statt einen Schreibvorgang scheitern zu lassen — unabhängig von der eingestellten Aufbewahrung. Nur freier Speicher hält sie."
+    "other": "{{.Percent}} des Volumes sind frei. Snapshots gelten als bereinigbarer Speicherplatz: Wird der Speicherplatz knapp, gibt macOS die ältesten frei, statt einen Schreibvorgang scheitern zu lassen — unabhängig von der eingestellten Aufbewahrung. Nur freier Speicherplatz erhält sie."
   },
   "status.lowSpace.title": {
     "other": "Nur noch {{.Free}} frei — alte Snapshots könnten entfernt werden"
@@ -342,9 +383,6 @@
   },
   "tray.mode.manual": {
     "other": "Kein Zeitplan — Snapshots nur, wenn Sie einen erstellen"
-  },
-  "tray.mode.scheduled": {
-    "other": "Alle {{.Every}}, aufbewahrt {{.Kept}}"
   },
   "tray.newest": {
     "other": "Neuester: {{.when}}"

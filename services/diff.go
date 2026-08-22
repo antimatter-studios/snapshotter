@@ -22,12 +22,19 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/diffs"
+	"snapshotter/internal/i18n"
 	"snapshotter/internal/vfs"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// ProgressEvent is the name the frontend listens on while a comparison runs.
+// ProgressEvent is the name a comparison reports its progress on.
+//
+// Nothing subscribes to it. The window registers no event listeners at all, and
+// the comparison it reports on — DiffService.Compare — has no route in either;
+// both are waiting on the same screen that does not exist yet. Said plainly here
+// because the comment used to claim the frontend listened on this, which sent a
+// reader looking for a subscriber that has never been written.
 const ProgressEvent = "diff:progress"
 
 // progressInterval throttles progress events. A deep comparison visits
@@ -328,11 +335,24 @@ type FileVersions struct {
 	RightExists bool `json:"rightExists"`
 	// RightLabel names what the right side turned out to be, so the window can say
 	// so without repeating the rule for resolving it.
+	//
+	// A snapshot's stamp, or empty for the live disk. Empty rather than a phrase
+	// because the window interpolates this into a sentence — "no longer in
+	// {{version}}" — and it used to be the English words "the live disk", which
+	// arrived intact in the middle of a German sentence. A stamp is the same in
+	// every language; prose is not, and the window has its own word for this one.
 	RightLabel string `json:"rightLabel"`
-	// Kind is how the window should show this: "text", "image" or "binary".
+	// Kind is how the window should show this, and is one of:
+	//
+	//	"text"    lines to compare, in Left and Right
+	//	"image"   two pictures, in LeftImage and RightImage
+	//	"binary"  no lines to compare; Note says so
+	//	"absent"  nothing on either side
+	//	"large"   text, but past the size worth rendering; Note says so
 	//
 	// Readable stays what it was — true only for text — so nothing that already
-	// checks it starts rendering an image into a line-by-line view.
+	// checks it starts rendering an image into a line-by-line view. The two agree
+	// by construction, and diffKindsTest pins that they do.
 	Kind string `json:"kind"`
 	// The two pictures, as data URIs, when Kind is "image". Inlined rather than
 	// served from a URL because a snapshot's mountpoint is not reachable from the
@@ -387,7 +407,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	// the same reason the left side must be — an unmounted snapshot has no paths
 	// to read.
 	rightPath := filepath.Clean(livePath)
-	out.RightLabel = "the live disk"
+	// Left empty: the window words the live disk itself. See RightLabel.
 	if targetSnapshot != "" {
 		if targetSnapshot == snapshotName {
 			return out, fmt.Errorf("services: %s cannot be compared with itself", snapshotName)
@@ -408,7 +428,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		// before it was made — and there is nothing wrong with asking. An error
 		// would put a red banner over a question that simply has no answer.
 		out.Kind = "absent"
-		out.Note = "this file is in neither version"
+		out.Note = i18n.T("diff.inNeitherVersion")
 		return out, nil
 	}
 	if out.LeftExists {
@@ -437,7 +457,7 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		out.RightDims = pixelDimensions(rightPath, out.RightExists)
 		out.Identical = sameBytes(leftPath, rightPath, out.LeftExists, out.RightExists, out.LeftSize, out.RightSize)
 		if out.LeftImage == "" && out.RightImage == "" {
-			out.Note = "too large to show"
+			out.Note = i18n.T("diff.tooLargeToShow")
 		}
 		return out, nil
 	}
@@ -451,12 +471,13 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	// This costs one small read of each side rather than a full one.
 	if looksBinary(leftPath, out.LeftExists) || looksBinary(rightPath, out.RightExists) {
 		out.Kind = "binary"
-		out.Note = "this looks like a binary file, so there are no lines to compare"
+		out.Note = i18n.T("diff.looksBinary")
 		return out, nil
 	}
 
 	if out.LeftSize > maxDiffableBytes || out.RightSize > maxDiffableBytes {
-		out.Note = "too large to compare line by line"
+		out.Kind = "large"
+		out.Note = i18n.T("diff.tooLargeForLines")
 		return out, nil
 	}
 
@@ -464,8 +485,12 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 	rightText, okRight := readableFile(rightPath, out.RightExists)
 	if !okLeft || !okRight {
 		// The prefix said text and the whole file disagreed: a NUL a long way in,
-		// or invalid UTF-8 past the sample.
-		out.Note = "this looks like a binary file, so there are no lines to compare"
+		// or invalid UTF-8 past the sample. Named the same as a file caught at the
+		// sample, because it is the same answer — it was left unnamed here, so the
+		// field said "binary" for one of the three ways of reaching this and
+		// nothing for the other two.
+		out.Kind = "binary"
+		out.Note = i18n.T("diff.looksBinary")
 		return out, nil
 	}
 

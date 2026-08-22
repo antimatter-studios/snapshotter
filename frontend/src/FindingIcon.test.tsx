@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { findingKinds } from "./FindingIcon";
+import { render } from "@testing-library/react";
+import { FindingIcon, findingKinds } from "./FindingIcon";
 
 // The menu bar draws these same shapes in Go, because macOS wants PNG bytes for
 // a menu item. Two implementations of one vocabulary cannot share code, so what
@@ -29,5 +30,18 @@ describe("the kinds the window knows", () => {
 
   it("has no duplicates", () => {
     expect(new Set(findingKinds).size).toBe(findingKinds.length);
+  });
+  it("draws an icon for a kind this build has not heard of", () => {
+    // Findings are added in the service. A blank where the icon should be reads
+    // as a rendering fault rather than as a new kind of finding.
+    const { container } = render(<FindingIcon kind="somethingNewer" />);
+    expect(container.firstElementChild).not.toBeNull();
+  });
+
+  it("marks the tripwire in red whatever the level", () => {
+    // The one place a finding's icon overrides the card's colour. It marks
+    // something absent, which is worth breaking a palette for.
+    const { container } = render(<FindingIcon kind="tripwire" />);
+    expect((container.firstElementChild as HTMLElement).style.color).toContain("--deleted");
   });
 });

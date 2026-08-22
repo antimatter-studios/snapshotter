@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView } from "./api";
+import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView, type TripwireView } from "./api";
 import "./Schedule.css";
 import { useAction } from "./useAction";
 import { useTranslation } from "react-i18next";
@@ -48,6 +48,12 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   const [policy, setPolicy] = useState(FLAT);
   const [options, setOptions] = useState<PolicyOption[]>([]);
   const [log, setLog] = useState("");
+  // Which log is showing, and what the watcher has written. Fetched when its tab
+  // is first opened rather than on every refresh: reading a log nobody is looking
+  // at costs a file read each time the screen polls.
+  const [which, setWhich] = useState<"scheduled" | "tripwire">("scheduled");
+  const [tripwire, setTripwire] = useState<TripwireView | null>(null);
+  const [tripwireLog, setTripwireLog] = useState("");
   const { busy, error, setError, run } = useAction(onStatus);
 
   const refresh = useCallback(async () => {
@@ -67,6 +73,27 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       setError(message(err));
     }
   }, []);
+
+  useEffect(() => {
+    if (which !== "tripwire") return;
+    let live = true;
+    void (async () => {
+      try {
+        const [status, body] = await Promise.all([
+          ScheduleAPI.TripwireStatus(),
+          ScheduleAPI.TripwireLog(serviceChosenTail),
+        ]);
+        if (!live) return;
+        setTripwire(status);
+        setTripwireLog(body);
+      } catch (err) {
+        if (live) setError(message(err));
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [which, setError]);
 
   useEffect(() => {
     void refresh();
@@ -136,11 +163,14 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
 
       <section>
         <h2>{t("schedule.whatIsKept")}</h2>
-        <p className="explain">
-          Snapshots can be kept flat — everything inside the window set above — or thinned as they age: everything for
-          the last day or two, then one a day, then one a week. Thinning reaches months back for about the count a flat
-          fortnight already costs, because an old snapshot is wanted for the day it covers rather than for the hour.
-        </p>
+          <p className="explain">{t("schedule.flatOrThinned")}</p>
+
+          {/* Said here rather than discovered later: a snapshot taken between
+              periods is removed, and one of those is the snapshot the tripwire
+              takes when files start disappearing — which the application also
+              sends a notification about. Being told a snapshot exists and then
+              finding it gone is the surprise worth heading off. */}
+          <p className="explain">{t("schedule.onePerPeriod")}</p>
 
         {/* Both numbers are computed by planning a history through the same
             function that does the deleting, so what is promised here is what
@@ -157,7 +187,6 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
               />
               <div className="policy-body">
                 <div className="policy-name">{option.name}</div>
-                <p className="policy-why">{option.why}</p>
                 <p className="policy-bands">{option.summary}</p>
                 <div className="policy-numbers">
                   <span>
@@ -173,17 +202,13 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         </div>
 
         {view?.installed && view.policyId === "custom" && (
-          <p className="warning">
-            The installed schedule carries a policy that is not one of these — {view.policySummary} Choosing one above
-            and updating the schedule replaces it.
-          </p>
+          <p className="warning">{t("schedule.customPolicy", { summary: view.policySummary })}</p>
         )}
 
-        <p className="explain">
-          A snapshot cannot be recreated: it records a state of the disk that has passed. Anything outside the policy is
-          deleted on the next scheduled run, and macOS may reclaim more than that under disk pressure — so these figures
-          are upper bounds, not reservations.
-        </p>
+        {/* This key existed and nothing called it: translated once, then never
+            wired, which no test catches because an unused message is not a
+            missing one. */}
+        <p className="explain">{t("schedule.cannotRecreate")}</p>
 
         <div className="buttons">
           <button className="primary" onClick={install} disabled={busy || !chosen}>
@@ -201,27 +226,62 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         {view && (
           <p className={view.loaded ? "note ok" : "note"}>
             {view.installed
-              ? `A snapshot every ${view.intervalHours} hours. ${view.policySummary} About ${
-                  view.maxSnapshots
-                } snapshots, reaching back ${reach(view.reachDays)} — ${
-                  view.loaded ? "running" : "installed but not loaded"
-                }.`
+              ? // The policy sentence comes from the service, which words it in
+                // one place; only the count and the state are added here.
+                t("schedule.installedState", {
+                  every: t("count.hours", { count: view.intervalHours }),
+                  summary: view.policySummary,
+                  count: view.maxSnapshots,
+                  reach: reach(view.reachDays),
+                  state: view.loaded ? t("schedule.stateRunning") : t("schedule.stateNotLoaded"),
+                })
               : t("schedule.none")}
           </p>
         )}
 
         {!!view?.conflicts?.length && (
-          <p className="warning">
-            Another scheduled task is also taking snapshots: {view.conflicts.join(", ")}. Two of them will double the
-            snapshot rate and apply two different retention windows to the same set. Remove one.
-          </p>
+          <p className="warning">{t("schedule.conflict", { tasks: view.conflicts.join(", ") })}</p>
         )}
       </section>
 
       <section>
         <h2>{t("schedule.log")}</h2>
-        <p className="explain">{t("schedule.writtenBy")} {view?.logPath}</p>
-        <pre className="log">{log || t("schedule.nothingLogged")}</pre>
+
+        {/* Two agents write two logs, and the second one had nowhere to be read.
+            The scheduled task's log answers "why is my history thinner than I
+            asked for"; the watcher's answers the harder question — why a bulk
+            deletion went by without a snapshot being taken — and that one was
+            only reachable by knowing the path and opening a terminal. */}
+        <div className="segmented">
+          <button className={which === "scheduled" ? "on" : ""} onClick={() => setWhich("scheduled")}>
+            {t("schedule.logScheduled")}
+          </button>
+          <button className={which === "tripwire" ? "on" : ""} onClick={() => setWhich("tripwire")}>
+            {t("schedule.logTripwire")}
+          </button>
+        </div>
+
+        {which === "scheduled" ? (
+          <>
+            <p className="explain">
+              {t("schedule.writtenBy")} {view?.logPath}
+            </p>
+            <pre className="log">{log || t("schedule.nothingLogged")}</pre>
+          </>
+        ) : (
+          <>
+            <p className="explain">
+              {t("schedule.writtenByTripwire")} {tripwire?.logPath}
+            </p>
+            {/* Not installed is a different answer from nothing logged, and the
+                one that says what to do about it. */}
+            <pre className="log">
+              {tripwire && !tripwire.installed
+                ? t("schedule.watcherNotInstalled")
+                : tripwireLog || t("schedule.nothingLogged")}
+            </pre>
+          </>
+        )}
       </section>
     </div>
   );

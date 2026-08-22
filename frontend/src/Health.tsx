@@ -62,13 +62,24 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
   // The verdict on this machine changes without anyone pressing anything here.
   useLiveRefresh(refresh);
 
-  if (error) return <p className="banner error">{error}</p>;
+  // Only when there is nothing else to show. An action failing used to take this
+  // branch too, which replaced the whole screen — verdict, findings and all —
+  // with one sentence, and the reader lost both the reason they came and any
+  // other button they might have pressed. The banner belongs above the findings,
+  // which are all still true.
+  if (error && !health) return <p className="banner error">{error}</p>;
   if (!health) return <p className="empty">{t("health.checking")}</p>;
 
   const act = (fn: () => Promise<unknown>, done: string) => run(fn, done, refresh);
 
   return (
     <div className="health">
+      {/* Above the content, not instead of it: what failed was one action, and
+          every other thing this screen says is still worth reading. Left up
+          until something else happens, because refresh runs on a timer and would
+          otherwise clear the reason before it could be read. */}
+      {error && <p className="banner error" onClick={() => setError("")}>{error}</p>}
+
       <div className={`verdict ${health.level}`}>
         <span className="verdict-mark" aria-hidden="true" />
         <div>
@@ -184,12 +195,17 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
         </div>
         <div>
           <dt>{t("health.schedule")}</dt>
-          <dd>
+          {/* The mode's name, with the whole line in the tooltip. This cell used
+              to say "Every 3h, kept 14d" — built here from two numbers, in
+              English, and wrong for every tiered policy: it read the horizon as
+              the retention, which is true of a flat window and nothing else. The
+              words come from the service now, which gets them from one place. */}
+          <dd title={health.scheduleHeadline}>
             {health.scheduleInstalled
-              ? `Every ${health.intervalHours}h, kept ${health.retentionDays}d${
-                  health.scheduleRunning ? "" : " (not running)"
+              ? `${health.retentionMode || health.scheduleHeadline}${
+                  health.scheduleRunning ? "" : ` (${t("health.scheduleNotRunning")})`
                 }`
-              : "None"}
+              : t("health.scheduleNone")}
           </dd>
         </div>
         <div>
@@ -333,6 +349,11 @@ function BulkDeletionWarnings() {
                   usually spans two or three folders and only one of them is the
                   noisy one. */}
               <td className="warning-where">
+                {/* The response failing is the one outcome worth surfacing. The
+                    column that used to sit here read "snapshot taken" on every
+                    healthy row — the expected case, stated at length — and its
+                    absence was the only informative part. */}
+                {!w.snapshot && <p className="warning-failed">{w.note || t("health.responseFailed")}</p>}
                 {w.where?.length ? (
                   <ul>
                     {w.where.map((folder, n) => (

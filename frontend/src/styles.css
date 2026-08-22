@@ -1468,14 +1468,30 @@ pre.log {
   border-bottom: 1px solid var(--line-soft);
 }
 
-.image-modes {
+/* The one button here that destroys something. Coloured like a deletion because
+   that is what it is, and only ever shown as the second half of a question — the
+   first press asks, this one answers. */
+button.destructive {
+  background: var(--deleted);
+  border-color: var(--deleted);
+  color: var(--on-accent);
+}
+
+button.destructive:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+/* A row of buttons where one is chosen: the image comparison's modes, and the
+   two logs. Named for the shape rather than for the screen it appeared on first,
+   because the second use would otherwise have been a second copy of it. */
+.segmented {
   display: inline-flex;
   border: 1px solid var(--line);
   border-radius: 6px;
   overflow: hidden;
 }
 
-.image-modes button {
+.segmented button {
   border: 0;
   border-radius: 0;
   background: var(--panel-2);
@@ -1483,9 +1499,9 @@ pre.log {
   font-size: 12px;
 }
 
-/* The mode you are in, rather than the one you would get. A two-state pair reads
-   as a position, unlike the theme toggle's three. */
-.image-modes button.on {
+/* The one you are in, rather than the one you would get. A closed set reads as a
+   position, unlike the theme toggle's cycle. */
+.segmented button.on {
   background: var(--accent);
   color: var(--on-accent);
 }

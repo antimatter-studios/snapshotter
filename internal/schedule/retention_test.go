@@ -77,7 +77,7 @@ func TestPlanKeepsTheNewestEvenWhenThePolicyWouldPruneEverything(t *testing.T) {
 
 func TestPlanOnNothingPlansNothing(t *testing.T) {
 	for _, snaps := range [][]apfs.Snapshot{nil, {}} {
-		keep, prune := Plan(snaps, Presets()[0].Policy, planNow)
+		keep, prune := Plan(snaps, Presets(6*time.Hour, 14*day)[0].Policy, planNow)
 		if len(keep) != 0 || len(prune) != 0 {
 			t.Errorf("kept %d and pruned %d from an empty set", len(keep), len(prune))
 		}
@@ -88,7 +88,7 @@ func TestPlanWithASingleSnapshotKeepsIt(t *testing.T) {
 	// Older than the policy reaches, so only the newest-snapshot rule saves it.
 	snaps := []apfs.Snapshot{snapshotAt(planNow.Add(-5 * 365 * day))}
 
-	keep, prune := Plan(snaps, Presets()[0].Policy, planNow)
+	keep, prune := Plan(snaps, Presets(6*time.Hour, 14*day)[0].Policy, planNow)
 	if len(keep) != 1 || len(prune) != 0 {
 		t.Fatalf("kept %v, pruned %v", stamps(keep), stamps(prune))
 	}
@@ -152,7 +152,7 @@ func TestPlanKeepsTheOldestSnapshotInEachBucket(t *testing.T) {
 // decision may either. Buckets are absolute for this reason: bucketing by age
 // relative to now would shift every boundary between one run and the next.
 func TestPlanIsStableWhileNothingChangesBand(t *testing.T) {
-	policy := Presets()[0].Policy
+	policy := Presets(6*time.Hour, 14*day)[0].Policy
 	// Spaced 6 hours but offset half an hour off the tier boundaries, so
 	// advancing an hour moves nothing between bands.
 	snaps := history(planNow.Add(-30*time.Minute), 6*time.Hour, 200)
@@ -160,7 +160,7 @@ func TestPlanIsStableWhileNothingChangesBand(t *testing.T) {
 	before, _ := Plan(snaps, policy, planNow)
 	after, _ := Plan(snaps, policy, planNow.Add(time.Hour))
 
-	tiers := policy.normalised()
+	tiers := policy.Bands()
 	for _, s := range snaps {
 		if a, b := tierIndex(tiers, planNow.Sub(s.Taken)), tierIndex(tiers, planNow.Add(time.Hour).Sub(s.Taken)); a != b {
 			t.Fatalf("the fixture is wrong: %s changed band between the two plans", s.Stamp)
@@ -176,8 +176,8 @@ func TestPlanIsStableWhileNothingChangesBand(t *testing.T) {
 // one, unless something about it changed — it aged into a coarser band, or out
 // of the policy altogether. Anything else is the history rewriting itself.
 func TestPlanNeverPrunesASnapshotForNoNewReason(t *testing.T) {
-	policy := Presets()[1].Policy
-	tiers := policy.normalised()
+	policy := Presets(6*time.Hour, 14*day)[1].Policy
+	tiers := policy.Bands()
 	const interval = 6 * time.Hour
 	steps := int((400 * day) / interval)
 
@@ -212,7 +212,9 @@ func TestPlanNeverPrunesASnapshotForNoNewReason(t *testing.T) {
 	}
 
 	// And the schedule is bounded and long-reaching, which is the point of it.
-	if len(live) > 60 {
+	// Bounded, but the bound is now a function of the window the preset opens
+	// with: at six-hourly for a fortnight that band alone holds 57.
+	if len(live) > 120 {
 		t.Errorf("holding %d snapshots after 400 days, which is not thinning", len(live))
 	}
 	if reach := now.Sub(live[len(live)-1].Taken); reach < 300*day {
@@ -233,7 +235,7 @@ func TestPlanNeverPrunesASnapshotForNoNewReason(t *testing.T) {
 // at most one snapshot per boundary — and never the other way round, which would
 // mean deleting something a single plan would have held on to.
 func TestPruningAsItGoesKeepsASubsetOfPlanningTheWholeHistory(t *testing.T) {
-	policy := Presets()[1].Policy
+	policy := Presets(6*time.Hour, 14*day)[1].Policy
 	const interval = 6 * time.Hour
 	steps := int((400 * day) / interval)
 
@@ -245,7 +247,11 @@ func TestPruningAsItGoesKeepsASubsetOfPlanningTheWholeHistory(t *testing.T) {
 		live, _ = Plan(live, policy, now)
 	}
 
-	whole, _ := Plan(history(now, interval, steps+1), policy, now)
+	// The same snapshots the loop above saw, not one more. The extra one used to
+	// be beyond every preset's reach and pruned either way; a preset's reach now
+	// follows the window, and at fifty-two times a fortnight it outruns the four
+	// hundred days simulated here, so the difference stopped cancelling.
+	whole, _ := Plan(history(now, interval, steps), policy, now)
 	inWhole := map[string]bool{}
 	for _, s := range whole {
 		inWhole[s.Stamp] = true
@@ -265,8 +271,8 @@ func TestPruningAsItGoesKeepsASubsetOfPlanningTheWholeHistory(t *testing.T) {
 // shortest preset. Each band is checked for what it promises rather than for a
 // total, because a total can be right by accident.
 func TestPlanThinsARealisticHistoryBandByBand(t *testing.T) {
-	policy := Presets()[0].Policy
-	tiers := policy.normalised()
+	policy := Presets(6*time.Hour, 14*day)[0].Policy
+	tiers := policy.Bands()
 	const interval = 6 * time.Hour
 	snaps := history(planNow, interval, int((120*day)/interval))
 
@@ -303,7 +309,7 @@ func TestPlanThinsARealisticHistoryBandByBand(t *testing.T) {
 			if tierIndex(tiers, planNow.Sub(s.Taken)) != i || !kept[s.Stamp] {
 				continue
 			}
-			perBucket[bucketStart(s.Taken, tier.Every)]++
+			perBucket[BucketStart(s.Taken, tier.Every)]++
 		}
 		if len(perBucket) == 0 {
 			t.Errorf("band %d (one every %s) kept nothing at all", i, tier.Every)
@@ -316,11 +322,13 @@ func TestPlanThinsARealisticHistoryBandByBand(t *testing.T) {
 		}
 	}
 
-	// The whole argument for tiering, as a number: fewer snapshots than the flat
-	// fortnight it replaces, and six times the reach.
-	flat, _ := Plan(snaps, FlatPolicy(14*day), planNow)
-	if len(keep) >= len(flat) {
-		t.Errorf("tiered kept %d, flat 14 days kept %d — tiering is meant to cost less", len(keep), len(flat))
+	// The argument for tiering, as a number. Not against the flat fortnight — a
+	// preset now opens with that fortnight, so it keeps everything the fortnight
+	// does — but against a flat policy reaching as far, which is what someone is
+	// choosing between.
+	flatSameReach, _ := Plan(snaps, FlatPolicy(91*day), planNow)
+	if len(keep) >= len(flatSameReach) {
+		t.Errorf("tiered kept %d, flat 91 days kept %d — tiering bought nothing", len(keep), len(flatSameReach))
 	}
 	oldest := planNow.Sub(keep[len(keep)-1].Taken)
 	if oldest < 88*day {
@@ -335,7 +343,7 @@ func TestPlanThinsARealisticHistoryBandByBand(t *testing.T) {
 // would fail by deleting the wrong snapshots, which is not a failure anyone
 // notices in time.
 func TestPlanDoesNotCareWhatOrderSnapshotsArriveIn(t *testing.T) {
-	policy := Presets()[0].Policy
+	policy := Presets(6*time.Hour, 14*day)[0].Policy
 	ordered := history(planNow, 6*time.Hour, 200)
 
 	shuffled := append([]apfs.Snapshot(nil), ordered...)
@@ -365,7 +373,7 @@ func TestPlanDoesNotTouchTheCallersSlice(t *testing.T) {
 	})
 	before := strings.Join(stamps(snaps), ",")
 
-	Plan(snaps, Presets()[0].Policy, planNow)
+	Plan(snaps, Presets(6*time.Hour, 14*day)[0].Policy, planNow)
 
 	if after := strings.Join(stamps(snaps), ","); after != before {
 		t.Errorf("Plan reordered its argument\nbefore: %s\nafter:  %s", before, after)
@@ -407,7 +415,7 @@ func TestPlanKeepsASnapshotDatedInTheFuture(t *testing.T) {
 // better on the settings screen and would break it, which is why the longest
 // band is four weeks.
 func TestPresetPeriodsNest(t *testing.T) {
-	for _, preset := range Presets() {
+	for _, preset := range Presets(6*time.Hour, 14*day) {
 		var previous time.Duration
 		for _, tier := range preset.Policy.Bands() {
 			if tier.Every <= 0 {
@@ -430,7 +438,7 @@ func TestPresetPeriodsNest(t *testing.T) {
 // survive the trip through it unchanged.
 func TestPolicyEncodingRoundTrips(t *testing.T) {
 	policies := []Policy{FlatPolicy(14 * day), FlatPolicy(36 * time.Hour)}
-	for _, preset := range Presets() {
+	for _, preset := range Presets(6*time.Hour, 14*day) {
 		policies = append(policies, preset.Policy)
 	}
 	for _, want := range policies {
@@ -473,7 +481,7 @@ func TestParsePolicyRefusesAnythingItCannotReadWhole(t *testing.T) {
 // it disagreed it would be the one the user had believed.
 func TestRetainedCountsWhatPlanWouldKeep(t *testing.T) {
 	const interval = 6 * time.Hour
-	for _, policy := range []Policy{FlatPolicy(14 * day), Presets()[0].Policy, Presets()[1].Policy} {
+	for _, policy := range []Policy{FlatPolicy(14 * day), Presets(6*time.Hour, 14*day)[0].Policy, Presets(6*time.Hour, 14*day)[1].Policy} {
 		snaps := history(planNow, interval, int(policy.Horizon()/interval)+1)
 		keep, _ := Plan(snaps, policy, planNow)
 		if got := Retained(policy, interval, planNow); got != len(keep) {
@@ -482,27 +490,43 @@ func TestRetainedCountsWhatPlanWouldKeep(t *testing.T) {
 	}
 }
 
-// The claim tiering is sold on, asserted rather than assumed: the same order of
-// snapshot count, far more reach.
-func TestTieringReachesFurtherThanTheFlatFortnightForNoMoreSnapshots(t *testing.T) {
-	const interval = 6 * time.Hour
-	flat := FlatPolicy(14 * day)
-	flatCount := Retained(flat, interval, planNow)
+// What tiering is actually worth, stated so it is true at every interval rather
+// than at one.
+//
+// A preset now opens with the window the person chose, so it keeps everything a
+// flat policy of that window keeps and then some: it cannot cost less, and the
+// old claim that it did was false at two of the five intervals even before this.
+// The honest comparison is against a flat policy reaching as far — which is the
+// choice someone actually faces, since reach is what they are buying.
+func TestTieringCostsFarLessThanFlatAtTheSameReach(t *testing.T) {
+	const window = 14 * day
 
-	for _, preset := range Presets() {
-		count := Retained(preset.Policy, interval, planNow)
-		if count > flatCount {
-			t.Errorf("%s retains %d against the flat fortnight's %d", preset.ID, count, flatCount)
-		}
-		if preset.Policy.Horizon() <= flat.Horizon() {
-			t.Errorf("%s reaches %s, no further than the flat fortnight", preset.ID, preset.Policy.Horizon())
+	for _, interval := range []time.Duration{time.Hour, 3 * time.Hour, 6 * time.Hour, 12 * time.Hour, 24 * time.Hour} {
+		for _, preset := range Presets(interval, window) {
+			tiered := Retained(preset.Policy, interval, planNow)
+			flatSameReach := Retained(FlatPolicy(preset.Policy.Horizon()), interval, planNow)
+			flatSameWindow := Retained(FlatPolicy(window), interval, planNow)
+
+			if tiered >= flatSameReach {
+				t.Errorf("%s at %v: %d against %d for a flat policy of the same reach — tiering bought nothing",
+					preset.ID, interval, tiered, flatSameReach)
+			}
+			if tiered < flatSameWindow {
+				t.Errorf("%s at %v: %d against %d for the flat window it opens with — it must keep at least that",
+					preset.ID, interval, tiered, flatSameWindow)
+			}
+			if preset.Policy.Horizon() <= window {
+				t.Errorf("%s reaches %s, no further than the window", preset.ID, preset.Policy.Horizon())
+			}
 		}
 	}
 }
 
 func TestHorizonIsTheOldestAgeKept(t *testing.T) {
-	if got := Presets()[1].Policy.Horizon(); got != 364*day {
-		t.Errorf("horizon %s, want 364 days", got)
+	// Fifty-two times the window, so it follows the choice rather than being a
+	// fixed year.
+	if got := Presets(6*time.Hour, 14*day)[1].Policy.Horizon(); got != 52*14*day {
+		t.Errorf("horizon %s, want 52 windows", got)
 	}
 	if got := (Policy{}).Horizon(); got != 0 {
 		t.Errorf("an empty policy reaches %s, want zero", got)
@@ -513,7 +537,7 @@ func TestIdentifyPolicyNamesWhatIsActuallyInstalled(t *testing.T) {
 	if got := IdentifyPolicy(FlatPolicy(14 * day)); got != FlatID {
 		t.Errorf("flat window identified as %q", got)
 	}
-	if got := IdentifyPolicy(Presets()[0].Policy); got != Presets()[0].ID {
+	if got := IdentifyPolicy(Presets(6*time.Hour, 14*day)[0].Policy); got != Presets(6*time.Hour, 14*day)[0].ID {
 		t.Errorf("preset identified as %q", got)
 	}
 	// A hand-edited plist is reported as what it is rather than as the nearest
@@ -554,7 +578,7 @@ func (l *listingRunner) Run(_ context.Context, name string, args ...string) (str
 func TestPruneByPolicyDeletesExactlyWhatThePlanPrunes(t *testing.T) {
 	snaps := history(planNow, 6*time.Hour, int((120*day)/(6*time.Hour)))
 	r := &listingRunner{snaps: snaps}
-	policy := Presets()[0].Policy
+	policy := Presets(6*time.Hour, 14*day)[0].Policy
 
 	deleted, err := PruneByPolicy(context.Background(), r, apfs.DataVolume, policy, planNow)
 	if err != nil {
@@ -601,8 +625,12 @@ func TestPruneByPolicyDeletesNothingUnderAnEmptyPolicy(t *testing.T) {
 }
 
 func TestDescribeReadsAsASentence(t *testing.T) {
-	got := Presets()[1].Policy.Describe()
-	want := "Everything for 2 days, then one a day out to 14 days, then one a week out to 8 weeks, then one every 4 weeks out to 52 weeks."
+	// Built from a stated period and window, since a preset is now a function of
+	// both. The sentence follows the bands, so changing them changes it — which is
+	// the property that makes this description trustworthy where the hand-written
+	// one was not.
+	got := Describe(Presets(6*time.Hour, 14*day)[1].Policy)
+	want := "One every 6 hours for 14 days, then one a week out to 26 weeks, then one every 4 weeks out to 104 weeks."
 	if got != want {
 		t.Errorf("Describe() = %q, want %q", got, want)
 	}
@@ -620,9 +648,9 @@ func TestTheDescribedPolicyIsTranslated(t *testing.T) {
 	}}
 
 	i18n.SetLanguage("en")
-	english := p.Describe()
+	english := Describe(p)
 	i18n.SetLanguage("de")
-	german := p.Describe()
+	german := Describe(p)
 
 	if english == german {
 		t.Fatalf("the language did not change the sentence: %q", german)

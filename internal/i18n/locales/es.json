@@ -148,6 +148,22 @@
     "one": "{{.Count}} semana",
     "other": "{{.Count}} semanas"
   },
+  "diff.inNeitherVersion": {
+    "one": "Este archivo no está en ninguna de las dos versiones.",
+    "other": "Este archivo no está en ninguna de las dos versiones."
+  },
+  "diff.looksBinary": {
+    "one": "Parece un archivo binario, por lo que no hay líneas que comparar.",
+    "other": "Parece un archivo binario, por lo que no hay líneas que comparar."
+  },
+  "diff.tooLargeForLines": {
+    "one": "Demasiado grande para comparar línea por línea.",
+    "other": "Demasiado grande para comparar línea por línea."
+  },
+  "diff.tooLargeToShow": {
+    "one": "Demasiado grande para mostrarse.",
+    "other": "Demasiado grande para mostrarse."
+  },
   "mount.closing": {
     "one": "Snapshotter está cerrando {{.What}}. Solo un administrador puede desmontar un sistema de archivos.",
     "other": "Snapshotter está cerrando {{.What}}. Solo un administrador puede desmontar un sistema de archivos."
@@ -195,6 +211,9 @@
   "retention.clause.rateOutTo": {
     "other": "{{.Rate}} hasta {{.Span}}"
   },
+  "retention.dailyWeekly.name": {
+    "other": "Escalonado: diario y luego semanal"
+  },
   "retention.everyDay": {
     "other": "uno al día"
   },
@@ -207,29 +226,43 @@
   "retention.everyWeek": {
     "other": "uno por semana"
   },
+  "retention.headline.flat": {
+    "one": "{{.Mode}}: cada {{.Every}}, conservado {{.Reach}}",
+    "other": "{{.Mode}}: cada {{.Every}}, conservado {{.Reach}}"
+  },
+  "retention.headline.tiered": {
+    "one": "{{.Mode}}: cada {{.Every}}, aclarándose hasta {{.Reach}}",
+    "other": "{{.Mode}}: cada {{.Every}}, aclarándose hasta {{.Reach}}"
+  },
   "retention.join": {
     "other": ", luego "
+  },
+  "retention.mode.custom": {
+    "one": "Personalizada",
+    "other": "Personalizada"
+  },
+  "retention.mode.flat": {
+    "one": "Ventana uniforme",
+    "other": "Ventana uniforme"
+  },
+  "retention.mode.none": {
+    "one": "No se elimina nada",
+    "other": "No se elimina nada"
   },
   "retention.nothingPruned": {
     "other": "No se elimina nada."
   },
-  "retention.tiered13.name": {
-    "other": "Escalonado: 13 semanas"
+  "retention.weeklyMonthly.name": {
+    "other": "Escalonado: semanal y luego mensual"
   },
-  "retention.tiered13.why": {
-    "other": "Aproximadamente la mitad de snapshots que una quincena uniforme, llegando seis veces más atrás."
-  },
-  "retention.tiered52.name": {
-    "other": "Escalonado: un año"
-  },
-  "retention.tiered52.why": {
-    "other": "Un año de alcance por aproximadamente la cantidad que ya cuesta una quincena uniforme."
-  },
-  "schedule.flatWhy": {
-    "other": "Todos los snapshots dentro de la ventana y ninguno fuera — lo que esta programación siempre ha hecho."
+  "schedule.flatWindowName": {
+    "other": "Ventana uniforme"
   },
   "schedule.noneInstalled": {
     "other": "No hay programación instalada. Nada crea snapshots automáticamente."
+  },
+  "schedule.onePerPeriod": {
+    "other": "Solo se conserva un snapshot por periodo. Los demás del mismo periodo —incluido uno creado automáticamente cuando empiezan a desaparecer archivos— se eliminan, y se conserva el más antiguo, porque contiene la mayor parte de lo que había."
   },
   "schedule.taskNotWrittenYet": {
     "other": "La tarea programada aún no ha escrito nada."
@@ -241,8 +274,16 @@
     "one": "No hay ningún snapshot abierto, así que no se buscó nada. Abra el {{.Count}} snapshot para buscar dentro.",
     "other": "No hay ningún snapshot abierto, así que no se buscó nada. Abra uno de los {{.Count}} snapshots para buscar dentro."
   },
+  "search.someNotOpen": {
+    "one": "No se buscó en {{.Count}} snapshot porque no está abierto, así que este no es todo el historial.",
+    "other": "No se buscó en {{.Count}} snapshots porque no están abiertos, así que este no es todo el historial."
+  },
   "search.stoppedAtLimit": {
     "other": "Se detuvo en el límite de coincidencias: acote la búsqueda para ver el resto."
+  },
+  "search.stoppedEarly": {
+    "one": "Un snapshot abarca todo el volumen, así que esto se detuvo antes de leerlo por completo. Busque dentro de una carpeta — su carpeta personal, por ejemplo — para abarcarla del todo.",
+    "other": "Un snapshot abarca todo el volumen, así que esto se detuvo antes de leerlo por completo. Busque dentro de una carpeta — su carpeta personal, por ejemplo — para abarcarla del todo."
   },
   "status.conflict.detail": {
     "other": "{{.Agent}} parece crear snapshots locales también. Dos agentes duplican el ritmo y aplican dos ventanas de retención al mismo conjunto. Instale uno, no ambos."
@@ -342,9 +383,6 @@
   },
   "tray.mode.manual": {
     "other": "Sin programación: solo hay snapshots cuando crea uno"
-  },
-  "tray.mode.scheduled": {
-    "other": "Cada {{.Every}}, conservados {{.Kept}}"
   },
   "tray.newest": {
     "other": "Más reciente: {{.when}}"

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/i18n"
 	"snapshotter/internal/mountmgr"
 )
 
@@ -197,15 +198,22 @@ func TestTheRightSideCanBeAnotherSnapshot(t *testing.T) {
 
 // The window says which version the right side turned out to be, rather than
 // restating the rule for working it out.
-func TestTheRightSideIsLabelled(t *testing.T) {
+// The right side is named by its stamp, or not at all.
+//
+// It used to be named "the live disk" in English words, which the window
+// interpolates into a sentence — "no longer in {{version}}" — so a German reader
+// got "nicht mehr in the live disk". A stamp reads the same in every language; a
+// phrase does not, and the window has its own word for the one case that needs it.
+func TestTheRightSideIsNamedByItsStampOrNotAtAll(t *testing.T) {
 	svc, seed := fileFixture(t)
+	live := filepath.Join(seed, "notes.md")
 
-	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "notes.md"), "")
+	against, err := svc.FileVersions(browseSnapshot, live, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
-	if got.RightLabel != "the live disk" {
-		t.Errorf("the default target is not named as the disk: %q", got.RightLabel)
+	if against.RightLabel != "" {
+		t.Errorf("the live disk was labelled %q rather than left to the window", against.RightLabel)
 	}
 }
 
@@ -263,7 +271,10 @@ func TestATooLargePictureSaysItCannotBeShown(t *testing.T) {
 	if got.RightImage != "" {
 		t.Error("an oversized picture was inlined anyway")
 	}
-	if !strings.Contains(got.Note, "too large") {
+	// Against the catalogue rather than a fragment of English: the note is
+	// translated now, and a test that only passes in one language is a test that
+	// stops meaning anything the moment someone runs it in another.
+	if got.Note != i18n.T("diff.tooLargeToShow") {
 		t.Errorf("the note does not say why: %q", got.Note)
 	}
 	// The figures are what is left to say.

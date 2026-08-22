@@ -58,7 +58,14 @@ func init() {
 }
 
 // SetLanguage chooses the language. An unknown code leaves it as it was, so a
-// hand-edited settings file cannot empty the menu bar.
+// caller passing something unrecognised cannot empty the menu bar.
+//
+// Note that the settings never reach here unrecognised: config.Config.Language
+// returns English for anything it does not know, and everything that reads the
+// settings goes through it. This guard is for callers holding a bare string — a
+// test, or a future caller with no Config — and the two deliberately differ,
+// because falling back to English is right for a hand-edited file and keeping the
+// current language is right for a caller that made a mistake mid-run.
 func SetLanguage(code string) {
 	mu.Lock()
 	defer mu.Unlock()

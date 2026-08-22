@@ -12,6 +12,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/mountmgr"
+	"snapshotter/internal/schedule"
 	"snapshotter/internal/text"
 	"snapshotter/internal/version"
 	"snapshotter/internal/watch"
@@ -85,6 +86,23 @@ type Health struct {
 	ScheduleRunning        bool    `json:"scheduleRunning"`
 	IntervalHours          float64 `json:"intervalHours"`
 	RetentionDays          float64 `json:"retentionDays"`
+	// ScheduleHeadline is the schedule in one line: which retention mode, how
+	// often, and how far back. RetentionSummary is the same thing said in full,
+	// for somewhere with room for a sentence.
+	//
+	// Both are worded by internal/schedule and carried here rather than built by
+	// each reader. The menu bar built its own from IntervalHours and RetentionDays
+	// alone, which ignores the policy: a tiered schedule was announced as "every
+	// 3 hours, kept 364 days" when only one snapshot every four weeks survives
+	// past the twenty-sixth. Two places wording one fact is how they came to
+	// disagree, so now there is one.
+	ScheduleHeadline string `json:"scheduleHeadline"`
+	RetentionSummary string `json:"retentionSummary"`
+	// RetentionMode is just the name of the shape — "Flat window", "Tiered —
+	// daily, then weekly" — for the places with room for a label and not a line.
+	// The window's figure grid is four columns wide, so it shows this and carries
+	// the headline in the cell's tooltip.
+	RetentionMode string `json:"retentionMode"`
 	// NextDue is when the schedule should next fire, estimated from the newest
 	// snapshot. launchd fires a missed interval on wake, so a past value means
 	// overdue rather than skipped.
@@ -179,6 +197,15 @@ func (s *StatusService) Check(ctx context.Context) (Health, error) {
 		h.ScheduleProgramMissing = st.ProgramMissing
 		h.IntervalHours = st.Config.Interval.Hours()
 		h.RetentionDays = inDays(st.Config.Retention)
+		// An empty policy is the flat window Retention describes, which is what
+		// every schedule installed before tiered retention existed carries.
+		policy := st.Config.Policy
+		if len(policy.Bands()) == 0 {
+			policy = schedule.FlatPolicy(st.Config.Retention)
+		}
+		h.ScheduleHeadline = schedule.Headline(st.Config.Interval, policy)
+		h.RetentionSummary = schedule.Describe(policy)
+		h.RetentionMode = schedule.ModeName(policy)
 		if st.Installed && h.Newest != nil {
 			due := h.Newest.Add(st.Config.Interval)
 			h.NextDue = &due

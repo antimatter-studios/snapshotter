@@ -1,3 +1,17 @@
+// Testing Library's matchers and its automatic cleanup between tests. Without the
+// cleanup, a component rendered by one test is still in the document for the
+// next, and a query that should find one element finds two.
+import "@testing-library/jest-dom/vitest";
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
+
+// Registered by hand because Testing Library only installs it automatically when
+// vitest is running with globals, and this suite is not. Without it a component
+// rendered by one test is still in the document for the next, so a query that
+// should find one option finds five and fails on the ambiguity rather than on
+// anything real.
+afterEach(cleanup);
+
 // The webview this application runs in has localStorage; the jsdom build used
 // for tests does not provide one. The theme cache reads it before the first
 // paint, so rather than mock it in every test that touches a theme, the suite

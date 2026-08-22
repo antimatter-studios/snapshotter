@@ -266,8 +266,9 @@ func (m *Manager) unmountScript(names []string) (string, error) {
 // clicked one row and the dialog should agree with what they clicked. Past one,
 // the count is the only thing that fits.
 // One message per plural form rather than a sentence assembled from pronouns.
-// possessive() and subject() existed only to make English agree — "its"/"their",
-// "It"/"They" — and no other language agrees along the same axis.
+// The helpers that used to build this sentence, possessive() and subject(),
+// existed only to make English agree — "its"/"their", "It"/"They" — and no other
+// language agrees along the same axis. They are gone.
 func mountReason(names []string) string {
 	return i18n.N("mount.opening", len(names), "What", describe(names))
 }
@@ -285,20 +286,6 @@ func describe(names []string) string {
 		return i18n.N("count.snapshots", 1)
 	}
 	return i18n.N("count.snapshots", len(names))
-}
-
-func possessive(names []string) string {
-	if len(names) == 1 {
-		return "its"
-	}
-	return "their"
-}
-
-func subject(names []string) string {
-	if len(names) == 1 {
-		return "It is"
-	}
-	return "They are"
 }
 
 // quoteAll single-quotes arguments for the privileged shell. Every value
@@ -319,6 +306,11 @@ func quoteAll(args ...string) ([]string, error) {
 // comparing its device number with its parent's. This reads the live mount
 // state rather than tracking it in memory, so mounts left behind by a previous
 // run of the application are still recognised.
+//
+// It answers wrongly for "/", whose parent is itself: same device, so it reports
+// false for the one directory that certainly is a mount point. That is harmless
+// here — this is only asked about the directories snapshots are mounted into,
+// which always have a real parent — and would not be for anyone reusing it.
 func isMountPoint(path string) (bool, error) {
 	fi, err := os.Stat(path)
 	if err != nil {

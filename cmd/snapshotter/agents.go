@@ -58,7 +58,7 @@ func runScheduledSnapshot(ctx context.Context, runner apfs.Runner) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("holding %d snapshots, keeping %s", len(remaining), policy.Describe())
+	log.Printf("holding %d snapshots, keeping %s", len(remaining), schedule.Describe(policy))
 	return nil
 }
 

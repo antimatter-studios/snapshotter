@@ -5,61 +5,55 @@ import (
 	"fmt"
 	"snapshotter/internal/i18n"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/retention"
 )
 
 // day is spelled out because a retention policy is discussed in days and weeks
 // and reads as noise in hours.
 const day = 24 * time.Hour
 
-// Tier is one band of a retention policy: keep one snapshot per Every-long
-// bucket, for snapshots up to For old.
+// The retention rules live in internal/retention, which knows nothing about
+// snapshots, filesystems or languages. This package is the boundary: it converts
+// between the two, and holds the parts that genuinely need a snapshot, a
+// translation or a command runner.
 //
-// Every of zero means keep every snapshot the band covers, which is how the flat
-// window this replaces is expressed — see FlatPolicy.
-type Tier struct {
-	Every time.Duration `json:"every"`
-	For   time.Duration `json:"for"`
+// Aliased rather than wrapped so that every existing reference to
+// schedule.Policy keeps working and there is exactly one definition of what a
+// policy is.
+type (
+	Tier   = retention.Tier
+	Policy = retention.Policy
+)
+
+// BucketStart identifies the period a snapshot falls in.
+func BucketStart(taken time.Time, every time.Duration) int64 {
+	return retention.BucketStart(taken, every)
 }
 
-// Policy is how snapshots thin out as they age: everything recent, then one a
-// day, then one a week. Tiers may be given in any order; Plan sorts them.
-type Policy struct {
-	Tiers []Tier `json:"tiers"`
-}
+// ParsePolicy reads a policy back from the form String writes.
+func ParsePolicy(text string) (Policy, bool) { return retention.ParsePolicy(text) }
 
-// FlatPolicy is the behaviour that existed before tiering: keep everything
-// inside the window and nothing outside it.
-//
-// It exists so no installed schedule changes meaning. A flat window is a policy
-// with one keep-everything tier, and Plan under it agrees with apfs.Prune to the
-// boundary, which TestFlatPolicyMatchesTheWindowItReplaces holds it to.
-func FlatPolicy(retain time.Duration) Policy {
-	return Policy{Tiers: []Tier{{Every: 0, For: retain}}}
-}
+// hoursUp rounds a duration up to whole hours, the resolution the plist carries.
+func hoursUp(d time.Duration) int { return retention.HoursUp(d) }
 
-// Plan divides snapshots into the ones a policy keeps and the ones it prunes,
-// both newest first. It changes nothing: the caller deletes, or does not.
+// FlatPolicy keeps everything for a window.
+func FlatPolicy(retain time.Duration) Policy { return retention.FlatPolicy(retain) }
+
+// Plan decides which snapshots a policy keeps, newest first.
 //
-// Being a pure function of its arguments — now included — is the point. Deletion
-// is irreversible and a snapshot cannot be recreated, because it records a past
-// state of a disk that has since moved on. A retention bug is therefore only
-// ever discovered by the person who needed the snapshot it deleted, so the
-// decision is made somewhere it can be tested exhaustively and cheaply.
+// The sort here is the tie-break the domain cannot know about: two snapshots
+// taken in the same instant are ordered by their stamp, and retention.Plan sorts
+// stably by time alone, so that order survives.
 func Plan(snaps []apfs.Snapshot, policy Policy, now time.Time) (keep, prune []apfs.Snapshot) {
 	if len(snaps) == 0 {
 		return nil, nil
 	}
 
-	// A copy, sorted newest first. apfs.List already returns that order, but a
-	// plan that quietly relied on the caller having sorted correctly would fail
-	// by deleting the wrong snapshots — and sorting in place would reorder a
-	// slice the caller may still be displaying.
 	ordered := append([]apfs.Snapshot(nil), snaps...)
 	sort.SliceStable(ordered, func(i, j int) bool {
 		if ordered[i].Taken.Equal(ordered[j].Taken) {
@@ -68,214 +62,23 @@ func Plan(snaps []apfs.Snapshot, policy Policy, now time.Time) (keep, prune []ap
 		return ordered[i].Taken.After(ordered[j].Taken)
 	})
 
-	tiers := policy.normalised()
-	if len(tiers) == 0 {
-		// A policy with nothing usable in it keeps everything. The other reading
-		// — no tier covers any snapshot, so delete the lot — turns a zero value,
-		// a half-decoded plist or a typo into total loss of the restore history.
-		// The two failures are not comparable: pruning too little is corrected
-		// by the next run, and macOS reclaims purgeable snapshots under space
-		// pressure on its own.
-		return ordered, nil
-	}
-
-	// One bucket per (tier period, absolute period start). The period is part of
-	// the key because adjacent tiers overlap slightly at their boundary, and two
-	// snapshots governed by different tiers must not be taken for one bucket.
-	type bucket struct {
-		every time.Duration
-		start int64
-	}
-	claimed := make(map[bucket]bool, len(ordered))
-
-	kept := make([]bool, len(ordered))
-	// The newest snapshot is kept whatever the policy says. A policy that planned
-	// away the last snapshot would leave the machine with no restore point at
-	// all, which is the exact state this application exists to prevent, and no
-	// setting a user can choose is worth that.
-	kept[0] = true
-
-	// Oldest first, so the first snapshot met in a bucket is the oldest one in
-	// it, and the oldest is the one kept. That choice is the only one in this
-	// file that is not forced, and it decides whether the kept set is stable as
-	// time passes.
-	//
-	// Keeping the newest is unstable. The newest snapshot in a period changes
-	// every time another arrives, so a snapshot kept by yesterday's plan is
-	// deleted by today's for no reason other than that a newer one now shares its
-	// bucket. A snapshot that survives one plan and is destroyed by the next,
-	// with nothing having changed about it, means the far end of the history
-	// keeps rewriting itself and nothing seen yesterday can be relied on today.
-	//
-	// Keeping the oldest is stable. The oldest snapshot in a bucket is fixed the
-	// moment that bucket's first snapshot exists, since everything arriving later
-	// is newer, so once a snapshot is its bucket's keeper it stays the keeper.
-	// Within a tier, advancing now cannot change the kept set at all: the buckets
-	// are absolute (see bucketStart) and so is the choice inside them.
-	//
-	// It also reaches further back for the same count, and it errs toward the
-	// older snapshot of any pair — the one whose contents nothing still on disk
-	// can approximate.
-	//
-	// The cost is that a snapshot taken minutes after another in the same bucket
-	// is prunable at once. That is why every preset opens with a keep-everything
-	// tier, and why the newest snapshot is kept unconditionally.
-	for i := len(ordered) - 1; i >= 0; i-- {
-		s := ordered[i]
-		age := now.Sub(s.Taken)
-		if age < 0 {
-			// A snapshot dated in the future — a clock corrected backwards, a
-			// machine moved between zones — is not old. Left as a negative age
-			// it would still land in the first tier, but saying so here stops a
-			// later change to tier lookup reading it as infinitely old.
-			age = 0
-		}
-		tier, ok := tierFor(tiers, age)
-		if !ok {
-			continue // older than the policy reaches
-		}
-		if tier.Every <= 0 {
-			kept[i] = true
-			continue
-		}
-		b := bucket{every: tier.Every, start: bucketStart(s.Taken, tier.Every)}
-		if claimed[b] {
-			continue
-		}
-		claimed[b] = true
-		kept[i] = true
-	}
-
+	taken := make([]time.Time, len(ordered))
 	for i, s := range ordered {
-		if kept[i] {
-			keep = append(keep, s)
-		} else {
-			prune = append(prune, s)
-		}
+		taken[i] = s.Taken
+	}
+
+	keepAt, pruneAt := retention.Plan(taken, policy, now)
+	for _, i := range keepAt {
+		keep = append(keep, ordered[i])
+	}
+	for _, i := range pruneAt {
+		prune = append(prune, ordered[i])
 	}
 	return keep, prune
 }
 
-// bucketStart identifies the period a snapshot falls in, as an absolute instant.
-//
-// Time.Truncate rounds down to a multiple of the period measured from a fixed
-// instant, so a boundary never moves. Both alternatives move:
-//
-//   - Bucketing by age relative to now (age/period) shifts every boundary as the
-//     clock advances, so which snapshots share a bucket differs between one run
-//     and the next and the kept set churns for no reason.
-//   - Bucketing on local midnight moves the boundary twice a year. A daylight
-//     saving change makes one day 23 or 25 hours long, which re-chooses that
-//     day's keeper and so deletes the snapshot the previous plan committed to.
-//
-// The price is that a "daily" bucket is a fixed 24-hour window rather than a
-// local calendar day, so the snapshot kept for a day is the first one after a UTC
-// boundary rather than after local midnight. That is cosmetic — which of a day's
-// snapshots is chosen — against the real question of whether the choice holds
-// still.
-func bucketStart(taken time.Time, every time.Duration) int64 {
-	return taken.Truncate(every).UnixNano()
-}
-
-// tierFor finds the tier governing a snapshot of a given age.
-//
-// Tiers are ordered by reach and the first one that reaches this age wins, so
-// the finest granularity covering a snapshot is the one applied. An age landing
-// exactly on a boundary belongs to the finer tier, because the finer tier keeps
-// more, and every tie in this file is broken toward keeping.
-func tierFor(tiers []Tier, age time.Duration) (Tier, bool) {
-	for _, t := range tiers {
-		if age <= t.For {
-			return t, true
-		}
-	}
-	return Tier{}, false
-}
-
-// normalised drops the tiers that cover nothing and orders the rest by reach.
-//
-// The order is not the caller's to get right. A policy stored back to front
-// would otherwise apply the coarsest thinning to the newest snapshots and delete
-// this morning's work.
-func (p Policy) normalised() []Tier {
-	out := make([]Tier, 0, len(p.Tiers))
-	for _, t := range p.Tiers {
-		if t.For <= 0 {
-			continue
-		}
-		if t.Every < 0 {
-			t.Every = 0
-		}
-		out = append(out, t)
-	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].For < out[j].For })
-	return out
-}
-
-// Bands returns the tiers in the order Plan applies them — finest first, with
-// any that cover nothing dropped. That is also the order they read in, which is
-// why the interface is given this rather than the raw field.
-func (p Policy) Bands() []Tier { return p.normalised() }
-
-// Horizon is the age of the oldest snapshot a policy still keeps: how far back
-// the history reaches. Zero means the policy prunes nothing.
-func (p Policy) Horizon() time.Duration {
-	var furthest time.Duration
-	for _, t := range p.normalised() {
-		if t.For > furthest {
-			furthest = t.For
-		}
-	}
-	return furthest
-}
-
-// IsFlat reports whether a policy is the old flat window: one band, keeping
-// everything inside it.
-func (p Policy) IsFlat() bool {
-	tiers := p.normalised()
-	return len(tiers) == 1 && tiers[0].Every <= 0
-}
-
-// Equal compares policies by what they would do rather than by how they were
-// written, so a preset recovered from a plist still matches the preset.
-func (p Policy) Equal(other Policy) bool {
-	a, b := p.normalised(), other.normalised()
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// String encodes a policy the way the plist carries it: comma-separated
-// every/for pairs in whole hours, with "all" for a band that keeps everything.
-//
-// Whole hours because the retention value it sits beside in that plist is
-// already in hours, and because a launchd plist is read by people as often as by
-// programs. Both halves round up, so any loss in the encoding keeps more than was
-// asked for rather than less.
-func (p Policy) String() string {
-	tiers := p.normalised()
-	fields := make([]string, 0, len(tiers))
-	for _, t := range tiers {
-		every := "all"
-		if t.Every > 0 {
-			every = strconv.Itoa(hoursUp(t.Every))
-		}
-		fields = append(fields, every+"/"+strconv.Itoa(hoursUp(t.For)))
-	}
-	return strings.Join(fields, ",")
-}
-
-// Describe words a policy as a sentence. Tiers are far easier to check in prose
-// than as a row of numbers, and this is the string the settings screen shows
-// beside the count it would retain.
-func (p Policy) Describe() string {
-	tiers := p.normalised()
+func Describe(p Policy) string {
+	tiers := p.Bands()
 	if len(tiers) == 0 {
 		return i18n.T("retention.nothingPruned")
 	}
@@ -304,6 +107,63 @@ func (p Policy) Describe() string {
 	return string(letters) + "."
 }
 
+// ModeName is what to call a policy: which of the shapes on offer it is.
+//
+// Named by shape rather than by reach. A name with a number in it — "yearly" —
+// would be wrong for four of the five windows on offer, because a preset's reach
+// follows the window chosen rather than being fixed, and that is exactly the bug
+// the presets themselves used to have.
+func ModeName(p Policy) string {
+	switch id := IdentifyPolicy(p); id {
+	case FlatID:
+		return i18n.T("retention.mode.flat")
+	case "custom":
+		if len(p.Bands()) == 0 {
+			return i18n.T("retention.mode.none")
+		}
+		return i18n.T("retention.mode.custom")
+	default:
+		// A preset's own name, which the settings screen shows beside its radio
+		// button. Recovered from the policy rather than stored, so a plist written
+		// months ago still knows what it is.
+		bands := p.Bands()
+		for _, preset := range Presets(bands[0].Every, bands[0].For) {
+			if preset.ID == id {
+				return preset.Name
+			}
+		}
+		return i18n.T("retention.mode.custom")
+	}
+}
+
+// Headline is the schedule in one line: which mode, how often, and how far back.
+//
+// The single place this sentence is built. The menu bar used to build its own from
+// the interval and the retention window alone, ignoring the policy — so a tiered
+// schedule was announced as "every 3 hours, kept 364 days" when only one snapshot
+// every four weeks survives past the twenty-sixth. It took the horizon and called
+// it the retention, which is true of a flat window and of nothing else.
+//
+// Hence the wording differing by kind rather than a single template: a flat window
+// keeps everything for its span, and a tiered one thins towards its horizon.
+// Describe gives the full sentence for somewhere with room for it.
+func Headline(interval time.Duration, p Policy) string {
+	mode := ModeName(p)
+	bands := p.Bands()
+	if len(bands) == 0 {
+		return mode
+	}
+
+	key := "retention.headline.tiered"
+	if p.IsFlat() {
+		key = "retention.headline.flat"
+	}
+	return i18n.T(key,
+		"Mode", mode,
+		"Every", words(interval),
+		"Reach", words(p.Horizon()))
+}
+
 // everyPhrase words a bucket period as a rate. The three common ones get the
 // phrasing a person would use, because "one every 1 day" is the sort of thing
 // that makes a settings screen look generated.
@@ -320,23 +180,6 @@ func everyPhrase(every time.Duration) string {
 	}
 }
 
-// hoursUp rounds a duration up to whole hours, which is the resolution the plist
-// carries. Rounding up on the reach of a band keeps a snapshot slightly longer
-// than asked; rounding down would delete one slightly early.
-func hoursUp(d time.Duration) int {
-	hours := int(d / time.Hour)
-	if d%time.Hour != 0 {
-		hours++
-	}
-	return hours
-}
-
-// words spells a duration in the largest unit that stays exact, so a policy
-// reads as "13 weeks" rather than "2184 hours".
-//
-// Weeks only past a month: a fortnight is a fortnight, and "2 weeks" for the
-// retention everyone here already thinks of as 14 days would be a needless
-// translation.
 func words(d time.Duration) string {
 	hours := int((d + time.Minute/2) / time.Hour)
 	switch {
@@ -354,60 +197,6 @@ const (
 	hoursPerWeek = 7 * hoursPerDay
 )
 
-// ParsePolicy reads the encoding String writes. It also accepts "0" for a
-// keep-everything band, because that is the obvious thing to write by hand.
-//
-// It reports false rather than a partial policy. Half a policy is a different
-// policy, and the half most likely to be dropped is the last one — the band
-// holding the oldest snapshots, whose loss is the one that cannot be undone.
-func ParsePolicy(s string) (Policy, bool) {
-	var p Policy
-	for _, field := range strings.Split(s, ",") {
-		field = strings.TrimSpace(field)
-		if field == "" {
-			continue
-		}
-		every, forAge, ok := parseTier(field)
-		if !ok {
-			return Policy{}, false
-		}
-		p.Tiers = append(p.Tiers, Tier{Every: every, For: forAge})
-	}
-	if len(p.Tiers) == 0 {
-		return Policy{}, false
-	}
-	return p, true
-}
-
-// parseTier reads one every/for pair, both in whole hours.
-func parseTier(field string) (every, forAge time.Duration, ok bool) {
-	left, right, found := strings.Cut(field, "/")
-	if !found {
-		return 0, 0, false
-	}
-	left, right = strings.TrimSpace(left), strings.TrimSpace(right)
-
-	if left != "all" {
-		hours, err := strconv.Atoi(left)
-		if err != nil || hours < 0 {
-			return 0, 0, false
-		}
-		every = time.Duration(hours) * time.Hour
-	}
-	hours, err := strconv.Atoi(right)
-	if err != nil || hours <= 0 {
-		return 0, 0, false
-	}
-	return every, time.Duration(hours) * time.Hour, true
-}
-
-// Retained reports how many snapshots a policy holds once a schedule taking one
-// every interval has been running longer than the policy reaches.
-//
-// It counts by planning a synthetic history rather than by arithmetic over the
-// tiers, so the figure the settings screen shows comes from the same function
-// that does the deleting and cannot drift from it. It is an estimate only in
-// that a real history is not taken exactly on the interval.
 func Retained(policy Policy, interval time.Duration, now time.Time) int {
 	if interval <= 0 {
 		return 0
@@ -435,11 +224,8 @@ func Retained(policy Policy, interval time.Duration, now time.Time) int {
 
 // Preset is a named policy the settings screen offers.
 type Preset struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	// Why is the one line that decides it for someone who does not want to read
-	// the tiers.
-	Why    string `json:"why"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
 	Policy Policy `json:"policy"`
 }
 
@@ -448,56 +234,75 @@ type Preset struct {
 // rather than one fixed here.
 const FlatID = "flat"
 
-// Presets are the tiered policies on offer.
+// Presets are the tiered policies on offer, built from the choices the person
+// actually made.
 //
-// Every period is a whole multiple of the one before it: a day is 24 hours, a
-// week is 7 days, and the longest band is 4 weeks rather than a calendar month.
-// That is what makes the buckets nest, and nesting is what stops coarsening
-// re-choosing: when a snapshot ages out of the daily band into the weekly one,
-// the snapshot the weekly band keeps is one the daily band was already keeping,
-// so no snapshot is deleted merely because the granularity changed. A calendar
-// month is not a whole number of weeks and would break that for the sake of a
-// tidier label. TestPresetPeriodsNest holds this.
+// They used to be fixed values whose first band was hardcoded to "everything for
+// two days". The time period and flat window chosen in the interface selected
+// nothing in them at all: pick a tiered preset and both settings were silently
+// discarded. That is the bug this signature exists to make impossible — a preset
+// cannot be constructed without them.
 //
-// Each band's reach is a whole number of its own periods too, so the oldest
-// bucket in a band is a full one rather than a stub.
-// A function rather than a value: a package-level slice is built at init, before
-// any language has been chosen, and would keep English names for the life of the
-// process. Called where it is used, which is once per settings screen.
-func Presets() []Preset {
-	return []Preset{
-		{
-			ID:   "tiered-13-weeks",
-			Name: i18n.T("retention.tiered13.name"),
-			Why:  i18n.T("retention.tiered13.why"),
-			Policy: Policy{Tiers: []Tier{
-				{Every: 0, For: 2 * day},
-				{Every: day, For: 14 * day},
-				{Every: 7 * day, For: 91 * day},
-			}},
-		},
-		{
-			ID:   "tiered-52-weeks",
-			Name: i18n.T("retention.tiered52.name"),
-			Why:  i18n.T("retention.tiered52.why"),
-			Policy: Policy{Tiers: []Tier{
-				{Every: 0, For: 2 * day},
-				{Every: day, For: 14 * day},
-				{Every: 7 * day, For: 56 * day},
-				{Every: 28 * day, For: 364 * day},
-			}},
-		},
+// Three bands, always. The first is the choice: every {period} for {window}. The
+// two after it are multiples of that window, which is what keeps the count at
+// three whatever is chosen — spans fixed in absolute days disappeared whenever
+// the window already reached past them, so a fortnight's window turned a
+// three-band preset into a two-band one without saying so.
+//
+// A band is dropped only if it would be finer than the one before it, which the
+// multipliers make impossible; the check stays because the invariant is the
+// thing that matters, not the arithmetic that currently satisfies it.
+func Presets(period, window time.Duration) []Preset {
+	base := Tier{Every: period, For: window}
+
+	shapes := []struct {
+		id   string
+		name string
+		// Each band beyond the first: how coarse, and how far as a multiple of
+		// the window. Named for their shape rather than an absolute reach,
+		// because the reach now follows the window and any number in the name
+		// would be wrong for four of the five windows.
+		bands []struct {
+			every time.Duration
+			times int
+		}
+	}{
+		{"tiered-daily-weekly", i18n.T("retention.dailyWeekly.name"), []struct {
+			every time.Duration
+			times int
+		}{{day, 4}, {7 * day, 13}}},
+		{"tiered-weekly-monthly", i18n.T("retention.weeklyMonthly.name"), []struct {
+			every time.Duration
+			times int
+		}{{7 * day, 13}, {28 * day, 52}}},
 	}
+
+	out := make([]Preset, 0, len(shapes))
+	for _, shape := range shapes {
+		tiers := []Tier{base}
+		previous := base
+		for _, b := range shape.bands {
+			// Never finer than the band before it. A policy that refines with age
+			// keeps the newest snapshots at the coarsest density, which is not a
+			// thing anyone means to ask for.
+			every := b.every
+			if every < previous.Every {
+				every = previous.Every
+			}
+			t := Tier{Every: every, For: window * time.Duration(b.times)}
+			tiers = append(tiers, t)
+			previous = t
+		}
+		out = append(out, Preset{ID: shape.id, Name: shape.name, Policy: Policy{Tiers: tiers}})
+	}
+	return out
 }
 
-// PolicyByID resolves what the settings screen sends back. The flat window needs
-// the retention the user chose, since that is the only part of it not fixed
-// here.
-func PolicyByID(id string, flatRetention time.Duration) (Policy, bool) {
+func PolicyByID(id string, period, window time.Duration) (Policy, bool) {
 	if id == FlatID {
-		return FlatPolicy(flatRetention), true
+		return FlatPolicy(window), true
 	}
-	for _, p := range Presets() {
+	for _, p := range Presets(period, window) {
 		if p.ID == id {
 			return p.Policy, true
 		}
@@ -511,7 +316,15 @@ func PolicyByID(id string, flatRetention time.Duration) (Policy, bool) {
 // Reporting a hand-edited plist as "custom" rather than as the nearest preset
 // keeps the settings screen honest about what launchd will actually do.
 func IdentifyPolicy(p Policy) string {
-	for _, preset := range Presets() {
+	// The period and window a preset was built from are recoverable from the
+	// policy itself: they are its first band. So a policy can be recognised
+	// without being told what it was made with, which is what keeps a plist
+	// written months ago identifiable today.
+	bands := p.Bands()
+	if len(bands) == 0 {
+		return "custom"
+	}
+	for _, preset := range Presets(bands[0].Every, bands[0].For) {
 		if preset.Policy.Equal(p) {
 			return preset.ID
 		}

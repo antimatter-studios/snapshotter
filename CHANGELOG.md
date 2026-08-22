@@ -7,6 +7,176 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.53.0 — 2026-08-21
+
+**The retention rules move into a package that knows nothing else, and the two
+things they got wrong are fixed.**
+
+`internal/retention` is arithmetic on timestamps. It does not know what a snapshot
+is, that they live on APFS, that deleting one needs a privileged command, or that
+any of it is described to a person in German. `Plan` takes times and returns
+positions, so the caller keeps its own objects and its own tie-break. The rule
+that decides what gets destroyed can now be tested exhaustively, in milliseconds,
+with no filesystem and no language set — which it could not before, and was not.
+
+**Presets ignored the person entirely.** Their first band was hardcoded to
+"everything for two days", so the time period and flat window chosen in the
+interface selected nothing: picking a tiered preset silently discarded both.
+Presets are built from those two choices now, which makes a preset that ignores
+them impossible to construct.
+
+**The line explaining each preset was false.** It claimed tiering costs about half
+a flat fortnight. It was 22% of one at an hourly schedule and 180% at a daily one
+— false at two of the five intervals a person can choose. It is deleted rather
+than corrected: it was a sentence written by hand beside three values derived from
+the policy, and a corrected sentence would drift again at the next change to a
+band. The derived description says the same thing, truthfully by construction.
+
+Five tests asserted that claim, three of them at a single hardcoded interval,
+which is why it survived. They now assert the trade actually on offer, at every
+interval.
+
+**Every preset has three bands**, whatever is chosen. They did not: the later
+bands were spans fixed in absolute days, so a window reaching past one made it
+disappear and a three-band preset quietly became a two-band one. Those bands are
+multiples of the window now, and the preset names describe their shape rather than
+a reach that no longer holds.
+
+**And the interface says that only one snapshot per period is kept.** It already
+worked that way, in the case where it is most surprising: the tripwire takes a
+snapshot when files start disappearing, ten minutes after a scheduled one, and
+retention removes it. The outcome is right — the earlier snapshot holds more of
+what was about to be deleted — but the application sends a notification naming
+that snapshot and then quietly deletes it.
+
+### Three capabilities that existed and could not be used
+
+Every exported service method is bound into the window, and eleven of them had no
+caller anywhere — not the window, not the menu bar, not the command line. They
+were implemented and tested and impossible to invoke. Three now have a way in.
+
+**What has gone since**, a second mode on the search screen. Searching by name
+assumes you know what the file was called; this assumes you do not, only that
+something is missing from a folder you remember. It lists what the folder held
+when the snapshot was taken and holds no longer, with a restore beside each row.
+The date shown is when the file was last written, not when it went — nothing
+records the moment of a deletion.
+
+**Deleting one snapshot.** Retention deletes on a schedule, so someone reading a
+low-space warning had no lever at all. Asked twice, because a snapshot cannot be
+recreated, and one question at a time: two identical prompts a row apart is how
+the wrong one gets answered.
+
+**The bulk-deletion watcher's log**, beside the scheduled task's. The task's log
+answers "why is my history thinner than I asked for". The watcher's answers the
+harder one — why a deletion went by without a snapshot — and reaching it needed
+the path and a terminal. "Not installed" now says so, rather than showing an empty
+log, which reads as "nothing has happened" when the truth is "nothing is
+watching".
+
+The audit that found them is a test now: every bound method must be reachable, or
+listed as deliberately not, with the reason. The eight remaining have theirs
+written down.
+
+### One account of what the schedule does
+
+Three places said what the schedule does, and all three built the sentence
+themselves from the interval and the retention window. That ignores the policy,
+so all three were wrong for every tiered schedule: they read the horizon as the
+retention, which is true of a flat window and of nothing else.
+
+The menu bar announced "Every 3 hours, kept 364 days" for a policy that keeps one
+snapshot every four weeks past the twenty-sixth. The window's figure grid said
+"Every 3h, kept 14d" — the same mistake, in English, written into the markup. The
+settings screen read the policy properly and said something different and correct.
+Nothing noticed, because no two of them were ever compared.
+
+There is one place now, and it names the mode, which is the thing a reader most
+wants and never had: "Flat window: every 3 hours, kept 14 days", or "Tiered —
+daily, then weekly: every 3 hours, thinning out to 26 weeks". It words itself by
+kind rather than from one template, because a flat window keeps everything for its
+span and a tiered one does not.
+
+Three views, sized to their space: the menu bar's line with the full sentence on
+its tooltip, the window's four-column grid with the mode's name and the line on
+its tooltip, and the settings screen's full sentence.
+
+Four more blocks of English were written into the settings screen's markup, two of
+them with catalogue entries that nothing called — translated once and never wired.
+
+### A refusal that only English speakers could act on
+
+macOS refusing to mount a snapshot for want of Full Disk Access is the one failure
+here that needs an explanation rather than a message, so the window replaces it
+with instructions and a button to the settings pane. It recognised the refusal by
+looking the phrase up in the translation catalogue and searching the error for the
+result — but the error is hardcoded English, so in German it searched an English
+message for "Voller Festplattenzugriff". For every language but English there were
+no instructions, no button, and the raw refusal instead.
+
+### The words the service sends are the reader's words too
+
+The window shows what the service gives it and cannot know what any of it says, so
+whatever language a message arrives in is the language it is read in.
+
+`services/diff.go` used the catalogue zero times while its sibling used it
+twenty-nine, so all five of its notes were English: a file in neither version, a
+picture too large to show, a file that looks binary, a file too large to compare by
+lines. `search.go` was half done — two of four notes translated, and one of the
+others built "1 snapshot(s) were not searched" by hand, which is the exact shape a
+plural rule exists to avoid.
+
+The right-hand side of a comparison was named with the English words "the live
+disk", which the window interpolates into a sentence: "nicht mehr in the live
+disk". It sends a stamp or nothing now, and the window supplies the word.
+
+Two more were English written into the markup: the search screen built "1 open
+snapshot" / "2 open snapshots" with a conditional "s", and a row's tooltip said
+"Open" as a bare literal.
+
+### Five corrections to the translations themselves
+
+German said `Speicherdruck`, which reads as memory pressure — the message is about
+the disk filling, so it sent the reader to look at the wrong thing. `freigebbar` is
+not a German word; Apple's German for purgeable space is `bereinigbar`, and French
+uses `purgeable` rather than `libérables`. `Zusicherungen` means assurances, where
+"reservations" here means reserved space. And `sous pression disque` is a calque.
+
+Checked across all 858 translations and found correct: the register is consistent,
+French keeps its space before `;` and `:`, German and Spanish theirs before `%`,
+Spanish opens its questions with `¿`, no string is left in English, and every
+macOS name that must not be translated survived.
+
+### The health screen no longer disappears when an action fails
+
+An action that failed took the early-return error branch, which replaced the whole
+screen — verdict, findings, and the button that failed — with a single sentence.
+The banner sits above the findings now, all of which are still true.
+
+### Words that cross from Go to TypeScript are checked
+
+A status, a finding's action, a finding's level: each is a string invented in Go
+and read in TypeScript, and each fails silently in a way that looks like
+sloppiness rather than breakage. A status with no catalogue entry shows its own key
+where a word belongs; an action nothing branches on gives a finding no button.
+Nothing checked any of them.
+
+`Kind` had already drifted from itself: a file found to be binary at the sniff
+sample said "binary", one found past it said nothing at all, and a file too large
+said nothing either. All five values are named now.
+
+### Tests
+
+The window went from 26 tests to 210, and from an unmeasured 75% of its own
+statements to 97%. Go went from 443 to 637 across 24 packages, and the frontend
+coverage report stopped counting generated bindings, which had been holding the
+headline figure at 40% while the hand-written code sat at 75%.
+
+Two of those tests found the bugs above. `comparePixels` had never executed at
+all — jsdom implements neither canvas nor ImageData — and the folder-verdict
+watcher, whose failure is a browser that goes on calling a folder identical after
+the user has changed it, had nothing pinning it either.
+
 ## v0.52.0 — 2026-08-21
 
 **The menu says what the schedule is, under the strip that says whether it was
