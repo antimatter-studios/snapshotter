@@ -360,9 +360,23 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		// silent — the settings still record the interval that was chosen and
 		// nothing is taking snapshots. The settings are the intent; launchd is the
 		// current state; this reconciles the second to the first.
-		if restored, err := services.NewScheduleService(deps).Restore(context.Background()); err != nil {
-			log.Printf("restoring what was configured: %v", err)
-		} else if restored.Any() {
+		restored, restoreErr := services.NewScheduleService(deps).Restore(context.Background())
+		if restoreErr != nil {
+			// Said out loud, not only logged. This is the branch where the machine
+			// is left unprotected, and it used to be the quiet one: putting the
+			// agents back posted a notification, failing to put them back wrote a
+			// line to a log file nobody opens. The reader was told when nothing was
+			// wrong and told nothing when something was.
+			log.Printf("restoring what was configured: %v", restoreErr)
+			if nerr := notify.Send(context.Background(),
+				i18n.T("notify.restoreFailed.title"),
+				i18n.T("notify.restoreFailed.body", "Error", restoreErr.Error())); nerr != nil {
+				log.Printf("could not post a notification: %v", nerr)
+			}
+		}
+		// Whatever did come back is still worth saying, even if the other half
+		// did not.
+		if restored.Any() {
 			what := i18n.T("notify.what.schedule")
 			if restored.Schedule && restored.Tripwire {
 				what = i18n.T("notify.what.both")

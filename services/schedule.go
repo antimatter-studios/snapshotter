@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -362,31 +363,42 @@ func (s *ScheduleService) Restore(ctx context.Context) (Restored, error) {
 		return out, err
 	}
 
+	// Each is attempted whatever happened to the other, and every failure is
+	// carried back rather than returned at the first one.
+	//
+	// They used to share a single early return, which made them one protection
+	// instead of two: a policy identifier the settings file named and this build
+	// no longer knew — which is precisely what a renamed preset produces — failed
+	// the schedule and then skipped the tripwire entirely, though the tripwire has
+	// no policy and nothing was wrong with it. One rename took both protections
+	// off the machine.
+	var failures []error
+
 	if cfg.Schedule.Enabled {
-		st, err := s.Agent.Status(ctx)
-		if err != nil {
-			return out, err
-		}
-		if !st.Installed {
+		if st, err := s.Agent.Status(ctx); err != nil {
+			failures = append(failures, fmt.Errorf("reading the schedule's state: %w", err))
+		} else if !st.Installed {
 			if _, err := s.InstallPolicy(ctx, cfg.Schedule.IntervalHours, cfg.Schedule.RetentionDays, cfg.Schedule.Policy); err != nil {
-				return out, err
+				failures = append(failures, fmt.Errorf("putting the schedule back: %w", err))
+			} else {
+				out.Schedule = true
 			}
-			out.Schedule = true
 		}
 	}
 
 	if cfg.Tripwire.Enabled {
-		st, err := s.Tripwire.Status(ctx)
-		if err != nil {
-			return out, err
-		}
-		if !st.Installed {
+		if st, err := s.Tripwire.Status(ctx); err != nil {
+			failures = append(failures, fmt.Errorf("reading the watcher's state: %w", err))
+		} else if !st.Installed {
 			if _, err := s.InstallTripwire(ctx); err != nil {
-				return out, err
+				failures = append(failures, fmt.Errorf("putting the watcher back: %w", err))
+			} else {
+				out.Tripwire = true
 			}
-			out.Tripwire = true
 		}
 	}
 
-	return out, nil
+	// Both outcomes are reported: what was put back, and what could not be. The
+	// caller needs the first to say so and the second to say so louder.
+	return out, errors.Join(failures...)
 }

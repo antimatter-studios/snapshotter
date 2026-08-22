@@ -298,7 +298,36 @@ func Presets(period, window time.Duration) []Preset {
 	return out
 }
 
+// legacyPolicyIDs maps identifiers written by earlier versions onto the ones in
+// use now, matched by what each shape actually did.
+//
+// The presets were renamed when their reach stopped being fixed — a name with a
+// number in it is wrong for four of the five windows once the reach follows the
+// window. The rename shipped without this, and a settings file naming
+// "tiered-52-weeks" then resolved to nothing at all. That is not a cosmetic
+// failure: the startup reconciliation reads this file as the intent, so an
+// unresolvable name meant nothing was put back after an upgrade removed it.
+//
+// Old shapes, for the record: tiered-13-weeks kept everything for two days, then
+// daily for a fortnight, then weekly out to thirteen weeks. tiered-52-weeks
+// added a monthly band reaching a year. So the first is the daily-then-weekly
+// shape and the second the weekly-then-monthly one.
+var legacyPolicyIDs = map[string]string{
+	"tiered-13-weeks": "tiered-daily-weekly",
+	"tiered-52-weeks": "tiered-weekly-monthly",
+}
+
+// CanonicalPolicyID translates an identifier read from storage into a current
+// one. Anything already current, or unrecognised, is returned unchanged.
+func CanonicalPolicyID(id string) string {
+	if current, ok := legacyPolicyIDs[id]; ok {
+		return current
+	}
+	return id
+}
+
 func PolicyByID(id string, period, window time.Duration) (Policy, bool) {
+	id = CanonicalPolicyID(id)
 	if id == FlatID {
 		return FlatPolicy(window), true
 	}
