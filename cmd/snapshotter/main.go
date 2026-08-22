@@ -14,7 +14,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"snapshotter/frontend"
 	"snapshotter/internal/boot"
@@ -29,8 +28,8 @@ import (
 	"snapshotter/internal/notify"
 	"snapshotter/internal/scenario"
 	"snapshotter/internal/schedule"
+	"snapshotter/internal/single"
 	"snapshotter/internal/verdict"
-	"snapshotter/internal/version"
 	"snapshotter/services"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -118,17 +117,27 @@ func main() {
 		}
 		return
 	}
-	// A build that is not the installed one announces itself and refuses to run a
-	// second window.
+	// One window at a time, whatever it was built from.
 	//
 	// Two copies put two identical icons in the menu bar, and only the one in
-	// /Applications holds the Full Disk Access grant — so the working build looks
-	// the same and cannot mount anything. Worse, a copy left running is invisible:
-	// one of these sat at 300% CPU for nineteen hours on the author's machine
-	// before anyone noticed, because nothing about it looked different.
-	if err := refuseIfInstalledCopyIsRunning(); err != nil {
+	// /Applications holds the Full Disk Access grant — so the second looks the same
+	// and cannot mount anything. Worse, a copy left running is invisible: one sat
+	// at 300% CPU for nineteen hours on the author's machine before anyone noticed,
+	// because nothing about it looked different.
+	//
+	// This is held for as long as the window is, and released by the process ending
+	// however it ends. The command line and both agents return before reaching
+	// here, so none of them is blocked by a window being open — they take no icon
+	// and they are the things that must keep working.
+	configDir, dirErr := config.Dir()
+	if dirErr != nil {
+		log.Fatal(dirErr)
+	}
+	releaseWindow, err := single.Hold(single.Path(configDir))
+	if err != nil {
 		log.Fatal(err)
 	}
+	defer releaseWindow()
 
 	if err := runWindow(paths, runner, sim); err != nil {
 		log.Fatal(err)
@@ -360,9 +369,23 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		// silent — the settings still record the interval that was chosen and
 		// nothing is taking snapshots. The settings are the intent; launchd is the
 		// current state; this reconciles the second to the first.
-		if restored, err := services.NewScheduleService(deps).Restore(context.Background()); err != nil {
-			log.Printf("restoring what was configured: %v", err)
-		} else if restored.Any() {
+		restored, restoreErr := services.NewScheduleService(deps).Restore(context.Background())
+		if restoreErr != nil {
+			// Said out loud, not only logged. This is the branch where the machine
+			// is left unprotected, and it used to be the quiet one: putting the
+			// agents back posted a notification, failing to put them back wrote a
+			// line to a log file nobody opens. The reader was told when nothing was
+			// wrong and told nothing when something was.
+			log.Printf("restoring what was configured: %v", restoreErr)
+			if nerr := notify.Send(context.Background(),
+				i18n.T("notify.restoreFailed.title"),
+				i18n.T("notify.restoreFailed.body", "Error", restoreErr.Error())); nerr != nil {
+				log.Printf("could not post a notification: %v", nerr)
+			}
+		}
+		// Whatever did come back is still worth saying, even if the other half
+		// did not.
+		if restored.Any() {
 			what := i18n.T("notify.what.schedule")
 			if restored.Schedule && restored.Tripwire {
 				what = i18n.T("notify.what.both")
@@ -456,35 +479,4 @@ func openEveryFakeMount(deps services.Deps) {
 		return
 	}
 	log.Printf("fake mounts: opened %d snapshot(s)", len(names))
-}
-
-// installedApp is where the released copy lives once Homebrew has staged it.
-const installedApp = "/Applications/Snapshotter.app/Contents/MacOS/snapshotter"
-
-// refuseIfInstalledCopyIsRunning stops a development build joining a menu bar
-// that already has one.
-//
-// Only for unstamped builds: two RELEASED copies cannot happen — Homebrew
-// replaces the one in /Applications — and refusing to start a second copy of a
-// binary someone deliberately invoked would be an odd thing for a released
-// application to do.
-func refuseIfInstalledCopyIsRunning() error {
-	if version.IsRelease() || os.Getenv("SNAPSHOTTER_ALLOW_SECOND_COPY") == "1" {
-		return nil
-	}
-	self, err := os.Executable()
-	if err != nil || self == installedApp {
-		return nil
-	}
-	// pgrep rather than reading /proc, which macOS does not have. A non-zero exit
-	// means nothing matched, which is the ordinary case.
-	if err := exec.Command("pgrep", "-f", installedApp).Run(); err != nil {
-		return nil
-	}
-	return fmt.Errorf(
-		"the installed Snapshotter is already running, and a second copy would put an "+
-			"identical icon in the menu bar that cannot mount anything — only the copy in "+
-			"/Applications holds the Full Disk Access grant.\n"+
-			"Quit it first, or run this one with SNAPSHOTTER_ALLOW_SECOND_COPY=1 if that is "+
-			"what you meant.\nThis build: %s", self)
 }

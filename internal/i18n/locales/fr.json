@@ -181,6 +181,14 @@
   "notify.deletingFrom": {
     "other": "Des fichiers sont supprimés dans {{.Where}}"
   },
+  "notify.restoreFailed.body": {
+    "one": "Quelque chose a supprimé ce qui était configuré — très probablement une mise à jour — et cela n'a pas pu être rétabli : {{.Error}}. Aucun snapshot ne sera créé avant que ce soit corrigé.",
+    "other": "Quelque chose a supprimé ce qui était configuré — très probablement une mise à jour — et cela n'a pas pu être rétabli : {{.Error}}. Aucun snapshot ne sera créé avant que ce soit corrigé."
+  },
+  "notify.restoreFailed.title": {
+    "one": "Snapshotter ne protège pas ce Mac",
+    "other": "Snapshotter ne protège pas ce Mac"
+  },
   "notify.scheduleRestored.body": {
     "other": "Quelque chose avait supprimé {{.what}}, très probablement une mise à jour. C'est de nouveau actif."
   },

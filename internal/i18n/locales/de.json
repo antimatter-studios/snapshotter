@@ -181,6 +181,14 @@
   "notify.deletingFrom": {
     "other": "Dateien werden gelöscht aus {{.Where}}"
   },
+  "notify.restoreFailed.body": {
+    "one": "Etwas hat die Konfiguration entfernt — höchstwahrscheinlich ein Update — und sie konnte nicht wiederhergestellt werden: {{.Error}}. Bis dies behoben ist, werden keine Snapshots erstellt.",
+    "other": "Etwas hat die Konfiguration entfernt — höchstwahrscheinlich ein Update — und sie konnte nicht wiederhergestellt werden: {{.Error}}. Bis dies behoben ist, werden keine Snapshots erstellt."
+  },
+  "notify.restoreFailed.title": {
+    "one": "Snapshotter schützt diesen Mac nicht",
+    "other": "Snapshotter schützt diesen Mac nicht"
+  },
   "notify.scheduleRestored.body": {
     "other": "Etwas hatte {{.what}} entfernt, höchstwahrscheinlich eine Aktualisierung. Es läuft wieder."
   },

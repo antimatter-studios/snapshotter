@@ -181,6 +181,14 @@
   "notify.deletingFrom": {
     "other": "Se están eliminando archivos de {{.Where}}"
   },
+  "notify.restoreFailed.body": {
+    "one": "Algo eliminó lo que estaba configurado — probablemente una actualización — y no se pudo restablecer: {{.Error}}. Hasta que se arregle, nada está creando snapshots.",
+    "other": "Algo eliminó lo que estaba configurado — probablemente una actualización — y no se pudo restablecer: {{.Error}}. Hasta que se arregle, nada está creando snapshots."
+  },
+  "notify.restoreFailed.title": {
+    "one": "Snapshotter no está protegiendo este Mac",
+    "other": "Snapshotter no está protegiendo este Mac"
+  },
   "notify.scheduleRestored.body": {
     "other": "Algo había eliminado {{.what}}, probablemente una actualización. Vuelve a estar activo."
   },

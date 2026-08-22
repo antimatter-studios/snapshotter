@@ -181,6 +181,14 @@
   "notify.deletingFrom": {
     "other": "Files are being deleted from {{.Where}}"
   },
+  "notify.restoreFailed.body": {
+    "one": "Something removed what was configured — most likely an upgrade — and it could not be put back: {{.Error}}. Nothing is taking snapshots until this is fixed.",
+    "other": "Something removed what was configured — most likely an upgrade — and it could not be put back: {{.Error}}. Nothing is taking snapshots until this is fixed."
+  },
+  "notify.restoreFailed.title": {
+    "one": "Snapshotter is not protecting this Mac",
+    "other": "Snapshotter is not protecting this Mac"
+  },
   "notify.scheduleRestored.body": {
     "other": "Something had removed {{.what}}, most likely an upgrade. It is running again."
   },

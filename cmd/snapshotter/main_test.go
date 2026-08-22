@@ -9,9 +9,11 @@ import (
 	"strings"
 	"testing"
 
+	"snapshotter/internal/apfs"
+	"snapshotter/internal/cli"
 	"snapshotter/internal/config"
 	"snapshotter/internal/mountmgr"
-	"snapshotter/internal/version"
+	"snapshotter/internal/single"
 	"snapshotter/services"
 )
 
@@ -279,32 +281,69 @@ func TestTrayLabelUnderAScenarioStillCounts(t *testing.T) {
 	}
 }
 
-// A development build must not quietly join a menu bar that already has the
-// installed one in it. Two identical icons, and only the copy in /Applications
-// holds the Full Disk Access grant — so the working build looks the same and
-// cannot mount anything. One left running consumed three cores for nineteen
-// hours on this machine before anyone noticed it was there.
-func TestADevelopmentBuildRefusesToJoinTheInstalledOne(t *testing.T) {
-	if version.IsRelease() {
-		t.Skip("this binary is stamped, so the guard does not apply to it")
+// These two tests replace a pair that asserted the guard this one supersedes: a
+// search of the process table for the installed application's path, which only
+// ever refused a development build standing beside the installed copy. The second
+// of them asserted that "a released build never refuses", on the reasoning that
+// two released copies cannot happen because Homebrew replaces the one in
+// /Applications. That turned out to be false on this very machine — two copies
+// ran at once — which is why the guard is now a lock that catches every
+// combination rather than one. The refusal itself is tested in internal/single,
+// eight ways; what belongs here is the wiring.
+
+// The lock must not reach the things that are not windows. A window being open
+// cannot be allowed to stop `snapshotter list` answering, or the scheduled agent
+// taking its snapshot — none of them puts an icon in the menu bar, and they are
+// the parts that must keep working while the window is up.
+func TestTheCommandLineWorksWhileAWindowHoldsTheLock(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir, err := config.Dir()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// The escape hatch the error message advertises has to work, or the advice is
-	// worse than useless.
-	t.Setenv("SNAPSHOTTER_ALLOW_SECOND_COPY", "1")
-	if err := refuseIfInstalledCopyIsRunning(); err != nil {
-		t.Errorf("the documented override did not let it through: %v", err)
+	release, err := single.Hold(single.Path(dir))
+	if err != nil {
+		t.Fatalf("taking the lock: %v", err)
+	}
+	defer release()
+
+	// A second window would be refused here, which is what makes the rest of this
+	// test mean something.
+	if _, err := single.Hold(single.Path(dir)); err == nil {
+		t.Fatal("a second window was allowed, so this proves nothing")
+	}
+
+	var out strings.Builder
+	env := cli.Env{Runner: emptyRunner{}, Volume: apfs.DataVolume, Out: &out, Err: &out}
+	if code := cli.Run(context.Background(), env, []string{"version"}); code != 0 {
+		t.Errorf("the command line was refused while a window held the lock: %s", out.String())
+	}
+	if out.Len() == 0 {
+		t.Error("the command line produced no output at all")
 	}
 }
 
-// A released build never refuses: two released copies cannot happen, because
-// Homebrew replaces the one in /Applications, and refusing to start a binary
-// someone deliberately invoked would be an odd thing for it to do.
-func TestAReleasedBuildNeverRefuses(t *testing.T) {
-	if !version.IsRelease() {
-		t.Skip("this binary is not stamped")
+// The escape hatch the refusal advertises has to work, or the advice in it is
+// worse than useless.
+func TestTheDocumentedOverrideLetsASecondCopyThrough(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir, err := config.Dir()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err := refuseIfInstalledCopyIsRunning(); err != nil {
-		t.Errorf("a released build refused to start: %v", err)
+
+	release, err := single.Hold(single.Path(dir))
+	if err != nil {
+		t.Fatalf("taking the lock: %v", err)
+	}
+	defer release()
+
+	t.Setenv(single.AllowSecondCopy, "1")
+	second, err := single.Hold(single.Path(dir))
+	if err != nil {
+		t.Errorf("the documented override did not let it through: %v", err)
+	} else {
+		second()
 	}
 }
