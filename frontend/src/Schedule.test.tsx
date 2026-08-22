@@ -384,3 +384,93 @@ describe("how sensitive the bulk-deletion watcher is", () => {
     await waitFor(() => expect(screen.getByText(/nothing is being watched for/i)).toBeTruthy());
   });
 });
+
+// What the two numbers mean depends on the shape chosen, and the screen has to
+// say which. They used to sit above the choice, labelled "Flat window", which read
+// as belonging to the flat profile alone — when in fact a tiered profile's first
+// band IS that rate for that span, and its later bands are multiples of the span.
+// The same number, a different promise, under a name that named only one of them.
+describe("the numbers a profile uses", () => {
+  it("keeps everything for the span when the profile is flat", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+    await userEvent.click(await screen.findByRole("radio", { name: /flat/i }));
+
+    expect(screen.getByLabelText(/keep everything for/i)).toBeTruthy();
+    // The whole story for a flat window: nothing is thinned.
+    expect(screen.getByText(/nothing is thinned/i)).toBeTruthy();
+  });
+
+  it("says the span is multiplied when the profile thins", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+    const tiered = (await screen.findAllByRole("radio")).find(
+      (r) => (r as HTMLInputElement).value !== "flat",
+    )!;
+    await userEvent.click(tiered);
+
+    // Not "flat window" — this span is how long everything is kept before thinning
+    // starts, and it also sets how far back the history reaches.
+    expect(screen.getByLabelText(/keep every snapshot for/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/keep everything for/i)).toBeNull();
+    expect(screen.getByText(/multiples of this/i)).toBeTruthy();
+  });
+
+  it("asks how often whatever the profile is", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+    await screen.findAllByRole("radio");
+
+    // Every shape needs a rate, so this one label does not change.
+    expect(screen.getByLabelText(/how often/i)).toBeTruthy();
+  });
+
+  it("puts the choice of shape before the numbers it uses", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+    await screen.findAllByRole("radio");
+
+    // Order on the page, because the numbers cannot be read until the shape is
+    // known. They were the other way round, which is what made them look
+    // unrelated to the shape.
+    const radios = document.querySelector(".policies");
+    const fields = document.querySelector(".fields");
+    expect(radios).not.toBeNull();
+    expect(fields).not.toBeNull();
+    expect(radios!.compareDocumentPosition(fields!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("still installs both numbers along with the shape", async () => {
+    stub();
+    const installed = vi.spyOn(ScheduleAPI, "InstallPolicy").mockResolvedValue(view as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    const tiered = (await screen.findAllByRole("radio")).find(
+      (r) => (r as HTMLInputElement).value !== "flat",
+    )!;
+    await userEvent.click(tiered);
+    await userEvent.click(screen.getByRole("button", { name: /install|update/i }));
+
+    // The point of the relabelling is that these two are not decoration: they
+    // build the chosen profile's first band, and its later bands from the span.
+    await waitFor(() => expect(installed).toHaveBeenCalled());
+    const [hours, days, id] = installed.mock.calls[0];
+    expect(hours).toBeGreaterThan(0);
+    expect(days).toBeGreaterThan(0);
+    expect(id).toBe((tiered as HTMLInputElement).value);
+  });
+
+  it("explains why a schedule is needed at all, in the reader's language", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // This paragraph had a catalogue entry all along and nothing called it — the
+    // English was written into the markup.
+    expect(await screen.findByText(/only takes local snapshots on its own/i)).toBeTruthy();
+  });
+});
