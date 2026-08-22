@@ -332,6 +332,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.54.0
+
+How readily the bulk-deletion watcher trips is a setting: Cautious, Balanced,
+Sensitive or Very sensitive, each showing the count it stands for. The retention
+profile is now chosen before the two numbers it uses, which are labelled for the
+profile in force rather than for the flat one alone. And a translated message
+nobody asks for is a test failure — which found five screens still hardcoded in
+English.
+
 ### v0.53.1
 
 Upgrading through Homebrew removes both launchd agents, and the application puts
@@ -389,11 +398,6 @@ into the package that draws them.
 Consolidates duplicated code paths — one process-setup function, one duration
 formatter, one set of message keys — and fixes the CLI silently ignoring
 `logging.verbose`, an untranslated headline plural, and an untranslated age column.
-
-### v0.45.0
-
-Switching language updates the menu bar immediately rather than at the next
-refresh.
 
 
 ## Design decisions

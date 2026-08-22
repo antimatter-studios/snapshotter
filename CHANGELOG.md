@@ -5,6 +5,10 @@ summarized in the README; the full history lives here.
 
 ## Unreleased
 
+Nothing yet.
+
+## v0.54.0 — 2026-08-22
+
 **How readily the bulk-deletion watcher trips is a setting.**
 
 It was two hundred deletions in five seconds, hardcoded, with no caller able to
@@ -28,6 +32,44 @@ Also: `snapshotter config set` refused a bad theme and a non-number but accepted
 any string for `appearance.language`, which the window refused — so a value typed
 at the command line was accepted and then silently ignored. Both that and the new
 setting are validated now, listing what is on offer.
+
+### The numbers belong to the profile that uses them
+
+The interval and the window sat above the choice of retention profile, the second
+labelled "Flat window". That read as belonging to the flat profile alone — and it
+was reasonable to conclude that choosing a tiered profile was showing the wrong
+options.
+
+Both apply to every profile. A tiered profile's first band *is* that rate for that
+span, and its later bands are multiples of the span: a fortnight gives reaches of
+26 or 104 weeks depending on the shape. The same number, a different promise, under
+a name that named only one of them — and the multiplication was nowhere on screen,
+which made a large lever look like a small one.
+
+The choice comes first now, and the numbers it uses come after, labelled for the
+profile in force: "Keep everything for" when nothing is thinned, "Keep every
+snapshot for" when it is, with what that profile does with them underneath.
+
+Nothing about what gets installed changed. Both numbers were already building the
+bands — that was v0.53.0's fix. What was missing was the screen saying so.
+
+### Five more messages that were translated and never used
+
+A translated message nobody asks for is invisible to every test that existed: it
+does not render wrong, does not throw, and leaves the four catalogues perfectly
+consistent with each other, because those tests compare the catalogues to one
+another rather than to the code that reads them. So the English stays written into
+the markup and the screen looks finished in one language.
+
+That had happened five times. Every key must now be asked for by something, and
+the check found all five: "Closed" after closing a snapshot, the disk gauge's
+label and its tooltip, the paragraph explaining why a schedule is needed at all,
+and the sentence the health screen shows when nothing is wrong — which a reader of
+any other language saw in English on a perfectly healthy machine.
+
+Eleven genuinely dead keys went with them, including four translated language
+names: the picker deliberately shows endonyms instead, so that "Deutsch" is
+findable by a German speaker looking at a Spanish interface.
 
 ## v0.53.1 — 2026-08-22
 
