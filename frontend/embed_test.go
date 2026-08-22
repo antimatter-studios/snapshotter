@@ -2,7 +2,13 @@ package frontend
 
 import (
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
+	"regexp"
+	"strings"
 	"testing"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // The window's own assets have to be in the binary, and nothing else checked.
@@ -72,4 +78,66 @@ func TestWhatTheWindowLoadsIsInThereWithIt(t *testing.T) {
 	if assets == 0 {
 		t.Fatal("the embedded assets contain no javascript or stylesheets, so the window would open blank")
 	}
+}
+
+// What the webview receives, from the same handler the window uses.
+//
+// The tests above prove the file is in the binary. This proves the asset server
+// hands it over — which is the thing that actually failed, and it failed in a way
+// nothing could see: Wails returns "no index.html could be found in your Assets
+// fs.FS" as the response BODY, so the webview renders it as a page. Nothing is
+// written to stderr, nothing exits non-zero, and the application looks like it
+// started normally. The report was "a big white page with that text in it", and
+// looking for the error in the logs found nothing because it was never there.
+func TestTheAssetServerHandsOverThePage(t *testing.T) {
+	handler := application.AssetFileServerFS(Assets)
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("the window's first request came back %d: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+
+	// The failure renders as a page, so the page has to be checked for it. A test
+	// asserting only on the status code would pass against the white page.
+	if strings.Contains(body, "could be found in your Assets") {
+		t.Fatalf("the asset server served its own error as the page:\n%s", body)
+	}
+	if !strings.Contains(strings.ToLower(body), "<!doctype html") {
+		t.Fatalf("the window's first request did not come back as a document:\n%s", firstLine(body))
+	}
+}
+
+// And the bundle it asks for next. An index.html whose script is missing renders a
+// white page too — a blank one rather than one carrying an explanation, which is
+// harder to place.
+func TestTheBundleThePageAsksForIsServedToo(t *testing.T) {
+	handler := application.AssetFileServerFS(Assets)
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	page := rec.Body.String()
+
+	script := regexp.MustCompile(`src="/?([^"]+\.js)"`).FindStringSubmatch(page)
+	if script == nil {
+		t.Fatalf("the page loads no javascript, so the window would be blank:\n%s", firstLine(page))
+	}
+
+	asked := httptest.NewRecorder()
+	handler.ServeHTTP(asked, httptest.NewRequest(http.MethodGet, "/"+strings.TrimPrefix(script[1], "/"), nil))
+	if asked.Code != http.StatusOK {
+		t.Errorf("the page asks for %s and the server answered %d", script[1], asked.Code)
+	}
+	if asked.Body.Len() == 0 {
+		t.Errorf("%s came back empty", script[1])
+	}
+}
+
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
 }

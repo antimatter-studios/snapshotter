@@ -191,6 +191,27 @@ jobs:
           test "$(lipo -archs bin/snapshotter)" = "x86_64 arm64" \
             || test "$(lipo -archs bin/snapshotter)" = "arm64 x86_64"
 
+      # The bundle build above rebuilds the frontend, and vite empties dist before
+      # writing it. So the assets that went into the binary a moment ago are the
+      # ones on disk right now — which makes this the only point where what was
+      # actually embedded can be checked.
+      #
+      # It is checked because a binary with no frontend in it passes every other
+      # gate in this file. It compiles, signs, notarizes, staples, reports its
+      # version, and answers every command line question; Wails serves "no
+      # index.html could be found in your Assets fs.FS" as a response BODY, so the
+      # window paints it as a white page and nothing reaches stderr or an exit
+      # code. A release shipped that way, and the only thing that noticed was
+      # somebody opening it.
+      - name: The window is really in the bundle
+        run: |
+          set -euo pipefail
+          test -s frontend/dist/index.html \
+            || { echo "::error::frontend/dist/index.html is missing or empty after the bundle build"; exit 1; }
+          # Against the same asset handler the window uses, over the same embedded
+          # filesystem the binary just took.
+          go test ./frontend
+
       - name: Sign for distribution
         env:
           IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
