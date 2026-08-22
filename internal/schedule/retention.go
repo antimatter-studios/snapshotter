@@ -107,6 +107,63 @@ func Describe(p Policy) string {
 	return string(letters) + "."
 }
 
+// ModeName is what to call a policy: which of the shapes on offer it is.
+//
+// Named by shape rather than by reach. A name with a number in it — "yearly" —
+// would be wrong for four of the five windows on offer, because a preset's reach
+// follows the window chosen rather than being fixed, and that is exactly the bug
+// the presets themselves used to have.
+func ModeName(p Policy) string {
+	switch id := IdentifyPolicy(p); id {
+	case FlatID:
+		return i18n.T("retention.mode.flat")
+	case "custom":
+		if len(p.Bands()) == 0 {
+			return i18n.T("retention.mode.none")
+		}
+		return i18n.T("retention.mode.custom")
+	default:
+		// A preset's own name, which the settings screen shows beside its radio
+		// button. Recovered from the policy rather than stored, so a plist written
+		// months ago still knows what it is.
+		bands := p.Bands()
+		for _, preset := range Presets(bands[0].Every, bands[0].For) {
+			if preset.ID == id {
+				return preset.Name
+			}
+		}
+		return i18n.T("retention.mode.custom")
+	}
+}
+
+// Headline is the schedule in one line: which mode, how often, and how far back.
+//
+// The single place this sentence is built. The menu bar used to build its own from
+// the interval and the retention window alone, ignoring the policy — so a tiered
+// schedule was announced as "every 3 hours, kept 364 days" when only one snapshot
+// every four weeks survives past the twenty-sixth. It took the horizon and called
+// it the retention, which is true of a flat window and of nothing else.
+//
+// Hence the wording differing by kind rather than a single template: a flat window
+// keeps everything for its span, and a tiered one thins towards its horizon.
+// Describe gives the full sentence for somewhere with room for it.
+func Headline(interval time.Duration, p Policy) string {
+	mode := ModeName(p)
+	bands := p.Bands()
+	if len(bands) == 0 {
+		return mode
+	}
+
+	key := "retention.headline.tiered"
+	if p.IsFlat() {
+		key = "retention.headline.flat"
+	}
+	return i18n.T(key,
+		"Mode", mode,
+		"Every", words(interval),
+		"Reach", words(p.Horizon()))
+}
+
 // everyPhrase words a bucket period as a rate. The three common ones get the
 // phrasing a person would use, because "one every 1 day" is the sort of thing
 // that makes a settings screen look generated.

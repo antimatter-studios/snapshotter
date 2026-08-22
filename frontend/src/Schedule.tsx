@@ -202,17 +202,13 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         </div>
 
         {view?.installed && view.policyId === "custom" && (
-          <p className="warning">
-            The installed schedule carries a policy that is not one of these — {view.policySummary} Choosing one above
-            and updating the schedule replaces it.
-          </p>
+          <p className="warning">{t("schedule.customPolicy", { summary: view.policySummary })}</p>
         )}
 
-        <p className="explain">
-          A snapshot cannot be recreated: it records a state of the disk that has passed. Anything outside the policy is
-          deleted on the next scheduled run, and macOS may reclaim more than that under disk pressure — so these figures
-          are upper bounds, not reservations.
-        </p>
+        {/* This key existed and nothing called it: translated once, then never
+            wired, which no test catches because an unused message is not a
+            missing one. */}
+        <p className="explain">{t("schedule.cannotRecreate")}</p>
 
         <div className="buttons">
           <button className="primary" onClick={install} disabled={busy || !chosen}>
@@ -230,20 +226,21 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         {view && (
           <p className={view.loaded ? "note ok" : "note"}>
             {view.installed
-              ? `A snapshot every ${view.intervalHours} hours. ${view.policySummary} About ${
-                  view.maxSnapshots
-                } snapshots, reaching back ${reach(view.reachDays)} — ${
-                  view.loaded ? "running" : "installed but not loaded"
-                }.`
+              ? // The policy sentence comes from the service, which words it in
+                // one place; only the count and the state are added here.
+                t("schedule.installedState", {
+                  every: t("count.hours", { count: view.intervalHours }),
+                  summary: view.policySummary,
+                  count: view.maxSnapshots,
+                  reach: reach(view.reachDays),
+                  state: view.loaded ? t("schedule.stateRunning") : t("schedule.stateNotLoaded"),
+                })
               : t("schedule.none")}
           </p>
         )}
 
         {!!view?.conflicts?.length && (
-          <p className="warning">
-            Another scheduled task is also taking snapshots: {view.conflicts.join(", ")}. Two of them will double the
-            snapshot rate and apply two different retention windows to the same set. Remove one.
-          </p>
+          <p className="warning">{t("schedule.conflict", { tasks: view.conflicts.join(", ") })}</p>
         )}
       </section>
 

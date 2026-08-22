@@ -14,8 +14,37 @@ import (
 // It went in without a test, which is how the strip itself spent months measuring
 // the machine against a schedule nobody had chosen: a menu is the one surface
 // nothing else exercises, so anything wrong in it is only found by looking.
+//
+// What this no longer tests is the wording. It used to build its own sentence
+// from the interval and the retention window, ignoring the policy — announcing
+// "every 3 hours, kept 364 days" for a tiered schedule that keeps one snapshot
+// every four weeks past the twenty-sixth. The words come from
+// internal/schedule.Headline now, which is where they are asserted; what is left
+// here is the choosing between them.
 
-func TestScheduleModeNamesTheIntervalAndRetention(t *testing.T) {
+func TestScheduleModeShowsWhatTheServiceWorded(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLanguage("en") })
+	i18n.SetLanguage("en")
+
+	// Verbatim. Rewording it here would be a second version of the sentence, and
+	// two versions is the thing that went wrong.
+	const line = "Tiered — daily, then weekly: every 3 hours, thinning out to 26 weeks"
+	got := scheduleMode(services.Health{
+		ScheduleInstalled: true,
+		IntervalHours:     3,
+		RetentionDays:     14,
+		ScheduleHeadline:  line,
+	})
+	if got != line {
+		t.Errorf("the menu reworded it:\n  got  %s\n  want %s", got, line)
+	}
+}
+
+// A status check that failed part way leaves the headline empty while still
+// reporting a schedule as installed. Better to say there is no schedule than to
+// draw a blank row, or to fall back to the numbers and start wording it here
+// again.
+func TestScheduleModeSaysNothingRatherThanShowingABlankRow(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLanguage("en") })
 	i18n.SetLanguage("en")
 
@@ -24,10 +53,11 @@ func TestScheduleModeNamesTheIntervalAndRetention(t *testing.T) {
 		IntervalHours:     3,
 		RetentionDays:     14,
 	})
-	for _, want := range []string{"3 hours", "14 days"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("%q does not mention %q", got, want)
-		}
+	if got == "" {
+		t.Error("an unworded schedule produced an empty menu row")
+	}
+	if strings.Contains(got, "3") || strings.Contains(got, "14") {
+		t.Errorf("it fell back to wording the numbers itself: %q", got)
 	}
 }
 
@@ -58,17 +88,16 @@ func TestScheduleModeSurvivesAZeroHealth(t *testing.T) {
 	}
 }
 
-// It follows the language, like everything else the menu draws. Worth asserting
+// The one line this file still words itself follows the language. Worth asserting
 // because the menu is redrawn from a different goroutine than the one that
 // changes the language, and a line that cached its text would not follow.
-func TestScheduleModeFollowsTheLanguage(t *testing.T) {
+//
+// The scheduled line's own translation is asserted in internal/schedule, which is
+// where it is now built.
+func TestTheNoScheduleLineFollowsTheLanguage(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLanguage("en") })
 
-	h := services.Health{
-		ScheduleInstalled: true,
-		IntervalHours:     3,
-		RetentionDays:     14,
-	}
+	h := services.Health{ScheduleInstalled: false}
 
 	i18n.SetLanguage("en")
 	english := scheduleMode(h)
@@ -78,7 +107,7 @@ func TestScheduleModeFollowsTheLanguage(t *testing.T) {
 	if english == german {
 		t.Errorf("the language did not change the line: %q", german)
 	}
-	if !strings.Contains(german, "Stunden") {
+	if german == "" || strings.HasPrefix(german, "tray.") {
 		t.Errorf("German line reads %q", german)
 	}
 }

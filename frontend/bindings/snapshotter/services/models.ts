@@ -213,14 +213,27 @@ export class FileVersions {
     /**
      * RightLabel names what the right side turned out to be, so the window can say
      * so without repeating the rule for resolving it.
+     *
+     * A snapshot's stamp, or empty for the live disk. Empty rather than a phrase
+     * because the window interpolates this into a sentence — "no longer in
+     * {{version}}" — and it used to be the English words "the live disk", which
+     * arrived intact in the middle of a German sentence. A stamp is the same in
+     * every language; prose is not, and the window has its own word for this one.
      */
     "rightLabel": string;
 
     /**
-     * Kind is how the window should show this: "text", "image" or "binary".
+     * Kind is how the window should show this, and is one of:
+     *
+     * 	"text"    lines to compare, in Left and Right
+     * 	"image"   two pictures, in LeftImage and RightImage
+     * 	"binary"  no lines to compare; Note says so
+     * 	"absent"  nothing on either side
+     * 	"large"   text, but past the size worth rendering; Note says so
      *
      * Readable stays what it was — true only for text — so nothing that already
-     * checks it starts rendering an image into a line-by-line view.
+     * checks it starts rendering an image into a line-by-line view. The two agree
+     * by construction, and diffKindsTest pins that they do.
      */
     "kind": string;
 
@@ -425,6 +438,29 @@ export class Health {
     "retentionDays": number;
 
     /**
+     * ScheduleHeadline is the schedule in one line: which retention mode, how
+     * often, and how far back. RetentionSummary is the same thing said in full,
+     * for somewhere with room for a sentence.
+     *
+     * Both are worded by internal/schedule and carried here rather than built by
+     * each reader. The menu bar built its own from IntervalHours and RetentionDays
+     * alone, which ignores the policy: a tiered schedule was announced as "every
+     * 3 hours, kept 364 days" when only one snapshot every four weeks survives
+     * past the twenty-sixth. Two places wording one fact is how they came to
+     * disagree, so now there is one.
+     */
+    "scheduleHeadline": string;
+    "retentionSummary": string;
+
+    /**
+     * RetentionMode is just the name of the shape — "Flat window", "Tiered —
+     * daily, then weekly" — for the places with room for a label and not a line.
+     * The window's figure grid is four columns wide, so it shows this and carries
+     * the headline in the cell's tooltip.
+     */
+    "retentionMode": string;
+
+    /**
      * NextDue is when the schedule should next fire, estimated from the newest
      * snapshot. launchd fires a missed interval on wake, so a past value means
      * overdue rather than skipped.
@@ -503,6 +539,15 @@ export class Health {
         }
         if (!("retentionDays" in $$source)) {
             this["retentionDays"] = 0;
+        }
+        if (!("scheduleHeadline" in $$source)) {
+            this["scheduleHeadline"] = "";
+        }
+        if (!("retentionSummary" in $$source)) {
+            this["retentionSummary"] = "";
+        }
+        if (!("retentionMode" in $$source)) {
+            this["retentionMode"] = "";
         }
         if (!("volumeTotalBytes" in $$source)) {
             this["volumeTotalBytes"] = 0;

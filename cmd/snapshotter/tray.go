@@ -167,7 +167,12 @@ func installTray(app *application.App, status *services.StatusService, win appli
 					// infer the schedule from the spacing of the marks, and a solid
 					// strip means nothing until you know whether it stands for hourly
 					// snapshots or daily ones.
-					menu.Add(scheduleMode(health)).OnClick(reveal)
+					// The mode and the rate on the line; what it actually keeps, in
+					// full, on the tooltip — the same division the findings use,
+					// because a menu has room for a line and not for three clauses.
+					menu.Add(scheduleMode(health)).
+						SetTooltip(health.RetentionSummary).
+						OnClick(reveal)
 				}
 			}
 
@@ -246,13 +251,25 @@ func installTray(app *application.App, status *services.StatusService, win appli
 // Both are needed to read either. A solid strip means nothing until you know
 // whether a mark stands for an hour or a day, and an interval means nothing
 // without seeing whether it was kept.
+// It also has to be true. This built its own sentence from the interval and the
+// retention window, which ignores the policy: a tiered schedule was announced as
+// "every 3 hours, kept 364 days" when only one snapshot every four weeks survives
+// past the twenty-sixth. It read the horizon as the retention, which is right for
+// a flat window and wrong for everything else.
+//
+// The wording now comes from the service, which gets it from internal/schedule —
+// the same function the settings screen's summary comes from. Two places wording
+// one fact is how they came to disagree.
 func scheduleMode(h services.Health) string {
 	if !h.ScheduleInstalled {
 		return i18n.T("tray.mode.manual")
 	}
-	return i18n.T("tray.mode.scheduled",
-		"Every", i18n.Span(h.IntervalHours),
-		"Kept", i18n.N("count.days", int(h.RetentionDays)))
+	if h.ScheduleHeadline == "" {
+		// A schedule whose plist could not be read. Saying nothing is better than
+		// naming a mode nobody chose.
+		return i18n.T("tray.mode.manual")
+	}
+	return h.ScheduleHeadline
 }
 
 // trayIcon is the glyph for a level, translated from the service's vocabulary to

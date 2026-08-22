@@ -226,8 +226,28 @@
   "retention.everyWeek": {
     "other": "one a week"
   },
+  "retention.headline.flat": {
+    "one": "{{.Mode}}: every {{.Every}}, kept {{.Reach}}",
+    "other": "{{.Mode}}: every {{.Every}}, kept {{.Reach}}"
+  },
+  "retention.headline.tiered": {
+    "one": "{{.Mode}}: every {{.Every}}, thinning out to {{.Reach}}",
+    "other": "{{.Mode}}: every {{.Every}}, thinning out to {{.Reach}}"
+  },
   "retention.join": {
     "other": ", then "
+  },
+  "retention.mode.custom": {
+    "one": "Custom",
+    "other": "Custom"
+  },
+  "retention.mode.flat": {
+    "one": "Flat window",
+    "other": "Flat window"
+  },
+  "retention.mode.none": {
+    "one": "Nothing pruned",
+    "other": "Nothing pruned"
   },
   "retention.nothingPruned": {
     "other": "Nothing is pruned."
@@ -363,9 +383,6 @@
   },
   "tray.mode.manual": {
     "other": "No schedule — snapshots only when you take one"
-  },
-  "tray.mode.scheduled": {
-    "other": "Every {{.Every}}, kept {{.Kept}}"
   },
   "tray.newest": {
     "other": "Newest: {{.when}}"

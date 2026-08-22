@@ -361,3 +361,81 @@ describe("silencing a folder that will not silence", () => {
     expect(await screen.findByText(/read-only/)).toBeTruthy();
   });
 });
+
+// The schedule figure used to be built here from two numbers — "Every 3h, kept
+// 14d" — in English, and wrong for every tiered policy: it read the horizon as the
+// retention, which is true of a flat window and of nothing else. The words come
+// from the service now.
+describe("the schedule figure", () => {
+  function withSchedule(over: Record<string, unknown>) {
+    check({
+      scheduleInstalled: true,
+      scheduleRunning: true,
+      intervalHours: 3,
+      retentionDays: 14,
+      ...over,
+    });
+  }
+
+  it("names the retention mode rather than restating the numbers", async () => {
+    withSchedule({
+      retentionMode: "Tiered — daily, then weekly",
+      scheduleHeadline: "Tiered — daily, then weekly: every 3 hours, thinning out to 26 weeks",
+    });
+
+    render(<Health onStatus={() => {}} />);
+
+    expect(await screen.findByText(/Tiered — daily, then weekly/)).toBeTruthy();
+    // Not the old claim. On a tiered policy only one snapshot every four weeks
+    // survives past the twenty-sixth, so "kept 14d" was never true of it.
+    expect(screen.queryByText(/kept 14d/)).toBeNull();
+  });
+
+  it("carries the whole line where there is room for it", async () => {
+    const headline = "Flat window: every 3 hours, kept 14 days";
+    withSchedule({ retentionMode: "Flat window", scheduleHeadline: headline });
+
+    render(<Health onStatus={() => {}} />);
+
+    // The grid is four columns wide, so the cell shows the label and the tooltip
+    // carries the sentence.
+    const cell = await screen.findByText("Flat window");
+    expect(cell.getAttribute("title")).toBe(headline);
+  });
+
+  it("says a schedule is not running, in the reader's language", async () => {
+    withSchedule({
+      retentionMode: "Flat window",
+      scheduleHeadline: "Flat window: every 3 hours, kept 14 days",
+      scheduleRunning: false,
+    });
+
+    render(<Health onStatus={() => {}} />);
+
+    // An installed schedule that is not running takes no snapshots, which is the
+    // failure this application exists to prevent — so the cell must not read as
+    // though it were working.
+    expect(await screen.findByText(/not running/i)).toBeTruthy();
+  });
+
+  it("falls back to the whole line if only that arrived", async () => {
+    withSchedule({ retentionMode: "", scheduleHeadline: "Flat window: every 3 hours, kept 14 days" });
+
+    render(<Health onStatus={() => {}} />);
+
+    // Rather than an empty cell, and rather than wording it here again.
+    expect(await screen.findByText(/Flat window/)).toBeTruthy();
+  });
+
+  it("says there is none when nothing is scheduled", async () => {
+    check({ scheduleInstalled: false });
+
+    render(<Health onStatus={() => {}} />);
+
+    // Scoped to the schedule's own cell: "None" appears in more than one figure
+    // on a machine with nothing set up.
+    const label = await screen.findByText(/^Schedule$/i);
+    const cell = label.parentElement?.querySelector("dd");
+    expect(cell?.textContent).toBe("None");
+  });
+});

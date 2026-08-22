@@ -195,12 +195,17 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
         </div>
         <div>
           <dt>{t("health.schedule")}</dt>
-          <dd>
+          {/* The mode's name, with the whole line in the tooltip. This cell used
+              to say "Every 3h, kept 14d" — built here from two numbers, in
+              English, and wrong for every tiered policy: it read the horizon as
+              the retention, which is true of a flat window and nothing else. The
+              words come from the service now, which gets them from one place. */}
+          <dd title={health.scheduleHeadline}>
             {health.scheduleInstalled
-              ? `Every ${health.intervalHours}h, kept ${health.retentionDays}d${
-                  health.scheduleRunning ? "" : " (not running)"
+              ? `${health.retentionMode || health.scheduleHeadline}${
+                  health.scheduleRunning ? "" : ` (${t("health.scheduleNotRunning")})`
                 }`
-              : "None"}
+              : t("health.scheduleNone")}
           </dd>
         </div>
         <div>

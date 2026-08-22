@@ -193,3 +193,87 @@ describe("the two logs", () => {
     expect(await screen.findByText(/not answering/)).toBeTruthy();
   });
 });
+
+// Four blocks of English were written into this screen's markup, two of them with
+// catalogue entries that nothing called — translated once and then never wired,
+// which no test catches because an unused message is not a missing one.
+describe("what it says about the installed schedule", () => {
+  it("states the policy from the service rather than wording it again", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Status").mockResolvedValue({
+      ...view,
+      installed: true,
+      loaded: true,
+      policySummary: "One every 3 hours for 14 days, then one a day out to 8 weeks.",
+    } as never);
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // Verbatim, in the line that reports what is installed: this screen and the
+    // menu bar read the same sentence from the same place, which is the point of
+    // it being carried rather than built. It appears in the policy list too,
+    // hence the scoping.
+    await waitFor(() => expect(document.querySelector(".note")).not.toBeNull());
+    expect(document.querySelector(".note")?.textContent).toContain(
+      "One every 3 hours for 14 days, then one a day out to 8 weeks.",
+    );
+  });
+
+  it("says a schedule is installed but not loaded", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Status").mockResolvedValue({
+      ...view,
+      installed: true,
+      loaded: false,
+    } as never);
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // Installed and not loaded takes no snapshots, and reads as working unless
+    // it is said.
+    expect(await screen.findByText(/not loaded/i)).toBeTruthy();
+  });
+
+  it("warns about a hand-edited policy without discarding what it says", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Status").mockResolvedValue({
+      ...view,
+      installed: true,
+      policyId: "custom",
+      policySummary: "One every 2 hours for 5 days.",
+    } as never);
+
+    render(<Schedule onStatus={() => {}} />);
+
+    const warning = await screen.findByText(/not one of these/i);
+    // The policy it actually carries is quoted, so someone can decide whether to
+    // replace it. A warning that hides what it is warning about cannot be acted on.
+    expect(warning.textContent).toContain("One every 2 hours for 5 days.");
+  });
+
+  it("names a conflicting task", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Status").mockResolvedValue({
+      ...view,
+      installed: true,
+      conflicts: ["com.example.backup", "com.other.snapshots"],
+    } as never);
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // Both of them, because "another task is also taking snapshots" is
+    // unactionable without knowing which.
+    const warning = await screen.findByText(/double/i);
+    expect(warning.textContent).toContain("com.example.backup");
+    expect(warning.textContent).toContain("com.other.snapshots");
+  });
+
+  it("explains that a snapshot cannot be recreated", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // The sentence that stops the figures below reading as reservations.
+    expect(await screen.findByText(/cannot be recreated/i)).toBeTruthy();
+  });
+});

@@ -228,3 +228,56 @@ func TestEveryNoteThisPackageAsksForExists(t *testing.T) {
 		}
 	}
 }
+
+// What the schedule does is said in four places: the menu bar's line, its
+// tooltip, the window's figure grid, and the settings screen's summary. All four
+// read it from internal/schedule.
+//
+// Three of them used to build their own. The menu bar said "every 3 hours, kept
+// 364 days" and the figure grid said "Every 3h, kept 14d", both from the interval
+// and the retention window alone — which ignores the policy, so both were wrong
+// for every tiered schedule: they read the horizon as the retention, which is
+// true of a flat window and of nothing else. The settings screen, reading the
+// policy properly, said something different and correct. Nothing noticed, because
+// no two of them were ever compared.
+//
+// This is that comparison. It is a text search rather than a type check because
+// the divergence crossed a language boundary, which is exactly where a compiler
+// stops looking.
+func TestNoScreenWordsTheScheduleItself(t *testing.T) {
+	// The shapes of a hand-built claim: an interval and a retention glued together
+	// in a template literal or a format string.
+	claims := []*regexp.Regexp{
+		regexp.MustCompile(`kept \$\{`),
+		regexp.MustCompile("kept \\${?[a-zA-Z.]*[Rr]etention"),
+		regexp.MustCompile(`[Ee]very \$\{[a-zA-Z.]*[Ii]nterval`),
+	}
+
+	for _, where := range []struct{ name, body string }{
+		{"the window", windowSource(t)},
+		{"the menu bar", traySource(t)},
+	} {
+		for _, claim := range claims {
+			if found := claim.FindString(where.body); found != "" {
+				t.Errorf("%s builds its own account of the schedule (%q). "+
+					"It has to come from internal/schedule, or it will disagree with the other places that say it.",
+					where.name, found)
+			}
+		}
+	}
+}
+
+// And the fields carrying it are actually populated, or every reader shows a
+// blank where the schedule should be.
+func TestTheScheduleWordingReachesTheReaders(t *testing.T) {
+	window := windowSource(t)
+
+	for _, field := range []string{"scheduleHeadline", "retentionMode", "policySummary"} {
+		if !strings.Contains(window, field) {
+			t.Errorf("nothing in the window reads %s, so the wording it carries goes nowhere", field)
+		}
+	}
+	if !strings.Contains(traySource(t), "ScheduleHeadline") {
+		t.Error("the menu bar does not read ScheduleHeadline")
+	}
+}
