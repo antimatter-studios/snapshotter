@@ -332,6 +332,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.53.1
+
+Upgrading through Homebrew removes both launchd agents, and the application puts
+them back at startup — but v0.53.0 renamed the retention presets without
+translating the old names, so a settings file naming one restored nothing, and a
+shared early return took the bulk-deletion watcher down with the schedule. Both
+fixed, a failed restore now says so out loud, and only one window may run at a
+time whatever it was built from.
+
 ### v0.53.0
 
 Retention rules move into a package with no dependencies, presets are built from

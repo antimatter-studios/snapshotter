@@ -7,6 +7,45 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.53.1 — 2026-08-22
+
+**An upgrade left this Mac unprotected, and the release before this one caused
+it.**
+
+Homebrew's cask unloads both launchd agents before staging a new version. That is
+expected and handled: the settings file is the intent, launchd is the current
+state, and the application reconciles the second to the first at startup. The
+comment on that code names this exact scenario.
+
+It did not work, for three reasons that compounded.
+
+The retention presets were renamed in v0.53.0 — correctly, since a name with a
+number in it is wrong for four of the five windows once the reach follows the
+window — but nothing translated the old names. A settings file saying
+`tiered-52-weeks` resolved to no policy at all. There is a migration now, mapping
+each old name onto the shape it described.
+
+Then the cascade. Both agents were restored under one early return, which quietly
+made them a single protection instead of two: the unresolvable policy failed the
+schedule and then skipped the bulk-deletion watcher entirely, though the watcher
+has no policy and nothing was wrong with it. One rename took both protections off
+the machine. They are attempted independently now, and every failure is carried
+back rather than the first one returned.
+
+And it was silent. Putting the agents back posted a notification; failing to put
+them back wrote a line to a log file nobody opens. The reader was told when
+nothing was wrong and told nothing when something was.
+
+**One window at a time, whatever it was built from.** The old guard searched the
+process table for the installed application's path, which caught exactly one of
+the four ways two copies happen: a development build beside the installed one.
+Two development builds, two installed copies, or a copy launched from anywhere
+else were not prevented at all — and two ran at once on the author's machine
+today, which is a claim one of the tests explicitly made and was wrong about. It
+is a lock now, which catches every combination and releases when the holder dies,
+including on a crash. The refusal names the copy holding it, since two identical
+menu bar icons cannot answer that.
+
 ## v0.53.0 — 2026-08-21
 
 **The retention rules move into a package that knows nothing else, and the two
