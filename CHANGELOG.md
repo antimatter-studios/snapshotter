@@ -142,7 +142,7 @@ said nothing either. All five values are named now.
 ### Tests
 
 The window went from 26 tests to 210, and from an unmeasured 75% of its own
-statements to 97%. Go went from 443 to 626 across 24 packages, and the frontend
+statements to 97%. Go went from 443 to 637 across 24 packages, and the frontend
 coverage report stopped counting generated bindings, which had been holding the
 headline figure at 40% while the hand-written code sat at 75%.
 
