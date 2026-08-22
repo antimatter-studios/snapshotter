@@ -67,7 +67,7 @@ export function ImageDiff({
         {/* Only offered when there are two pictures to fade between. With one
             side missing the control would be a switch that does nothing. */}
         {bothPresent && (
-          <div className="image-modes">
+          <div className="segmented">
             <button className={mode === "side" ? "on" : ""} onClick={() => setMode("side")}>
               {t("diff.imageSideBySide")}
             </button>

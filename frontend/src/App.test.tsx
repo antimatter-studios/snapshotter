@@ -364,8 +364,9 @@ describe("the refusal is recognised whatever the window speaks", () => {
 
       render(<App />);
       // By position, not by the word on it: the button says Öffnen, Abrir or
-      // Ouvrir here. snap-b is the closed one, so its only action is to open it.
-      await userEvent.click(within(await snapshotRow(1)).getByRole("button"));
+      // Ouvrir here. snap-b is the closed one, and Open is the first of its two
+      // actions — Delete is the other.
+      await userEvent.click(within(await snapshotRow(1)).getAllByRole("button")[0]);
 
       expect(await screen.findByText("Wie man den Zugriff erteilt.")).toBeTruthy();
       // The raw English refusal is not what is shown, which is the whole point of
@@ -376,5 +377,112 @@ describe("the refusal is recognised whatever the window speaks", () => {
 
   afterEach(async () => {
     await i18n.changeLanguage("en");
+  });
+});
+
+// Retention deletes on a schedule. Nothing deleted one now, so somebody looking
+// at a low-space warning had no lever at all — and the service could do it the
+// whole time.
+describe("deleting a snapshot", () => {
+  it("asks before doing it", async () => {
+    stub();
+    const deleted = vi.spyOn(Snapshots, "Delete").mockResolvedValue(undefined as never);
+
+    render(<App />);
+    // The closed one: an open snapshot is attached to the filesystem and the
+    // service refuses to delete it.
+    const row = within(await snapshotRow(1));
+    await userEvent.click(row.getByRole("button", { name: /delete/i }));
+
+    // Nothing has happened yet. A snapshot cannot be recreated — it records a
+    // state of the disk that has passed — so one press must not be enough.
+    expect(deleted).not.toHaveBeenCalled();
+    expect(row.getByRole("button", { name: /for good/i })).toBeTruthy();
+  });
+
+  it("deletes it by stamp once confirmed", async () => {
+    stub();
+    const deleted = vi.spyOn(Snapshots, "Delete").mockResolvedValue(undefined as never);
+
+    render(<App />);
+    const row = within(await snapshotRow(1));
+    await userEvent.click(row.getByRole("button", { name: /delete/i }));
+    await userEvent.click(row.getByRole("button", { name: /for good/i }));
+
+    // By stamp, not by name: that is what the service deletes by, and passing the
+    // wrong one of two nearly identical strings fails at the far end.
+    await waitFor(() => expect(deleted).toHaveBeenCalledWith("2026-08-18-120000"));
+  });
+
+  it("puts the question away when the answer is no", async () => {
+    stub();
+    const deleted = vi.spyOn(Snapshots, "Delete").mockResolvedValue(undefined as never);
+
+    render(<App />);
+    const row = within(await snapshotRow(1));
+    await userEvent.click(row.getByRole("button", { name: /delete/i }));
+    await userEvent.click(row.getByRole("button", { name: /keep/i }));
+
+    expect(deleted).not.toHaveBeenCalled();
+    expect(row.getByRole("button", { name: /delete/i })).toBeTruthy();
+    expect(row.queryByRole("button", { name: /for good/i })).toBeNull();
+  });
+
+  it("will not delete a snapshot that is open, and says why", async () => {
+    stub();
+
+    render(<App />);
+    // snap-a is mounted. Offered but refused, rather than hidden: a missing
+    // button leaves the reader wondering whether deleting is possible at all.
+    const open = within(await snapshotRow(0)).getByRole("button", { name: /delete/i });
+
+    expect(open).toBeDisabled();
+    expect(open.getAttribute("title")).toMatch(/close/i);
+  });
+
+  it("asks about one snapshot at a time", async () => {
+    stub();
+    vi.spyOn(Snapshots, "Delete").mockResolvedValue(undefined as never);
+    // Both closed, so both offer to be deleted.
+    vi.spyOn(Snapshots, "Overview").mockResolvedValue(
+      overview({ snapshots: snapshots.map((s) => ({ ...s, mounted: false })) }) as never,
+    );
+
+    render(<App />);
+    await userEvent.click(within(await snapshotRow(0)).getByRole("button", { name: /delete/i }));
+    await userEvent.click(within(await snapshotRow(1)).getByRole("button", { name: /delete/i }));
+
+    // Two open questions with the same wording, one row apart, is how the wrong
+    // one gets answered.
+    expect(screen.getAllByRole("button", { name: /for good/i })).toHaveLength(1);
+  });
+
+  it("leaves the snapshot it was showing", async () => {
+    stub();
+    vi.spyOn(Snapshots, "Delete").mockResolvedValue(undefined as never);
+
+    render(<App />);
+    await userEvent.click(await snapshotRow(1));
+    await screen.findByRole("button", { name: /browse/i });
+
+    const row = within(await snapshotRow(1));
+    await userEvent.click(row.getByRole("button", { name: /delete/i }));
+    await userEvent.click(row.getByRole("button", { name: /for good/i }));
+
+    // Otherwise the browser sits empty under a heading naming something that is
+    // gone, which reads as a snapshot that captured nothing.
+    await waitFor(() => expect(screen.queryByRole("button", { name: /browse/i })).toBeNull());
+  });
+
+  it("says why a deletion failed", async () => {
+    stub();
+    vi.spyOn(Snapshots, "Delete").mockRejectedValue(new Error("the snapshot is in use"));
+
+    render(<App />);
+    const row = within(await snapshotRow(1));
+    await userEvent.click(row.getByRole("button", { name: /delete/i }));
+    await userEvent.click(row.getByRole("button", { name: /for good/i }));
+
+    expect(await screen.findByText(/in use/)).toBeTruthy();
   });
 });

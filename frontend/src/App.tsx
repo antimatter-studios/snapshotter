@@ -65,6 +65,8 @@ export default function App() {
   // mountHelp is fetched lazily, because it only means anything once mounting
   // has actually been refused.
   const [mountHelp, setMountHelp] = useState("");
+  // The snapshot whose deletion has been asked about and not yet confirmed.
+  const [confirming, setConfirming] = useState("");
   // The file whose contents are being compared, or none. Held here rather than
   // in the browser because the panel covers the whole view.
   const [diffFile, setDiffFile] = useState("");
@@ -122,6 +124,24 @@ export default function App() {
 
   const mount = (snapshot: SnapshotView) =>
     act(() => Snapshots.Mount([snapshot.name]), `Opened the snapshot from ${stamp(snapshot.taken)}`);
+
+  // Which snapshot has been asked about but not yet confirmed. One at a time, so
+  // pressing Delete on a second row puts the first question away rather than
+  // leaving two of them open.
+  const remove = (snapshot: SnapshotView) => {
+    setConfirming("");
+    // By stamp, which is what the service deletes by. And the selection has to go
+    // with it: leaving it pointing at a snapshot that no longer exists shows an
+    // empty browser under a heading naming something that is gone.
+    if (snapshot.name === selected) {
+      setSelected("");
+      setView("home");
+    }
+    return act(
+      () => Snapshots.Delete(snapshot.stamp),
+      t("app.deleted", { when: stamp(snapshot.taken) }),
+    );
+  };
 
   const mountAll = () =>
     act(
@@ -217,17 +237,49 @@ export default function App() {
                 onClick={() => (setSelected(snapshot.name), setView("snapshots"))}
               >
                 <div className="when">
-                  <span className="dot" title={snapshot.mounted ? "Open" : t("app.notOpen")} />
+                  <span className="dot" title={snapshot.mounted ? t("app.isOpen") : t("app.notOpen")} />
                   <span>{stamp(snapshot.taken)}</span>
                 </div>
                 <div className="age">{age(snapshot.taken, t)}</div>
                 <div className="row-actions">
-                  {snapshot.mounted ? (
-                    <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), "Closed"))}>
-                      {t("app.close")}
-                    </button>
+                  {/* Asked twice, because a snapshot cannot be recreated: it
+                      records a state of the disk that has passed. Inline rather
+                      than in a dialog — the row being asked about stays visible,
+                      which is the whole question. */}
+                  {confirming === snapshot.name ? (
+                    <>
+                      <button
+                        className="destructive"
+                        onClick={(e) => (e.stopPropagation(), remove(snapshot))}
+                        disabled={busy}
+                      >
+                        {t("app.deleteConfirm")}
+                      </button>
+                      <button onClick={(e) => (e.stopPropagation(), setConfirming(""))}>
+                        {t("app.deleteKeep")}
+                      </button>
+                    </>
                   ) : (
-                    <button onClick={(e) => (e.stopPropagation(), mount(snapshot))}>{t("app.open")}</button>
+                    <>
+                      {snapshot.mounted ? (
+                        <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), "Closed"))}>
+                          {t("app.close")}
+                        </button>
+                      ) : (
+                        <button onClick={(e) => (e.stopPropagation(), mount(snapshot))}>{t("app.open")}</button>
+                      )}
+                      {/* Offered but refused while it is open, rather than hidden:
+                          the service will not delete a mounted snapshot, and a
+                          button that is missing leaves the reader wondering
+                          whether deleting is possible at all. */}
+                      <button
+                        title={snapshot.mounted ? t("app.closeToDelete") : t("app.deleteTitle")}
+                        disabled={snapshot.mounted}
+                        onClick={(e) => (e.stopPropagation(), setConfirming(snapshot.name))}
+                      >
+                        {t("app.delete")}
+                      </button>
+                    </>
                   )}
                 </div>
               </li>
@@ -316,7 +368,9 @@ export default function App() {
               onClose={() => setDiffFile("")}
             />
           )}
-          {tab === "search" && <Search onStatus={setStatus} />}
+          {tab === "search" && (
+            <Search onStatus={setStatus} snapshot={current} path={path} />
+          )}
           </>
           )}
         </main>

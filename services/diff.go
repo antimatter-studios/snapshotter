@@ -28,7 +28,13 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// ProgressEvent is the name the frontend listens on while a comparison runs.
+// ProgressEvent is the name a comparison reports its progress on.
+//
+// Nothing subscribes to it. The window registers no event listeners at all, and
+// the comparison it reports on — DiffService.Compare — has no route in either;
+// both are waiting on the same screen that does not exist yet. Said plainly here
+// because the comment used to claim the frontend listened on this, which sent a
+// reader looking for a subscriber that has never been written.
 const ProgressEvent = "diff:progress"
 
 // progressInterval throttles progress events. A deep comparison visits

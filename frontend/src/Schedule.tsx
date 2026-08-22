@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView } from "./api";
+import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView, type TripwireView } from "./api";
 import "./Schedule.css";
 import { useAction } from "./useAction";
 import { useTranslation } from "react-i18next";
@@ -48,6 +48,12 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   const [policy, setPolicy] = useState(FLAT);
   const [options, setOptions] = useState<PolicyOption[]>([]);
   const [log, setLog] = useState("");
+  // Which log is showing, and what the watcher has written. Fetched when its tab
+  // is first opened rather than on every refresh: reading a log nobody is looking
+  // at costs a file read each time the screen polls.
+  const [which, setWhich] = useState<"scheduled" | "tripwire">("scheduled");
+  const [tripwire, setTripwire] = useState<TripwireView | null>(null);
+  const [tripwireLog, setTripwireLog] = useState("");
   const { busy, error, setError, run } = useAction(onStatus);
 
   const refresh = useCallback(async () => {
@@ -67,6 +73,27 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       setError(message(err));
     }
   }, []);
+
+  useEffect(() => {
+    if (which !== "tripwire") return;
+    let live = true;
+    void (async () => {
+      try {
+        const [status, body] = await Promise.all([
+          ScheduleAPI.TripwireStatus(),
+          ScheduleAPI.TripwireLog(serviceChosenTail),
+        ]);
+        if (!live) return;
+        setTripwire(status);
+        setTripwireLog(body);
+      } catch (err) {
+        if (live) setError(message(err));
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [which, setError]);
 
   useEffect(() => {
     void refresh();
@@ -222,8 +249,42 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
 
       <section>
         <h2>{t("schedule.log")}</h2>
-        <p className="explain">{t("schedule.writtenBy")} {view?.logPath}</p>
-        <pre className="log">{log || t("schedule.nothingLogged")}</pre>
+
+        {/* Two agents write two logs, and the second one had nowhere to be read.
+            The scheduled task's log answers "why is my history thinner than I
+            asked for"; the watcher's answers the harder question — why a bulk
+            deletion went by without a snapshot being taken — and that one was
+            only reachable by knowing the path and opening a terminal. */}
+        <div className="segmented">
+          <button className={which === "scheduled" ? "on" : ""} onClick={() => setWhich("scheduled")}>
+            {t("schedule.logScheduled")}
+          </button>
+          <button className={which === "tripwire" ? "on" : ""} onClick={() => setWhich("tripwire")}>
+            {t("schedule.logTripwire")}
+          </button>
+        </div>
+
+        {which === "scheduled" ? (
+          <>
+            <p className="explain">
+              {t("schedule.writtenBy")} {view?.logPath}
+            </p>
+            <pre className="log">{log || t("schedule.nothingLogged")}</pre>
+          </>
+        ) : (
+          <>
+            <p className="explain">
+              {t("schedule.writtenByTripwire")} {tripwire?.logPath}
+            </p>
+            {/* Not installed is a different answer from nothing logged, and the
+                one that says what to do about it. */}
+            <pre className="log">
+              {tripwire && !tripwire.installed
+                ? t("schedule.watcherNotInstalled")
+                : tripwireLog || t("schedule.nothingLogged")}
+            </pre>
+          </>
+        )}
       </section>
     </div>
   );

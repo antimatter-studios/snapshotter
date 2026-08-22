@@ -109,3 +109,87 @@ describe("choosing what is kept", () => {
     expect(await screen.findByText(/com\.example\.backup/)).toBeTruthy();
   });
 });
+
+// Two agents write two logs, and the watcher's had nowhere to be read. The
+// scheduled task's log answers "why is my history thinner than I asked for"; the
+// watcher's answers the harder one — why a bulk deletion went by without a
+// snapshot being taken — and that was reachable only by knowing the path and
+// opening a terminal.
+describe("the two logs", () => {
+  it("shows the scheduled task's log to begin with", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Log").mockResolvedValue("12:00 took snapshot" as never);
+    const watcherLog = vi.spyOn(ScheduleAPI, "TripwireLog").mockResolvedValue("" as never);
+
+    render(<Schedule onStatus={() => {}} />);
+
+    expect(await screen.findByText(/took snapshot/)).toBeTruthy();
+    // The watcher's log is not fetched until asked for: reading a file nobody is
+    // looking at costs a read every time this screen polls.
+    expect(watcherLog).not.toHaveBeenCalled();
+  });
+
+  it("shows the watcher's log when asked, and says where it is written", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Log").mockResolvedValue("12:00 took snapshot" as never);
+    vi.spyOn(ScheduleAPI, "TripwireStatus").mockResolvedValue({
+      installed: true, running: true, plistPath: "/p.plist", logPath: "/tmp/tripwire.log",
+    } as never);
+    vi.spyOn(ScheduleAPI, "TripwireLog").mockResolvedValue("03:10 caught 900 deletions" as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /watcher|deletion/i }));
+
+    expect(await screen.findByText(/900 deletions/)).toBeTruthy();
+    // The path, because the next thing someone does with a log is open it.
+    expect(screen.getByText(/tripwire\.log/)).toBeTruthy();
+    // And the other log is out of the way rather than stacked beneath it.
+    expect(screen.queryByText(/took snapshot/)).toBeNull();
+  });
+
+  it("says the watcher is not installed rather than that it logged nothing", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Log").mockResolvedValue("" as never);
+    vi.spyOn(ScheduleAPI, "TripwireStatus").mockResolvedValue({
+      installed: false, running: false, plistPath: "", logPath: "",
+    } as never);
+    vi.spyOn(ScheduleAPI, "TripwireLog").mockResolvedValue("" as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /watcher|deletion/i }));
+
+    // An empty log reads as "nothing has happened", which is reassuring and
+    // wrong: nothing is watching. The two states need different words, and this
+    // one needs to say where to fix it.
+    expect(await screen.findByText(/not installed/i)).toBeTruthy();
+    expect(screen.queryByText(/nothing logged/i)).toBeNull();
+  });
+
+  it("goes back to the scheduled task's log", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Log").mockResolvedValue("12:00 took snapshot" as never);
+    vi.spyOn(ScheduleAPI, "TripwireStatus").mockResolvedValue({
+      installed: true, running: true, plistPath: "", logPath: "/tmp/t.log",
+    } as never);
+    vi.spyOn(ScheduleAPI, "TripwireLog").mockResolvedValue("03:10 caught deletions" as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /watcher|deletion/i }));
+    await screen.findByText(/caught deletions/);
+
+    await userEvent.click(screen.getByRole("button", { name: /scheduled task/i }));
+
+    expect(await screen.findByText(/took snapshot/)).toBeTruthy();
+  });
+
+  it("says why the watcher's log could not be read", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "Log").mockResolvedValue("" as never);
+    vi.spyOn(ScheduleAPI, "TripwireStatus").mockRejectedValue(new Error("launchctl is not answering"));
+
+    render(<Schedule onStatus={() => {}} />);
+    await userEvent.click(await screen.findByRole("button", { name: /watcher|deletion/i }));
+
+    expect(await screen.findByText(/not answering/)).toBeTruthy();
+  });
+});
