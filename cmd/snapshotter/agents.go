@@ -119,10 +119,20 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 		return nil
 	})
 	// Read once at startup. The tripwire is its own process and launchd restarts
-	// it, so a changed ignore list takes effect on the next run rather than
-	// needing anything clever here.
+	// it, so a changed ignore list or sensitivity takes effect on the next run
+	// rather than needing anything clever here.
 	if cfg, cerr := config.Load(); cerr == nil {
 		w.Ignore = cfg.Tripwire.Ignore
+		// How many deletions count as a burst. An unrecognised name gives the
+		// default rather than an error: this comes from a file someone may have
+		// typed into, and refusing to watch over a misspelling would trade the
+		// protection for the typo.
+		sensitivity := watch.Sensitivity(cfg.Tripwire.Sensitivity)
+		w.Trigger = watch.NewTrigger(watch.ThresholdFor(sensitivity), 0, 0)
+		if !watch.Known(sensitivity) && cfg.Tripwire.Sensitivity != "" {
+			log.Printf("sensitivity %q is not one this build knows; using %s",
+				cfg.Tripwire.Sensitivity, watch.Balanced)
+		}
 	} else {
 		log.Printf("configuration: %v (watching everything)", cerr)
 	}

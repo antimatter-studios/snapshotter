@@ -71,6 +71,30 @@ export function SetTheme(theme: string): $CancellablePromise<void> {
 }
 
 /**
+ * SetTripwireSensitivity records how readily a burst of deletions counts as one
+ * worth snapshotting.
+ *
+ * It takes effect on the watcher's next run rather than immediately: the tripwire
+ * is a separate process that launchd restarts, and it reads this at startup. That
+ * is worth saying in the interface, because a setting that appears to apply and
+ * does not is worse than one that says when it will.
+ */
+export function SetTripwireSensitivity(name: string): $CancellablePromise<void> {
+    return $Call.ByID(3584836541, name);
+}
+
+/**
+ * TripwireSensitivities are the settings on offer, coarsest first, and which one
+ * is in force.
+ */
+export function TripwireSensitivities(): $CancellablePromise<[$models.TripwireSensitivity[], string]> {
+    return $Call.ByID(3898489713).then(($result: any) => {
+        $result[0] = $$createType2($result[0]);
+        return $result;
+    });
+}
+
+/**
  * WatchFolder undoes IgnoreFolder.
  *
  * Removing is as important as adding: an ignore list nobody can see or shorten is
@@ -85,3 +109,5 @@ export function WatchFolder(fragment: string): $CancellablePromise<$models.Confi
 
 // Private type creation functions
 const $$createType0 = $models.ConfigView.createFrom;
+const $$createType1 = $models.TripwireSensitivity.createFrom;
+const $$createType2 = $Create.Array($$createType1);

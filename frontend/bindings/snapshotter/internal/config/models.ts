@@ -295,6 +295,17 @@ export class Tripwire {
      */
     "ignore": string[];
 
+    /**
+     * Sensitivity is how readily a burst counts as one worth snapshotting:
+     * "cautious", "balanced", "sensitive" or "very-sensitive". Empty means
+     * balanced, which is what every build before this setting existed used.
+     *
+     * A name rather than a count, because the count alone is unanswerable — whether
+     * two hundred files in five seconds is a lot depends entirely on what the
+     * machine does all day, which is the thing being configured.
+     */
+    "sensitivity": string;
+
     /** Creates a new Tripwire instance. */
     constructor($$source: Partial<Tripwire> = {}) {
         if (!("enabled" in $$source)) {
@@ -302,6 +313,9 @@ export class Tripwire {
         }
         if (!("ignore" in $$source)) {
             this["ignore"] = [];
+        }
+        if (!("sensitivity" in $$source)) {
+            this["sensitivity"] = "";
         }
 
         Object.assign(this, $$source);

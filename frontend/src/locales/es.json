@@ -198,5 +198,15 @@
   "theme.followingSystem": "Siguiendo al sistema ({{mode}}): pulse para claro",
   "theme.light": "Claro: pulse para oscuro",
   "theme.modeDark": "oscuro",
-  "theme.modeLight": "claro"
+  "theme.modeLight": "claro",
+  "tripwire.appliesNextRun": "Se aplica la próxima vez que se inicie la vigilancia: es una tarea en segundo plano independiente y lo lee entonces.",
+  "tripwire.explain": "Se crea un snapshot cuando desaparecen tantos archivos a la vez, de modo que lo que hubiera se pueda recuperar. Con un valor más bajo se detecta también la desaparición de una carpeta de documentos; con uno más alto, un equipo que borra en masa a diario se mantiene en silencio. Una advertencia que salta con el trabajo normal es una que se aprende a descartar.",
+  "tripwire.heading": "Vigilancia de borrados masivos",
+  "tripwire.level.balanced": "Equilibrada",
+  "tripwire.level.cautious": "Cautelosa",
+  "tripwire.level.sensitive": "Sensible",
+  "tripwire.level.very-sensitive": "Muy sensible",
+  "tripwire.notInstalled": "La vigilancia no está instalada, así que no se vigila nada. Se configura en la pantalla de estado.",
+  "tripwire.option": "{{name}}: {{count}} archivos en {{seconds}} segundos",
+  "tripwire.sensitivity": "Con qué facilidad se activa"
 }

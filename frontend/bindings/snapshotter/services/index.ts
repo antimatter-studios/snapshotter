@@ -41,6 +41,7 @@ export {
     SnapshotComparison,
     SnapshotView,
     TierView,
+    TripwireSensitivity,
     TripwireView,
     Warning
 } from "./models.js";

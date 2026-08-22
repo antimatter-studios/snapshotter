@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"snapshotter/internal/watch"
 )
 
 // Config is the whole of it. Kept flat and small on purpose: every field here has
@@ -65,6 +67,14 @@ type Tripwire struct {
 	// like "/Library/Caches/" covers every application's cache without naming any
 	// of them.
 	Ignore []string `yaml:"ignore" json:"ignore"`
+	// Sensitivity is how readily a burst counts as one worth snapshotting:
+	// "cautious", "balanced", "sensitive" or "very-sensitive". Empty means
+	// balanced, which is what every build before this setting existed used.
+	//
+	// A name rather than a count, because the count alone is unanswerable — whether
+	// two hundred files in five seconds is a lot depends entirely on what the
+	// machine does all day, which is the thing being configured.
+	Sensitivity string `yaml:"sensitivity" json:"sensitivity"`
 }
 
 // Logging is what the application says about itself.
@@ -155,6 +165,8 @@ func Defaults() Config {
 		// rest are told by a finding, with a button.
 		Tripwire: Tripwire{
 			Enabled: true,
+			// The setting every build before this one had, named.
+			Sensitivity: string(watch.Balanced),
 			// Machine-managed churn, not anybody's documents. Deliberately short:
 			// every entry here is a place this application will stay quiet about,
 			// so it holds only things no one would ask to recover.

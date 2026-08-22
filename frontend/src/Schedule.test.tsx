@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Schedule } from "./Schedule";
-import { Schedule as ScheduleAPI, type ScheduleView } from "./api";
+import { Schedule as ScheduleAPI, Config, type ScheduleView } from "./api";
 import "./i18n";
 
 // Choosing what is kept, which is the one screen that decides what gets deleted.
@@ -36,6 +36,17 @@ function stub() {
   vi.spyOn(ScheduleAPI, "Status").mockResolvedValue(view as never);
   vi.spyOn(ScheduleAPI, "Policies").mockResolvedValue(policies);
   vi.spyOn(ScheduleAPI, "Log").mockResolvedValue("" as never);
+  // The screen reads these on load. Without them the real binding is called,
+  // which rejects under jsdom and puts an error banner over every test here.
+  vi.spyOn(Config, "TripwireSensitivities").mockResolvedValue([
+    [
+      { id: "cautious", deletions: 500, windowSeconds: 5 },
+      { id: "balanced", deletions: 200, windowSeconds: 5 },
+      { id: "sensitive", deletions: 75, windowSeconds: 5 },
+      { id: "very-sensitive", deletions: 25, windowSeconds: 5 },
+    ],
+    "balanced",
+  ] as never);
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -161,7 +172,9 @@ describe("the two logs", () => {
     // An empty log reads as "nothing has happened", which is reassuring and
     // wrong: nothing is watching. The two states need different words, and this
     // one needs to say where to fix it.
-    expect(await screen.findByText(/not installed/i)).toBeTruthy();
+    // Scoped to the log itself: the sensitivity section says the same thing about
+    // the same watcher, and this test is about what the log shows.
+    await waitFor(() => expect(document.querySelector("pre.log")?.textContent).toMatch(/not installed/i));
     expect(screen.queryByText(/nothing logged/i)).toBeNull();
   });
 
@@ -275,5 +288,99 @@ describe("what it says about the installed schedule", () => {
 
     // The sentence that stops the figures below reading as reservations.
     expect(await screen.findByText(/cannot be recreated/i)).toBeTruthy();
+  });
+});
+
+// How readily the wire trips. The count alone is unanswerable — whether 200 files
+// in five seconds is a lot depends entirely on what the machine does all day —
+// so the setting is a name, and the count is shown beside it.
+describe("how sensitive the bulk-deletion watcher is", () => {
+  it("offers each setting with the count it stands for", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+
+    const select = await screen.findByLabelText(/readily/i);
+    const options = Array.from(select.querySelectorAll("option")).map((o) => o.textContent ?? "");
+    expect(options).toHaveLength(4);
+    // Both halves: the name says what it is for, the number says what it means.
+    expect(options[0]).toMatch(/Cautious/);
+    expect(options[0]).toMatch(/500/);
+    expect(options[3]).toMatch(/Very sensitive/);
+    expect(options[3]).toMatch(/25/);
+    // And the window, so "25 files" is not read as "25 files ever".
+    expect(options[3]).toMatch(/5 seconds/);
+  });
+
+  it("shows the setting that is actually in force", async () => {
+    stub();
+    vi.spyOn(Config, "TripwireSensitivities").mockResolvedValue([
+      [
+        { id: "cautious", deletions: 500, windowSeconds: 5 },
+        { id: "sensitive", deletions: 75, windowSeconds: 5 },
+      ],
+      "sensitive",
+    ] as never);
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // Resolved by the service the same way the watcher resolves it, so the
+    // dropdown cannot show a different answer from the one being used.
+    await waitFor(() =>
+      expect((screen.getByLabelText(/readily/i) as HTMLSelectElement).value).toBe("sensitive"),
+    );
+  });
+
+  it("saves as soon as one is chosen", async () => {
+    stub();
+    const saved = vi.spyOn(Config, "SetTripwireSensitivity").mockResolvedValue(undefined as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    await userEvent.selectOptions(await screen.findByLabelText(/readily/i), "very-sensitive");
+
+    // No Apply button: a settings dropdown with one invites someone to change it
+    // and walk away.
+    await waitFor(() => expect(saved).toHaveBeenCalledWith("very-sensitive"));
+  });
+
+  it("puts the dropdown back if the setting could not be saved", async () => {
+    stub();
+    vi.spyOn(Config, "SetTripwireSensitivity").mockRejectedValue(new Error("the settings file is read-only"));
+
+    render(<Schedule onStatus={() => {}} />);
+    const select = await screen.findByLabelText(/readily/i);
+    await userEvent.selectOptions(select, "cautious");
+
+    expect(await screen.findByText(/read-only/)).toBeTruthy();
+    // Otherwise it shows a setting that is not in force, which is the one thing a
+    // settings screen must never do.
+    await waitFor(() => expect((select as HTMLSelectElement).value).toBe("balanced"));
+  });
+
+  it("says the setting will not take effect until the watcher restarts", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // The watcher is a separate process that reads this at startup. A setting that
+    // appears to apply and does not is worse than one that says when it will.
+    expect(await screen.findByText(/next time the watcher starts/i)).toBeTruthy();
+  });
+
+  it("says so when there is no watcher for the setting to apply to", async () => {
+    stub();
+    vi.spyOn(ScheduleAPI, "TripwireStatus").mockResolvedValue({
+      installed: false, running: false, plistPath: "", logPath: "",
+    } as never);
+    vi.spyOn(ScheduleAPI, "TripwireLog").mockResolvedValue("" as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    // The status is fetched when the watcher's log is opened, which is what puts
+    // it on screen.
+    await userEvent.click(await screen.findByRole("button", { name: /watcher|deletion/i }));
+
+    // Choosing a sensitivity for a watcher that is not running is a setting with
+    // nothing to apply to, and it says so above the dropdown rather than below it.
+    await waitFor(() => expect(screen.getByText(/nothing is being watched for/i)).toBeTruthy());
   });
 });
