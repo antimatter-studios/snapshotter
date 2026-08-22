@@ -152,40 +152,17 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
     }, t("schedule.removed"));
 
   const chosen = options.find((o) => o.id === policy);
+  // Flat keeps everything for the span; every other shape keeps everything at the
+  // chosen rate for it and then thins. The two labels below differ because the
+  // promise does.
+  const tiered = policy !== FLAT;
 
   return (
     <div className="schedule">
       <section>
         <h2>{t("schedule.automatic")}</h2>
-        <p className="explain">
-          macOS only takes local snapshots on its own when Time Machine has a backup disk configured. This schedule takes
-          them without one. It needs no password: creating and deleting snapshots goes through Time Machine's own
-          background service.
-        </p>
+        <p className="explain">{t("schedule.whyNeeded")}</p>
 
-        <div className="fields">
-          <label>
-            {t("schedule.howOften")}
-            <select value={interval} onChange={(e) => setInterval(Number(e.target.value))}>
-              {INTERVALS.map((i) => (
-                <option key={i.hours} value={i.hours}>
-                  {t(i.key)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            {t("schedule.flatWindow")}
-            <select value={retention} onChange={(e) => setRetention(Number(e.target.value))}>
-              {RETENTIONS.map((r) => (
-                <option key={r.days} value={r.days}>
-                  {t(r.key)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
       </section>
 
       <section>
@@ -227,6 +204,45 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
             </label>
           ))}
         </div>
+
+        {/* Below the choice, not above it: these two numbers mean different things
+            depending on the shape chosen, so the shape has to be settled first.
+            They were above it, labelled "Flat window", which read as belonging to
+            the flat profile alone — when in fact a tiered profile's first band IS
+            this rate for this span, and its later bands are multiples of the span.
+            The same number, a different promise, under a name that named only one
+            of them. */}
+        <h3>{t("schedule.theseNumbers")}</h3>
+        <div className="fields">
+          <label>
+            {t("schedule.howOften")}
+            <select value={interval} onChange={(e) => setInterval(Number(e.target.value))}>
+              {INTERVALS.map((i) => (
+                <option key={i.hours} value={i.hours}>
+                  {t(i.key)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            {tiered ? t("schedule.keepEverySnapshotFor") : t("schedule.keepEverythingFor")}
+            <select value={retention} onChange={(e) => setRetention(Number(e.target.value))}>
+              {RETENTIONS.map((r) => (
+                <option key={r.days} value={r.days}>
+                  {t(r.key)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {/* What the chosen shape does with them. For a flat window that is the
+            whole story; for a tiered one the span is multiplied, which is a large
+            lever and was previously unexplained. */}
+        <p className="explain">
+          {tiered ? t("schedule.windowFeedsBands") : t("schedule.everythingKept")}
+        </p>
 
         {view?.installed && view.policyId === "custom" && (
           <p className="warning">{t("schedule.customPolicy", { summary: view.policySummary })}</p>

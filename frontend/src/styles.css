@@ -816,6 +816,16 @@ tr:hover td.actions button {
   margin: 0 0 6px;
 }
 
+/* The numbers a chosen profile uses, under the choice itself. Smaller than the
+   section heading and spaced above, because it divides one section rather than
+   starting a new one — the shape and its numbers belong together. */
+.schedule h3 {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+
 .explain {
   color: var(--muted);
   line-height: 1.6;
