@@ -198,5 +198,15 @@
   "theme.followingSystem": "Following the system ({{mode}}) — click for light",
   "theme.light": "Light — click for dark",
   "theme.modeDark": "dark",
-  "theme.modeLight": "light"
+  "theme.modeLight": "light",
+  "tripwire.appliesNextRun": "Applies the next time the watcher starts — it is a separate background task and reads this when it does.",
+  "tripwire.explain": "A snapshot is taken when this many files disappear at once, so whatever was there can be recovered. Set it lower and a folder of documents going is caught; set it higher and a machine that deletes in bulk all day stays quiet. A warning that fires on ordinary work is one people learn to dismiss.",
+  "tripwire.heading": "Watching for bulk deletions",
+  "tripwire.level.balanced": "Balanced",
+  "tripwire.level.cautious": "Cautious",
+  "tripwire.level.sensitive": "Sensitive",
+  "tripwire.level.very-sensitive": "Very sensitive",
+  "tripwire.notInstalled": "The watcher is not installed, so nothing is being watched for. The Health screen sets it up.",
+  "tripwire.option": "{{name}} — {{count}} files in {{seconds}} seconds",
+  "tripwire.sensitivity": "How readily it triggers"
 }

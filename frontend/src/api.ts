@@ -12,7 +12,7 @@ import * as Config from "../bindings/snapshotter/services/configservice.js";
 
 export { Snapshots, Browse, Diff, Restore, Schedule, Status, Search, Config };
 
-export type { SnapshotView, Overview, MergedListing, ScheduleView, TripwireView, Presence, CompareRequest, RestoreRequest, Health, Finding, SearchResult, ConfigView, Warning, FileVersions } from "../bindings/snapshotter/services/models.js";
+export type { SnapshotView, Overview, MergedListing, ScheduleView, TripwireView, TripwireSensitivity, Presence, CompareRequest, RestoreRequest, Health, Finding, SearchResult, ConfigView, Warning, FileVersions } from "../bindings/snapshotter/services/models.js";
 export type { Change, Result as DiffResult } from "../bindings/snapshotter/internal/diffs/models.js";
 export type { Result as RestoreResult } from "../bindings/snapshotter/internal/restore/models.js";
 

@@ -198,5 +198,15 @@
   "theme.followingSystem": "Suit le système ({{mode}}) — cliquer pour clair",
   "theme.light": "Clair — cliquer pour sombre",
   "theme.modeDark": "sombre",
-  "theme.modeLight": "clair"
+  "theme.modeLight": "clair",
+  "tripwire.appliesNextRun": "S'applique au prochain démarrage de la surveillance — c'est une tâche d'arrière-plan distincte, qui lit ce réglage à ce moment-là.",
+  "tripwire.explain": "Un snapshot est créé lorsque ce nombre de fichiers disparaît d'un coup, afin que ce qui s'y trouvait puisse être récupéré. Réglé plus bas, la disparition d'un dossier de documents est détectée aussi ; réglé plus haut, une machine qui supprime en masse toute la journée reste silencieuse. Une alerte qui se déclenche pendant le travail ordinaire est une alerte qu'on apprend à ignorer.",
+  "tripwire.heading": "Surveillance des suppressions massives",
+  "tripwire.level.balanced": "Équilibrée",
+  "tripwire.level.cautious": "Prudente",
+  "tripwire.level.sensitive": "Sensible",
+  "tripwire.level.very-sensitive": "Très sensible",
+  "tripwire.notInstalled": "La surveillance n'est pas installée ; rien n'est donc surveillé. Elle se configure dans l'écran d'état.",
+  "tripwire.option": "{{name}} — {{count}} fichiers en {{seconds}} secondes",
+  "tripwire.sensitivity": "Avec quelle facilité elle se déclenche"
 }

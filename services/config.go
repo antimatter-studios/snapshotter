@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"snapshotter/internal/config"
+	"snapshotter/internal/watch"
 )
 
 // ConfigService gives the window the settings file.
@@ -84,6 +86,61 @@ func (c *ConfigService) SetLanguage(code string) error {
 	}
 	cfg.Appearance.Language = code
 	return config.Save(cfg)
+}
+
+// SetTripwireSensitivity records how readily a burst of deletions counts as one
+// worth snapshotting.
+//
+// It takes effect on the watcher's next run rather than immediately: the tripwire
+// is a separate process that launchd restarts, and it reads this at startup. That
+// is worth saying in the interface, because a setting that appears to apply and
+// does not is worse than one that says when it will.
+func (c *ConfigService) SetTripwireSensitivity(name string) error {
+	if !watch.Known(watch.Sensitivity(name)) {
+		return fmt.Errorf("services: %q is not a sensitivity", name)
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		// The same reasoning as the theme and the language: saving over a file that
+		// could not be parsed would destroy whatever is in it, to change one setting.
+		return fmt.Errorf("not changing the sensitivity: %w", err)
+	}
+	cfg.Tripwire.Sensitivity = name
+	return config.Save(cfg)
+}
+
+// TripwireSensitivity is one setting on offer, with the count it stands for.
+//
+// The count is carried rather than worded here: "75 files" means something next to
+// a name, and the window can put the two together in its own language.
+type TripwireSensitivity struct {
+	ID string `json:"id"`
+	// Deletions is how many inside the window count as a burst.
+	Deletions int `json:"deletions"`
+	// WindowSeconds is the same for every setting, and is here so the window can
+	// say "within five seconds" without knowing the number itself.
+	WindowSeconds int `json:"windowSeconds"`
+}
+
+// TripwireSensitivities are the settings on offer, coarsest first, and which one
+// is in force.
+func (c *ConfigService) TripwireSensitivities() ([]TripwireSensitivity, string) {
+	out := make([]TripwireSensitivity, 0, len(watch.Sensitivities))
+	for _, s := range watch.Sensitivities {
+		out = append(out, TripwireSensitivity{
+			ID:            string(s),
+			Deletions:     watch.ThresholdFor(s),
+			WindowSeconds: int(watch.DefaultWindow / time.Second),
+		})
+	}
+
+	// What is in force, resolved the same way the watcher resolves it, so the
+	// dropdown cannot show a different answer from the one being used.
+	current := string(watch.Balanced)
+	if cfg, err := config.Load(); err == nil && watch.Known(watch.Sensitivity(cfg.Tripwire.Sensitivity)) {
+		current = cfg.Tripwire.Sensitivity
+	}
+	return out, current
 }
 
 // IgnoreFolder stops the bulk-deletion tripwire counting deletions in a folder.

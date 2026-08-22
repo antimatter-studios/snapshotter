@@ -240,3 +240,59 @@ func TestClearingAListDoesNotLeaveAnEmptyEntry(t *testing.T) {
 		t.Errorf("spacing was not handled: %v", cfg.Tripwire.Ignore)
 	}
 }
+
+// A closed set of answers is worth refusing rather than falling back on. The
+// watcher would use the default and say so in a log nobody opens, leaving the
+// person believing they had changed how readily it trips.
+func TestSetRefusesASensitivityNobodyOffers(t *testing.T) {
+	cfg := Defaults()
+
+	err := Set(&cfg, "tripwire.sensitivity", "paranoid")
+	if err == nil {
+		t.Fatal("a name nobody offers was accepted")
+	}
+	// The message lists what is on offer, because "not paranoid" does not tell
+	// anyone what to type instead.
+	for _, want := range []string{"cautious", "balanced", "sensitive", "very-sensitive"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error does not mention %q: %v", want, err)
+		}
+	}
+	if cfg.Tripwire.Sensitivity == "paranoid" {
+		t.Error("the refused value was written anyway")
+	}
+}
+
+func TestSetAcceptsEverySensitivityOnOffer(t *testing.T) {
+	for _, name := range []string{"cautious", "balanced", "sensitive", "very-sensitive"} {
+		cfg := Defaults()
+		if err := Set(&cfg, "tripwire.sensitivity", name); err != nil {
+			t.Errorf("%s was refused: %v", name, err)
+		}
+		if cfg.Tripwire.Sensitivity != name {
+			t.Errorf("%s was accepted and not stored", name)
+		}
+	}
+}
+
+// The window refused an unknown language and this did not, so a value typed at
+// the command line was accepted and then silently ignored — which reads as the
+// setting not working rather than as the value being wrong.
+func TestSetRefusesALanguageThisBuildDoesNotCarry(t *testing.T) {
+	cfg := Defaults()
+
+	if err := Set(&cfg, "appearance.language", "kl"); err == nil {
+		t.Fatal("a language this build does not carry was accepted")
+	}
+	if cfg.Appearance.Language == "kl" {
+		t.Error("the refused language was written anyway")
+	}
+
+	// And every language it does carry still works.
+	for _, code := range Languages {
+		cfg := Defaults()
+		if err := Set(&cfg, "appearance.language", code); err != nil {
+			t.Errorf("%s was refused: %v", code, err)
+		}
+	}
+}

@@ -3,9 +3,12 @@ package config
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
+
+	"snapshotter/internal/watch"
 )
 
 // Addressing settings by name, so anything in the file can be read or changed
@@ -59,6 +62,24 @@ func valid(key, value string) error {
 		// and a tier list is what ParsePolicy accepts.
 		if strings.TrimSpace(value) == "" {
 			return fmt.Errorf("config: %s cannot be empty", key)
+		}
+	case "appearance.language":
+		// The window refused an unknown language and this did not, so a value typed
+		// here was accepted and then silently ignored — which reads as the setting
+		// not working rather than as the value being wrong.
+		if !slices.Contains(Languages, value) {
+			return fmt.Errorf("config: %s is one of %s, not %q", key, strings.Join(Languages, ", "), value)
+		}
+	case "tripwire.sensitivity":
+		// A closed set, and one worth refusing rather than falling back on: the
+		// watcher would use the default and say so in a log nobody opens, so the
+		// person would be left believing they had changed how readily it trips.
+		if !watch.Known(watch.Sensitivity(value)) {
+			names := make([]string, 0, len(watch.Sensitivities))
+			for _, s := range watch.Sensitivities {
+				names = append(names, string(s))
+			}
+			return fmt.Errorf("config: %s is one of %s, not %q", key, strings.Join(names, ", "), value)
 		}
 	}
 	return nil

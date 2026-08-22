@@ -198,5 +198,15 @@
   "theme.followingSystem": "Folgt dem System ({{mode}}) — klicken für Hell",
   "theme.light": "Hell — klicken für Dunkel",
   "theme.modeDark": "dunkel",
-  "theme.modeLight": "hell"
+  "theme.modeLight": "hell",
+  "tripwire.appliesNextRun": "Gilt beim nächsten Start der Überwachung — sie ist eine eigene Hintergrundaufgabe und liest diese Einstellung dann.",
+  "tripwire.explain": "Wenn so viele Dateien gleichzeitig verschwinden, wird ein Snapshot erstellt, damit das Vorhandene wiederherstellbar bleibt. Niedriger eingestellt wird auch ein verschwindender Dokumentenordner erfasst; höher eingestellt bleibt ein Rechner ruhig, der ohnehin ständig in großen Mengen löscht. Eine Warnung, die bei gewöhnlicher Arbeit auslöst, lernt man zu ignorieren.",
+  "tripwire.heading": "Überwachung von Massenlöschungen",
+  "tripwire.level.balanced": "Ausgewogen",
+  "tripwire.level.cautious": "Zurückhaltend",
+  "tripwire.level.sensitive": "Empfindlich",
+  "tripwire.level.very-sensitive": "Sehr empfindlich",
+  "tripwire.notInstalled": "Die Überwachung ist nicht installiert, es wird also nichts überwacht. Im Zustandsbereich lässt sie sich einrichten.",
+  "tripwire.option": "{{name}} — {{count}} Dateien in {{seconds}} Sekunden",
+  "tripwire.sensitivity": "Wie leicht sie auslöst"
 }

@@ -160,3 +160,69 @@ func (t *Trigger) Pending(now time.Time) int {
 	}
 	return n
 }
+
+// Sensitivity is how readily a burst of deletions is treated as one worth
+// snapshotting, expressed as a name rather than a count.
+//
+// A name, because the number on its own is unanswerable: nobody knows whether two
+// hundred files in five seconds is a lot without knowing what their machine does
+// all day. The names say what each setting is for, and the count is shown beside
+// them for whoever wants it.
+//
+// Only the count varies. The window stays at five seconds across all of them,
+// which keeps this one dimension: widening the window makes slower deletions count
+// too, and a setting that moves two things at once cannot be reasoned about from
+// its name.
+type Sensitivity string
+
+const (
+	// Cautious only notices an unmistakable sweep. For a machine that deletes in
+	// bulk as a matter of course — build trees, container layers, video caches —
+	// where a lower setting means warnings nobody reads.
+	Cautious Sensitivity = "cautious"
+	// Balanced is the default, and what every build before this setting existed
+	// used. Ordinary work does not reach it: builds, package installs and browser
+	// caches all delete steadily, and a burst of two hundred inside five seconds is
+	// not that.
+	Balanced Sensitivity = "balanced"
+	// Sensitive catches a folder of documents going, which Balanced can miss:
+	// seventy-five invoices is a bad afternoon and well under two hundred.
+	Sensitive Sensitivity = "sensitive"
+	// VerySensitive is for a machine holding work that could not be reproduced,
+	// where a snapshot too many costs disk and a snapshot too few costs the work.
+	VerySensitive Sensitivity = "very-sensitive"
+)
+
+// thresholds is the count each name stands for.
+//
+// Balanced is DefaultThreshold rather than a repetition of it, so the setting and
+// the default cannot drift apart.
+var thresholds = map[Sensitivity]int{
+	Cautious:      500,
+	Balanced:      DefaultThreshold,
+	Sensitive:     75,
+	VerySensitive: 25,
+}
+
+// Sensitivities are the settings on offer, coarsest first. Ordered, because a
+// dropdown reading cautious to very sensitive is a scale and a map is not.
+var Sensitivities = []Sensitivity{Cautious, Balanced, Sensitive, VerySensitive}
+
+// ThresholdFor is how many deletions a sensitivity counts as a burst.
+//
+// An unrecognised name gets the default rather than an error: this arrives from a
+// settings file that someone may have typed into, and a watcher that refuses to
+// start over a misspelling would trade the protection for the typo.
+func ThresholdFor(s Sensitivity) int {
+	if n, ok := thresholds[s]; ok {
+		return n
+	}
+	return DefaultThreshold
+}
+
+// Known reports whether a name is one of the settings on offer, so an interface
+// can say so rather than silently showing something else as selected.
+func Known(s Sensitivity) bool {
+	_, ok := thresholds[s]
+	return ok
+}

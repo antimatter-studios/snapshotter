@@ -1281,6 +1281,50 @@ export class TierView {
 }
 
 /**
+ * TripwireSensitivity is one setting on offer, with the count it stands for.
+ *
+ * The count is carried rather than worded here: "75 files" means something next to
+ * a name, and the window can put the two together in its own language.
+ */
+export class TripwireSensitivity {
+    "id": string;
+
+    /**
+     * Deletions is how many inside the window count as a burst.
+     */
+    "deletions": number;
+
+    /**
+     * WindowSeconds is the same for every setting, and is here so the window can
+     * say "within five seconds" without knowing the number itself.
+     */
+    "windowSeconds": number;
+
+    /** Creates a new TripwireSensitivity instance. */
+    constructor($$source: Partial<TripwireSensitivity> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("deletions" in $$source)) {
+            this["deletions"] = 0;
+        }
+        if (!("windowSeconds" in $$source)) {
+            this["windowSeconds"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TripwireSensitivity instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TripwireSensitivity {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TripwireSensitivity($$parsedSource as Partial<TripwireSensitivity>);
+    }
+}
+
+/**
  * TripwireView is the bulk-deletion watcher as the settings screen shows it.
  */
 export class TripwireView {

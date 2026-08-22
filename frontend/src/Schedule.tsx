@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Schedule as ScheduleAPI, message, serviceChosenTail, type ScheduleView, type TripwireView } from "./api";
+import { Schedule as ScheduleAPI, Config, message, serviceChosenTail, type ScheduleView, type TripwireView, type TripwireSensitivity } from "./api";
 import "./Schedule.css";
 import { useAction } from "./useAction";
 import { useTranslation } from "react-i18next";
@@ -54,7 +54,27 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   const [which, setWhich] = useState<"scheduled" | "tripwire">("scheduled");
   const [tripwire, setTripwire] = useState<TripwireView | null>(null);
   const [tripwireLog, setTripwireLog] = useState("");
+  // The settings on offer and the one in force, both from the service so the
+  // dropdown cannot show a different answer from the one the watcher uses.
+  const [sensitivities, setSensitivities] = useState<TripwireSensitivity[]>([]);
+  const [sensitivity, setSensitivity] = useState("");
   const { busy, error, setError, run } = useAction(onStatus);
+
+  // Saved as soon as it is chosen, like the theme and the language: a settings
+  // dropdown with its own Apply button invites someone to change it and walk away.
+  const chooseSensitivity = async (id: string) => {
+    const previous = sensitivity;
+    setSensitivity(id);
+    await run(async () => {
+      try {
+        await Config.SetTripwireSensitivity(id);
+      } catch (err) {
+        // Put back, so the dropdown never shows a setting that was not saved.
+        setSensitivity(previous);
+        throw err;
+      }
+    });
+  };
 
   const refresh = useCallback(async () => {
     try {
@@ -69,6 +89,13 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         if (status.policyId === FLAT) setRetention(status.retentionDays);
       }
       setLog(await ScheduleAPI.Log(serviceChosenTail));
+
+      // Which sensitivities exist and which is chosen. Read here rather than
+      // computed in the window: the counts belong to the code that decides with
+      // them, and a second copy of "sensitive means 75" would drift.
+      const [offered, current] = await Config.TripwireSensitivities();
+      setSensitivities(offered);
+      setSensitivity(current);
     } catch (err) {
       setError(message(err));
     }
@@ -242,6 +269,43 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         {!!view?.conflicts?.length && (
           <p className="warning">{t("schedule.conflict", { tasks: view.conflicts.join(", ") })}</p>
         )}
+      </section>
+
+      <section>
+        <h2>{t("tripwire.heading")}</h2>
+        <p className="explain">{t("tripwire.explain")}</p>
+
+        {tripwire && !tripwire.installed && (
+          // Said before the dropdown, not after: choosing a sensitivity for a
+          // watcher that is not running is a setting with nothing to apply to.
+          <p className="warning">{t("tripwire.notInstalled")}</p>
+        )}
+
+        <div className="fields">
+          <label>
+            {t("tripwire.sensitivity")}
+            <select
+              value={sensitivity}
+              onChange={(e) => void chooseSensitivity(e.target.value)}
+              disabled={busy || sensitivities.length === 0}
+            >
+              {sensitivities.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {t("tripwire.option", {
+                    name: t(`tripwire.level.${s.id}` as never),
+                    count: s.deletions,
+                    seconds: s.windowSeconds,
+                  })}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {/* A setting that appears to apply and does not is worse than one that
+            says when it will. The watcher is its own process; launchd restarts
+            it, and it reads this at startup. */}
+        <p className="explain">{t("tripwire.appliesNextRun")}</p>
       </section>
 
       <section>
