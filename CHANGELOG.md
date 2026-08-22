@@ -7,6 +7,36 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.54.1 — 2026-08-22
+
+**v0.54.0 shipped with no window in it on Apple Silicon.** It worked on Intel. On
+an ARM Mac the window opened white, saying "no `index.html` could be found in your
+Assets fs.FS".
+
+The universal build compiled the two architectures in parallel, and each half
+pulled in a frontend build — which empties `dist` before writing to it. One
+compile read that directory while the other's build had just emptied it, and
+embedded a window with nothing in it. `lipo` then joined the good slice to the bad
+one, so the released binary contained the assets in the half nobody was running.
+
+That shape defeats every obvious check. `strings` finds the assets, the size looks
+right, running the binary prints nothing wrong — Wails returns the error as an
+HTTP body, so the webview paints it and stderr stays empty. It took a screenshot
+of the window and a `lipo -thin` to see it at all.
+
+The build is sequential now, with the frontend built once. Three things check it
+where nothing did before: the embedded assets are asserted against the same asset
+handler the window uses, so removing `index.html` fails a test rather than a
+release; the release workflow re-runs that after the bundle build, which is the
+only moment the files on disk are the ones just embedded; and it thins the binary
+to check each slice separately, because a fat binary will pass any check its
+better half satisfies.
+
+The same race had already surfaced once as a `go mod tidy` failure mid-release. It
+passed on a rerun and was written off as a flake.
+
+`docs/TROUBLESHOOTING.md` is new, and records this with a one-command diagnosis.
+
 ## v0.54.0 — 2026-08-22
 
 **How readily the bulk-deletion watcher trips is a setting.**

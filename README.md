@@ -332,6 +332,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.54.1
+
+v0.54.0 shipped with no window in it on Apple Silicon — the universal build
+compiled both architectures at once, and each half emptied the frontend's output
+directory under the other. Fixed, and checked three ways, including thinning the
+binary to inspect each slice on its own.
+
 ### v0.54.0
 
 How readily the bulk-deletion watcher trips is a setting: Cautious, Balanced,
@@ -392,13 +399,6 @@ language writes numbers.
 The program's entry point lives in `cmd/snapshotter` and the repository root holds
 no Go files. `frontend/embed.go` carries the built window; the menu bar glyphs moved
 into the package that draws them.
-
-### v0.46.0
-
-Consolidates duplicated code paths — one process-setup function, one duration
-formatter, one set of message keys — and fixes the CLI silently ignoring
-`logging.verbose`, an untranslated headline plural, and an untranslated age column.
-
 
 ## Design decisions
 
