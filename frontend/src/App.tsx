@@ -49,6 +49,10 @@ export default function App() {
   const { t } = useTranslation();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [selected, setSelected] = useState<string>("");
+  // Which volume the selected snapshot is on. Held beside the name because the
+  // name does not identify a copy: the same date exists on every volume mounted
+  // when it was taken, and both can be open at once.
+  const [selectedDevice, setSelectedDevice] = useState<string>("");
   const [path, setPath] = useState<string>("");
   const [tab, setTab] = useState<Tab>("browse");
   // Opening on home rather than on a snapshot: the first question is whether this
@@ -98,9 +102,6 @@ export default function App() {
 
   useEffect(() => {
     void refresh();
-    // Browsing starts in the home folder, which is where the things worth
-    // recovering usually live.
-    Browse.Home().then(setPath).catch(() => setPath("/Users"));
     Status.Check()
       .then((h) => {
         setFaking(h.faking);
@@ -128,13 +129,32 @@ export default function App() {
     overview?.volumes?.length
       ? overview.volumes
       : [{ name: "", mountPoint: "", device: "", isStartupDisk: true, snapshots, freeBytes: 0, totalBytes: 0 }];
-  const startupDevice = groups.find((g) => g.isStartupDisk)?.device ?? "";
   const total = groups.reduce((n, g) => n + g.snapshots.length, 0);
   // Identity of one COPY, for the row key and the delete confirmation. The name
   // repeats across volumes, so confirming by name alone would arm every volume's
   // row for that date at once.
   const copyID = (device: string, name: string) => `${device}/${name}`;
-  const current = snapshots.find((s) => s.name === selected) ?? null;
+
+  // Selecting a snapshot on another volume means browsing that volume, so where
+  // browsing starts moves with it: a home directory on the startup disk, and the
+  // volume's own root anywhere else, since another disk has no home directory and
+  // starting at one would open an empty listing that reads as an empty snapshot.
+  useEffect(() => {
+    let live = true;
+    Browse.Home(selectedDevice)
+      .then((home) => live && setPath(home))
+      .catch(() => live && setPath("/Users"));
+    return () => {
+      live = false;
+    };
+  }, [selectedDevice]);
+  // Across every group, not the startup disk's list: a snapshot on another volume
+  // is selectable too, and looking it up in one volume's list would find nothing
+  // and leave the browser showing the last thing that was open.
+  const current =
+    groups.flatMap((g) => g.snapshots).find((s) => s.name === selected && s.device === selectedDevice) ??
+    snapshots.find((s) => s.name === selected) ??
+    null;
 
   const act = (fn: () => Promise<unknown>, done: string) => run(fn, done, refresh);
 
@@ -154,8 +174,9 @@ export default function App() {
     // longer exists shows an empty browser under a heading naming something that
     // is gone. Only the startup disk's rows are ever selected, so only they can
     // be the one being pointed at.
-    if (snapshot.device === startupDevice && snapshot.name === selected) {
+    if (snapshot.device === selectedDevice && snapshot.name === selected) {
       setSelected("");
+      setSelectedDevice("");
       setView("home");
     }
     // By volume and identifier, not by date. The same date exists on every volume
@@ -287,8 +308,8 @@ export default function App() {
             {group.snapshots.map((snapshot) => (
               <li
                 key={copyID(snapshot.device, snapshot.name)}
-                className={`${group.isStartupDisk && snapshot.name === selected ? "selected" : ""} ${snapshot.mounted ? "mounted" : ""} ${group.isStartupDisk ? "" : "read-only"}`}
-                onClick={() => group.isStartupDisk && (setSelected(snapshot.name), setView("snapshots"))}
+                className={`${snapshot.name === selected && snapshot.device === selectedDevice ? "selected" : ""} ${snapshot.mounted ? "mounted" : ""}`}
+                onClick={() => (setSelected(snapshot.name), setSelectedDevice(snapshot.device), setView("snapshots"))}
               >
                 <div className="when">
                   <span className="dot" title={snapshot.mounted ? t("app.isOpen") : t("app.notOpen")} />
@@ -423,6 +444,7 @@ export default function App() {
               it is opened for one file and closed again. */}
           {diffFile && current && (
             <FileDiff
+              device={selectedDevice}
               snapshot={current.name}
               livePath={diffFile}
               snapshots={snapshots}

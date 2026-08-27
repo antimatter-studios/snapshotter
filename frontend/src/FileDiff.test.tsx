@@ -42,19 +42,19 @@ afterEach(() => vi.restoreAllMocks());
 describe("comparing one file", () => {
   it("compares against the live disk to begin with", async () => {
     const read = vi.spyOn(Diff, "FileVersions").mockResolvedValue(text() as never);
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     await waitFor(() => expect(read).toHaveBeenCalledOnce());
     // An empty target means the disk, which is the default rather than a special
     // case.
-    expect(read).toHaveBeenCalledWith("snap-a", "/Users/someone/notes.md", "");
+    expect(read).toHaveBeenCalledWith("", "snap-a", "/Users/someone/notes.md", "");
   });
 
   // Only mounted snapshots can be read from, and comparing the left side with
   // itself has no answer to give.
   it("offers only the other mounted snapshots as targets", async () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(text() as never);
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     await screen.findByRole("combobox");
     const offered = screen.getAllByRole("option").map((o) => (o as HTMLOptionElement).value);
@@ -67,13 +67,13 @@ describe("comparing one file", () => {
 
   it("reads both versions again when the target changes", async () => {
     const read = vi.spyOn(Diff, "FileVersions").mockResolvedValue(text() as never);
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     await waitFor(() => expect(read).toHaveBeenCalledOnce());
     await userEvent.selectOptions(screen.getByRole("combobox"), "snap-b");
 
     await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
-    expect(read).toHaveBeenLastCalledWith("snap-a", "/Users/someone/notes.md", "snap-b");
+    expect(read).toHaveBeenLastCalledWith("", "snap-a", "/Users/someone/notes.md", "snap-b");
   });
 
   // A full-width panel with only a mouse target to leave by is a panel people
@@ -81,7 +81,7 @@ describe("comparing one file", () => {
   it("closes on Escape", async () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(text() as never);
     const closed = vi.fn();
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={closed} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={closed} />);
 
     await screen.findByRole("combobox");
     await userEvent.keyboard("{Escape}");
@@ -96,7 +96,7 @@ describe("comparing one file", () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(
       text({ kind: "absent", readable: false, leftExists: false, rightExists: false }) as never,
     );
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     expect(await screen.findByText(/nothing to compare/i)).toBeTruthy();
   });
@@ -108,14 +108,14 @@ describe("comparing one file", () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(
       text({ kind: "binary", readable: false, note: "this looks like a binary file", leftSize: 2100000, rightSize: 2400000 }) as never,
     );
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/thing.bin" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/thing.bin" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     expect(await screen.findByText(/binary file/i)).toBeTruthy();
     expect(screen.getByText(/2\.0 MB/)).toBeTruthy();
   });
   it("says a whole side was added rather than showing an empty pane", async () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(text({ leftExists: false, left: "" }) as never);
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/new.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/new.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     // A file that is not in the snapshot presents as every line added, which is
     // true but unhelpful: what happened is that the file is newer than the
@@ -125,7 +125,7 @@ describe("comparing one file", () => {
 
   it("says a whole side was removed", async () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(text({ rightExists: false, right: "" }) as never);
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     // The case someone browsing a snapshot is most often here to find.
     expect(await screen.findByText(/removed|deleted|no longer/i)).toBeTruthy();
@@ -135,7 +135,7 @@ describe("comparing one file", () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(
       text({ kind: "image", leftImage: "data:image/png;base64,AAAA", rightImage: "data:image/png;base64,AAAA" }) as never,
     );
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/shot.png" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/shot.png" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     // A line-by-line comparison has nothing to say about a screenshot.
     await waitFor(() => expect(document.querySelector(".image-diff")).not.toBeNull());
@@ -143,7 +143,7 @@ describe("comparing one file", () => {
 
   it("says why the versions could not be read", async () => {
     vi.spyOn(Diff, "FileVersions").mockRejectedValue(new Error("the snapshot is no longer mounted"));
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     expect(await screen.findByText(/no longer mounted/)).toBeTruthy();
     // And not still claiming to be reading, which is what an error left the panel
@@ -153,7 +153,7 @@ describe("comparing one file", () => {
 
   it("says it is reading before either version arrives", async () => {
     vi.spyOn(Diff, "FileVersions").mockReturnValue(new Promise(() => {}) as never);
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     // Reading two versions of a large file off a mounted snapshot is not instant,
     // and a blank panel reads as a file with nothing in it.
@@ -165,14 +165,15 @@ describe("comparing one file", () => {
   it("falls back to the live disk when the chosen target goes away", async () => {
     const read = vi.spyOn(Diff, "FileVersions").mockResolvedValue(text() as never);
     const { rerender } = render(
-      <FileDiff snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />,
+      <FileDiff device="" snapshot="snap-a" livePath="/Users/someone/notes.md" snapshots={snapshots} dark={false} onClose={() => {}} />,
     );
     await waitFor(() => expect(read).toHaveBeenCalled());
     await userEvent.selectOptions(screen.getByRole("combobox"), "snap-b");
-    await waitFor(() => expect(read).toHaveBeenLastCalledWith("snap-a", "/Users/someone/notes.md", "snap-b"));
+    await waitFor(() => expect(read).toHaveBeenLastCalledWith("", "snap-a", "/Users/someone/notes.md", "snap-b"));
 
     rerender(
       <FileDiff
+        device=""
         snapshot="snap-a"
         livePath="/Users/someone/notes.md"
         snapshots={snapshots.filter((s) => s.name !== "snap-b")}
@@ -182,7 +183,7 @@ describe("comparing one file", () => {
     );
 
     // The empty string is the live disk, which is always readable.
-    await waitFor(() => expect(read).toHaveBeenLastCalledWith("snap-a", "/Users/someone/notes.md", ""));
+    await waitFor(() => expect(read).toHaveBeenLastCalledWith("", "snap-a", "/Users/someone/notes.md", ""));
   });
 });
 
@@ -195,7 +196,7 @@ describe("naming the side being compared against", () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(
       text({ rightExists: false, right: "", rightLabel: "" }) as never,
     );
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     expect(await screen.findByText(/The live disk|the live disk/)).toBeTruthy();
   });
@@ -206,7 +207,7 @@ describe("naming the side being compared against", () => {
     );
     await i18n.changeLanguage("de");
     try {
-      render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+      render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
       // Whatever German calls it, it is not this.
       const german = await screen.findByText(new RegExp(i18n.t("diff.theLiveDisk")));
@@ -221,7 +222,7 @@ describe("naming the side being compared against", () => {
     vi.spyOn(Diff, "FileVersions").mockResolvedValue(
       text({ rightExists: false, right: "", rightLabel: "2026-08-18-120000" }) as never,
     );
-    render(<FileDiff snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
+    render(<FileDiff device="" snapshot="snap-a" livePath="/Users/someone/gone.md" snapshots={snapshots} dark={false} onClose={() => {}} />);
 
     // A stamp reads the same in every language, which is why the service returns
     // one rather than a phrase.

@@ -15,6 +15,9 @@ import "./i18n";
 const snapshot = {
   name: "com.apple.TimeMachine.2026-08-20-120000.local",
   stamp: "2026-08-20-120000",
+  // The startup disk, which is what an empty volume means. The real service
+  // always sends one, so a fixture without it tests a shape that never occurs.
+  device: "",
   taken: "2026-08-20T12:00:00Z",
   mounted: true,
   mountPoint: "/tmp/mnt",
@@ -170,7 +173,7 @@ describe("what has gone since the snapshot", () => {
 
     // Seeded from where they already are, because that is the folder someone
     // noticing an absence has just been looking at.
-    await waitFor(() => expect(asked).toHaveBeenCalledWith(snapshot.name, "/Users/someone/projects", false));
+    await waitFor(() => expect(asked).toHaveBeenCalledWith(snapshot.device, snapshot.name, "/Users/someone/projects", false));
   });
 
   it("lists what the folder held and holds no longer", async () => {
@@ -225,7 +228,7 @@ describe("what has gone since the snapshot", () => {
     await userEvent.click(screen.getByRole("checkbox"));
     await userEvent.click(screen.getByRole("button", { name: /^look$/i }));
 
-    await waitFor(() => expect(asked).toHaveBeenCalledWith(snapshot.name, "/Users/someone", true));
+    await waitFor(() => expect(asked).toHaveBeenCalledWith(snapshot.device, snapshot.name, "/Users/someone", true));
   });
 
   it("says a snapshot is needed rather than offering to look in none", async () => {

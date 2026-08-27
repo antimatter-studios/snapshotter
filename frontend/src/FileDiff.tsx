@@ -25,12 +25,17 @@ import { ImageDiff } from "./ImageDiff";
  * 2.4 MB" is a real answer about a photograph.
  */
 export function FileDiff({
+  device,
   snapshot,
   livePath,
   snapshots,
   dark,
   onClose,
 }: {
+  /** The volume the snapshot is on, empty for the startup disk. A snapshot name
+   *  does not identify a copy: the same date exists on every volume that was
+   *  mounted when it was taken. */
+  device: string;
   snapshot: string;
   livePath: string;
   /** Every snapshot the window knows about; only the mounted ones can be targets. */
@@ -57,10 +62,10 @@ export function FileDiff({
   useEffect(() => {
     setVersions(null);
     setError("");
-    Diff.FileVersions(snapshot, livePath, chosen)
+    Diff.FileVersions(device, snapshot, livePath, chosen)
       .then(setVersions)
       .catch((err) => setError(message(err)));
-  }, [snapshot, livePath, chosen]);
+  }, [device, snapshot, livePath, chosen]);
 
   // Escape closes it. A full-width panel with only a mouse target to leave by is
   // a panel people feel stuck in.

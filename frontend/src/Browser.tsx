@@ -46,7 +46,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     setBusy(true);
     setError("");
     try {
-      const merged = await Browse.Merged(snapshot.name, path, showIdentical);
+      const merged = await Browse.Merged(snapshot?.device ?? "", snapshot.name, path, showIdentical);
       setListing(merged);
 
       // Each folder is asked about on its own and fills in when it answers, a few
@@ -65,7 +65,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
         while (next < folders.length) {
           const row = folders[next++];
           try {
-            const verdict = await Browse.DirectoryStatus(snapshot.name, row.absLive);
+            const verdict = await Browse.DirectoryStatus(snapshot?.device ?? "", snapshot.name, row.absLive);
             // Dropped if the listing moved on: answers about a folder nobody is
             // looking at any more are worse than useless, because they would
             // overwrite the ones for the folder they are.
@@ -113,6 +113,10 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     try {
       const result = await Restore.Restore({
         snapshot: snapshot.name,
+        // Restoring from the copy on the volume being browsed. The same date on
+        // another disk is a different file, and writing it here would put one
+        // disk's contents over another's.
+        device: snapshot.device,
         livePath: row.absLive,
         replace,
       });
@@ -152,7 +156,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
             <input type="checkbox" checked={showIdentical} onChange={(e) => setShowIdentical(e.target.checked)} />
             {t("browser.showIdentical")}
           </label>
-          <button onClick={() => Browse.RevealInFinder(snapshot.name, path).catch((e) => setError(message(e)))}>
+          <button onClick={() => Browse.RevealInFinder(snapshot?.device ?? "", snapshot.name, path).catch((e) => setError(message(e)))}>
             {t("browser.revealInFinder")}
           </button>
         </div>

@@ -60,6 +60,10 @@ func NewDiffService(d Deps) *DiffService { return &DiffService{Deps: d} }
 // CompareRequest is one comparison.
 type CompareRequest struct {
 	Snapshot string `json:"snapshot"`
+	// Device names the volume the snapshot is on, empty meaning the startup disk.
+	// A snapshot name does not say: the same date exists on every volume mounted
+	// when it was taken.
+	Device string `json:"device"`
 	// LivePath is the folder to compare, in the running system's terms.
 	LivePath string `json:"livePath"`
 	// Deep compares contents by hash instead of size and timestamp. It is
@@ -71,7 +75,7 @@ type CompareRequest struct {
 
 // Compare walks the snapshot and the live disk and returns the differences.
 func (d *DiffService) Compare(ctx context.Context, req CompareRequest) (diffs.Result, error) {
-	_, snapshotDir, err := d.mountedSide(req.Snapshot, req.LivePath)
+	_, snapshotDir, err := d.mountedSide(req.Device, req.Snapshot, req.LivePath)
 	if err != nil {
 		return diffs.Result{}, err
 	}
@@ -91,6 +95,10 @@ func (d *DiffService) Compare(ctx context.Context, req CompareRequest) (diffs.Re
 type CompareSnapshotsRequest struct {
 	Older string `json:"older"`
 	Newer string `json:"newer"`
+	// Device names the volume BOTH snapshots are on. Comparing across volumes is
+	// not offered: the two would be different trees, and the differences reported
+	// would be between two disks rather than between two moments.
+	Device string `json:"device"`
 	// LivePath is the folder to compare, in the running system's terms. Both
 	// sides are translated from it, so the same place in the tree is compared in
 	// each snapshot however their mountpoints differ.
@@ -162,8 +170,8 @@ func (d *DiffService) CompareSnapshots(ctx context.Context, req CompareSnapshots
 		older, newer = newer, older
 	}
 
-	olderSide, olderDir, olderErr := d.mountedSide(older.Name, req.LivePath)
-	newerSide, newerDir, newerErr := d.mountedSide(newer.Name, req.LivePath)
+	olderSide, olderDir, olderErr := d.mountedSide(req.Device, older.Name, req.LivePath)
+	newerSide, newerDir, newerErr := d.mountedSide(req.Device, newer.Name, req.LivePath)
 	// Both sides are resolved before either failure is reported, so somebody with
 	// neither snapshot open is told both dates at once instead of opening one and
 	// being sent straight back for the other. Join keeps errors.Is working, so a
@@ -207,19 +215,23 @@ func (e *errNotMountedSide) Is(target error) bool { return target == errNotMount
 // mountedSide resolves one end of a comparison: the snapshot named, and the
 // directory inside its mount that holds livePath. Every comparison goes through
 // it, so a missing mount is refused identically whichever side it is on.
-func (d *DiffService) mountedSide(name, livePath string) (SnapshotView, string, error) {
+func (d *DiffService) mountedSide(device, name, livePath string) (SnapshotView, string, error) {
 	snap, ok := apfs.ParseName(name)
 	if !ok {
 		return SnapshotView{}, "", fmt.Errorf("%q is not a snapshot", name)
 	}
-	mounted, err := d.Mounts.IsMounted(snap.Name)
+	mounts, err := d.mountsFor(context.Background(), device)
+	if err != nil {
+		return SnapshotView{}, "", err
+	}
+	mounted, err := mounts.IsMounted(snap.Name)
 	if err != nil {
 		return SnapshotView{}, "", err
 	}
 	if !mounted {
 		return SnapshotView{}, "", &errNotMountedSide{stamp: snap.Stamp}
 	}
-	mountPoint, err := d.Mounts.MountPoint(snap.Name)
+	mountPoint, err := mounts.MountPoint(snap.Name)
 	if err != nil {
 		return SnapshotView{}, "", err
 	}
@@ -394,10 +406,10 @@ const maxImageBytes = 8 << 20
 // This is the question the tree comparison never answered: it produced a list of
 // paths that had changed, which tells someone where to look and nothing about
 // what they would find there.
-func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string) (FileVersions, error) {
+func (d *DiffService) FileVersions(device, snapshotName, livePath, targetSnapshot string) (FileVersions, error) {
 	var out FileVersions
 
-	_, leftPath, err := d.mountedSide(snapshotName, livePath)
+	_, leftPath, err := d.mountedSide(device, snapshotName, livePath)
 	if err != nil {
 		return out, err
 	}
@@ -412,7 +424,9 @@ func (d *DiffService) FileVersions(snapshotName, livePath, targetSnapshot string
 		if targetSnapshot == snapshotName {
 			return out, fmt.Errorf("services: %s cannot be compared with itself", snapshotName)
 		}
-		view, path, err := d.mountedSide(targetSnapshot, livePath)
+		// The same volume: comparing one moment on this disk against another on a
+		// different disk would report the difference between two disks.
+		view, path, err := d.mountedSide(device, targetSnapshot, livePath)
 		if err != nil {
 			return out, err
 		}

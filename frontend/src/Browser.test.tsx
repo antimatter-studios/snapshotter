@@ -21,6 +21,9 @@ const snapshot: SnapshotView = {
   taken: "2026-08-20T12:00:00Z",
   mounted: true,
   mountPoint: "/tmp/mnt",
+  // The startup disk, which is what an empty volume means. The real service
+  // always sends one, so a fixture without it tests a shape that never occurs.
+  device: "",
 } as SnapshotView;
 
 function row(name: string, isDir: boolean, status = "notExamined") {
@@ -100,7 +103,7 @@ describe("browsing a folder", () => {
     render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
 
     await waitFor(() => expect(asked).toHaveBeenCalledOnce());
-    expect(asked).toHaveBeenCalledWith(snapshot.name, "/Users/someone/projects");
+    expect(asked).toHaveBeenCalledWith(snapshot.device, snapshot.name, "/Users/someone/projects");
   });
 
   // Every file row offers it. The panel and the service shipped in v0.22.0 with
@@ -121,7 +124,9 @@ describe("browsing a folder", () => {
   // only becomes identical once its own walk answers.
   it("hides folders that turn out identical once the toggle is off", async () => {
     mount([row("projects", true), row("archive", true)]);
-    vi.spyOn(Browse, "DirectoryStatus").mockImplementation((async (_n: string, path: string) =>
+    // The volume comes first now: a snapshot name does not identify a copy, since
+    // the same date exists on every volume that was mounted when it was taken.
+    vi.spyOn(Browse, "DirectoryStatus").mockImplementation((async (_device: string, _n: string, path: string) =>
       path.endsWith("archive") ? { status: "same", why: "" } : { status: "modified", why: "" }) as never);
 
     render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);

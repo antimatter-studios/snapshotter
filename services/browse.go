@@ -41,14 +41,14 @@ type Listing struct {
 // place a faked snapshot differs from the live disk. Opening on the home folder
 // instead would show a wall of identical rows and look like the comparison was
 // broken.
-func (b *BrowseService) Home() string {
-	if b.Faking && b.FakeSeed != "" {
-		return b.FakeSeed
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		return home
-	}
-	return "/Users"
+// Home is where browsing a volume starts: the home directory on the startup disk,
+// and the volume's own root anywhere else.
+//
+// Another volume has no home directory, and the whole of it is what someone
+// plugged in to look at. Starting at a home path that does not exist there would
+// open an empty listing and look like an empty snapshot.
+func (b *BrowseService) Home(device string) string {
+	return b.rootFor(context.Background(), device)
 }
 
 // ListLive reads a directory on the running system.
@@ -68,10 +68,10 @@ func (b *BrowseService) ListLive(livePath string) (Listing, error) {
 // ListSnapshot reads a directory as it was when the snapshot was taken. Paths
 // are given and returned in live terms; the mapping to the mountpoint is
 // internal.
-func (b *BrowseService) ListSnapshot(snapshotName, livePath string) (Listing, error) {
+func (b *BrowseService) ListSnapshot(device, snapshotName, livePath string) (Listing, error) {
 	out := Listing{LivePath: filepath.Clean(livePath), Parent: parentOf(livePath), Covered: true}
 
-	mountPoint, err := b.mountPointOf(snapshotName)
+	mountPoint, err := b.mountPointOf(device, snapshotName)
 	if err != nil {
 		return out, err
 	}
@@ -117,10 +117,10 @@ type MergedListing struct {
 // Merged reads a folder from the snapshot and from the live disk and returns
 // the two combined. It reads two directories and never descends, so it stays
 // immediate however large the tree below is; Compare is the recursive answer.
-func (b *BrowseService) Merged(snapshotName, livePath string, includeSame bool) (MergedListing, error) {
+func (b *BrowseService) Merged(device, snapshotName, livePath string, includeSame bool) (MergedListing, error) {
 	out := MergedListing{LivePath: filepath.Clean(livePath), Parent: parentOf(livePath)}
 
-	mountPoint, err := b.mountPointOf(snapshotName)
+	mountPoint, err := b.mountPointOf(device, snapshotName)
 	if err != nil {
 		return out, err
 	}
@@ -200,10 +200,10 @@ func (b *BrowseService) Locate(ctx context.Context, livePath string) ([]Presence
 
 // RevealInFinder opens a path in the Finder. Snapshots are mounted nobrowse, so
 // this is how a mounted snapshot is opened in a normal file window.
-func (b *BrowseService) RevealInFinder(snapshotName, livePath string) error {
+func (b *BrowseService) RevealInFinder(device, snapshotName, livePath string) error {
 	target := livePath
 	if snapshotName != "" {
-		mountPoint, err := b.mountPointOf(snapshotName)
+		mountPoint, err := b.mountPointOf(device, snapshotName)
 		if err != nil {
 			return err
 		}
@@ -216,15 +216,25 @@ func (b *BrowseService) RevealInFinder(snapshotName, livePath string) error {
 }
 
 // mountPointOf returns where a snapshot is mounted, refusing when it is not.
-func (b *BrowseService) mountPointOf(snapshotName string) (string, error) {
-	mounted, err := b.Mounts.IsMounted(snapshotName)
+// device names the volume the snapshot is on, empty meaning the startup disk.
+//
+// It has to be asked for rather than worked out. The same date exists on every
+// volume mounted when it was taken, and both copies can be attached at once — so
+// a snapshot name alone does not say which mountpoint to read, and guessing would
+// show someone another disk's files under the row they opened.
+func (b *BrowseService) mountPointOf(device, snapshotName string) (string, error) {
+	mounts, err := b.mountsFor(context.Background(), device)
+	if err != nil {
+		return "", err
+	}
+	mounted, err := mounts.IsMounted(snapshotName)
 	if err != nil {
 		return "", err
 	}
 	if !mounted {
 		return "", errors.New("this snapshot is not mounted yet")
 	}
-	return b.Mounts.MountPoint(snapshotName)
+	return mounts.MountPoint(snapshotName)
 }
 
 func parentOf(path string) string {
@@ -256,7 +266,7 @@ type FolderVerdict struct {
 	Why string `json:"why,omitempty"`
 }
 
-func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (FolderVerdict, error) {
+func (b *BrowseService) DirectoryStatus(device, snapshotName, livePath string) (FolderVerdict, error) {
 	// Remembered from last time unless the disk has been touched since.
 	//
 	// Browsing asks this constantly: open a folder, look inside, come back, and
@@ -269,7 +279,7 @@ func (b *BrowseService) DirectoryStatus(snapshotName, livePath string) (FolderVe
 		}
 	}
 
-	mountPoint, err := b.mountPointOf(snapshotName)
+	mountPoint, err := b.mountPointOf(device, snapshotName)
 	if err != nil {
 		return FolderVerdict{Status: string(diffs.NotExamined), Why: err.Error()}, err
 	}

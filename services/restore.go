@@ -23,6 +23,12 @@ func NewRestoreService(d Deps) *RestoreService { return &RestoreService{Deps: d}
 // RestoreRequest asks for one path to be brought back.
 type RestoreRequest struct {
 	Snapshot string `json:"snapshot"`
+	// Device names the volume the snapshot is on, empty meaning the startup disk.
+	//
+	// The snapshot name does not say: the same date exists on every volume mounted
+	// when it was taken, and both copies can be attached at once. Restoring from
+	// the wrong one would write another disk's file over this one's.
+	Device string `json:"device"`
 	// LivePath is where the file belongs. In the default mode the restored
 	// copy lands beside it rather than on it.
 	LivePath string `json:"livePath"`
@@ -39,14 +45,18 @@ func (r *RestoreService) Restore(ctx context.Context, req RestoreRequest) (resto
 	if !ok {
 		return out, errors.New("that is not a snapshot")
 	}
-	mounted, err := r.Mounts.IsMounted(req.Snapshot)
+	mounts, err := r.mountsFor(ctx, req.Device)
+	if err != nil {
+		return out, err
+	}
+	mounted, err := mounts.IsMounted(req.Snapshot)
 	if err != nil {
 		return out, err
 	}
 	if !mounted {
 		return out, errNotMounted
 	}
-	mountPoint, err := r.Mounts.MountPoint(req.Snapshot)
+	mountPoint, err := mounts.MountPoint(req.Snapshot)
 	if err != nil {
 		return out, err
 	}

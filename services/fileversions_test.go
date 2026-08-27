@@ -49,7 +49,7 @@ func TestBothVersionsOfAnEditedFileComeBack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, live, "")
+	got, err := svc.FileVersions("", browseSnapshot, live, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestBothVersionsOfAnEditedFileComeBack(t *testing.T) {
 func TestABinaryFileIsNotOfferedAsText(t *testing.T) {
 	svc, seed := fileFixture(t)
 
-	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "picture.bin"), "")
+	got, err := svc.FileVersions("", browseSnapshot, filepath.Join(seed, "picture.bin"), "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestAFileCreatedSinceTheSnapshotShowsAsAllAdded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, live, "")
+	got, err := svc.FileVersions("", browseSnapshot, live, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestAFileCreatedSinceTheSnapshotShowsAsAllAdded(t *testing.T) {
 func TestAFileInNeitherVersionHasNothingToShow(t *testing.T) {
 	svc, seed := fileFixture(t)
 
-	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "never-existed.md"), "")
+	got, err := svc.FileVersions("", browseSnapshot, filepath.Join(seed, "never-existed.md"), "")
 	if err != nil {
 		t.Fatalf("a file existing nowhere was reported as a failure: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestATooLargeFileIsDeclinedRatherThanLoaded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, bigPath, "")
+	got, err := svc.FileVersions("", browseSnapshot, bigPath, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestATooLargeFileIsDeclinedRatherThanLoaded(t *testing.T) {
 func TestTheRightSideCanBeAnotherSnapshot(t *testing.T) {
 	svc, seed := fileFixture(t)
 
-	got, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "notes.md"), browseSnapshot)
+	got, err := svc.FileVersions("", browseSnapshot, filepath.Join(seed, "notes.md"), browseSnapshot)
 	if err == nil {
 		t.Fatal("a snapshot was compared against itself, which has no answer to give")
 	}
@@ -191,7 +191,7 @@ func TestTheRightSideCanBeAnotherSnapshot(t *testing.T) {
 	// An unmounted snapshot has no paths to read, so it is refused rather than
 	// silently falling back to the disk — a fallback would answer a question
 	// nobody asked.
-	if _, err := svc.FileVersions(browseSnapshot, filepath.Join(seed, "notes.md"), "com.apple.TimeMachine.2020-01-01-000000.local"); err == nil {
+	if _, err := svc.FileVersions("", browseSnapshot, filepath.Join(seed, "notes.md"), "com.apple.TimeMachine.2020-01-01-000000.local"); err == nil {
 		t.Error("an unmounted snapshot was accepted as a comparison target")
 	}
 }
@@ -208,7 +208,7 @@ func TestTheRightSideIsNamedByItsStampOrNotAtAll(t *testing.T) {
 	svc, seed := fileFixture(t)
 	live := filepath.Join(seed, "notes.md")
 
-	against, err := svc.FileVersions(browseSnapshot, live, "")
+	against, err := svc.FileVersions("", browseSnapshot, live, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestAPictureComesBackAsAPicture(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, path, "")
+	got, err := svc.FileVersions("", browseSnapshot, path, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestATooLargePictureSaysItCannotBeShown(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, path, "")
+	got, err := svc.FileVersions("", browseSnapshot, path, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -297,7 +297,7 @@ func TestTwoIdenticalPicturesAreReportedAsIdentical(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, path, "")
+	got, err := svc.FileVersions("", browseSnapshot, path, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -327,7 +327,7 @@ func TestATextFileWellPastTheOldCapStillCompares(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, big, "")
+	got, err := svc.FileVersions("", browseSnapshot, big, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -352,7 +352,7 @@ func TestSomethingElseWearingAnImageExtensionIsNotShownAsOne(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, path, "")
+	got, err := svc.FileVersions("", browseSnapshot, path, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}
@@ -373,7 +373,7 @@ func TestAFormatTheSnifferCannotNameIsStillShown(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := svc.FileVersions(browseSnapshot, path, "")
+	got, err := svc.FileVersions("", browseSnapshot, path, "")
 	if err != nil {
 		t.Fatalf("file versions: %v", err)
 	}

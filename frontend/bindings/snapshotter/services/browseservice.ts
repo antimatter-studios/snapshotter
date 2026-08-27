@@ -14,8 +14,8 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
-export function DirectoryStatus(snapshotName: string, livePath: string): $CancellablePromise<$models.FolderVerdict> {
-    return $Call.ByID(638270053, snapshotName, livePath).then(($result: any) => {
+export function DirectoryStatus(device: string, snapshotName: string, livePath: string): $CancellablePromise<$models.FolderVerdict> {
+    return $Call.ByID(638270053, device, snapshotName, livePath).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -27,9 +27,15 @@ export function DirectoryStatus(snapshotName: string, livePath: string): $Cancel
  * place a faked snapshot differs from the live disk. Opening on the home folder
  * instead would show a wall of identical rows and look like the comparison was
  * broken.
+ * Home is where browsing a volume starts: the home directory on the startup disk,
+ * and the volume's own root anywhere else.
+ *
+ * Another volume has no home directory, and the whole of it is what someone
+ * plugged in to look at. Starting at a home path that does not exist there would
+ * open an empty listing and look like an empty snapshot.
  */
-export function Home(): $CancellablePromise<string> {
-    return $Call.ByID(63276391);
+export function Home(device: string): $CancellablePromise<string> {
+    return $Call.ByID(63276391, device);
 }
 
 /**
@@ -46,8 +52,8 @@ export function ListLive(livePath: string): $CancellablePromise<$models.Listing>
  * are given and returned in live terms; the mapping to the mountpoint is
  * internal.
  */
-export function ListSnapshot(snapshotName: string, livePath: string): $CancellablePromise<$models.Listing> {
-    return $Call.ByID(4050716252, snapshotName, livePath).then(($result: any) => {
+export function ListSnapshot(device: string, snapshotName: string, livePath: string): $CancellablePromise<$models.Listing> {
+    return $Call.ByID(4050716252, device, snapshotName, livePath).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -68,8 +74,8 @@ export function Locate(livePath: string): $CancellablePromise<$models.Presence[]
  * the two combined. It reads two directories and never descends, so it stays
  * immediate however large the tree below is; Compare is the recursive answer.
  */
-export function Merged(snapshotName: string, livePath: string, includeSame: boolean): $CancellablePromise<$models.MergedListing> {
-    return $Call.ByID(3217692856, snapshotName, livePath, includeSame).then(($result: any) => {
+export function Merged(device: string, snapshotName: string, livePath: string, includeSame: boolean): $CancellablePromise<$models.MergedListing> {
+    return $Call.ByID(3217692856, device, snapshotName, livePath, includeSame).then(($result: any) => {
         return $$createType4($result);
     });
 }
@@ -78,8 +84,8 @@ export function Merged(snapshotName: string, livePath: string, includeSame: bool
  * RevealInFinder opens a path in the Finder. Snapshots are mounted nobrowse, so
  * this is how a mounted snapshot is opened in a normal file window.
  */
-export function RevealInFinder(snapshotName: string, livePath: string): $CancellablePromise<void> {
-    return $Call.ByID(1913126866, snapshotName, livePath);
+export function RevealInFinder(device: string, snapshotName: string, livePath: string): $CancellablePromise<void> {
+    return $Call.ByID(1913126866, device, snapshotName, livePath);
 }
 
 // Private type creation functions
