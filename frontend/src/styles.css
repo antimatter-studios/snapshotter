@@ -1619,3 +1619,112 @@ button.destructive:hover:not(:disabled) {
   text-align: center;
   color: var(--deleted);
 }
+
+/* The directories the bulk-deletion watcher watches.
+
+   Styled like the ignore list below it because they are two halves of one idea —
+   what is watched, and what inside it is not worth counting — and a reader who
+   has understood one should recognise the other on sight. */
+.watched {
+  margin: 14px 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.watched h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.watched ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.watched li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+/* Shown whole. There is nothing to open to read the rest of a path, and a
+   truncated one is indistinguishable from a different directory. */
+.watched code {
+  font-size: 11px;
+  color: var(--text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+/* What "~/projects" actually resolved to, under the spelling that was typed.
+   Quieter, because it is confirmation rather than the answer — but present,
+   because a home directory that is not where someone assumes is the whole of why
+   a watched directory sees nothing. */
+.watched .resolved {
+  display: block;
+  color: var(--muted);
+}
+
+/* A directory that is not there is not being watched, and nothing else on this
+   screen would say so. */
+.watched .warning {
+  display: block;
+  margin: 0;
+}
+
+.watched button {
+  font-size: 11px;
+  padding: 3px 9px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  flex: 0 0 auto;
+}
+
+.watched button:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* The box that adds one. On the same line as its button, because typing a path
+   and then hunting for the control that accepts it is how a list ends up with a
+   directory in the box and none in the list. */
+.add-directory {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.add-directory label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.add-directory input {
+  font-size: 12px;
+  padding: 5px 8px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.add-directory input:focus {
+  outline: none;
+  border-color: var(--accent);
+}

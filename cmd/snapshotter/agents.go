@@ -7,9 +7,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"os"
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/config"
 	"snapshotter/internal/events"
@@ -62,23 +60,48 @@ func runScheduledSnapshot(ctx context.Context, runner apfs.Runner) error {
 	return nil
 }
 
-// runWatch is the tripwire: it watches the home directory and takes a snapshot
-// as soon as something starts deleting in bulk.
+// runWatch is the tripwire: it watches the directories the settings name and
+// takes a snapshot as soon as something starts deleting in bulk in one of them.
 //
 // It cannot prevent a deletion. FSEvents reports what has already happened, so
 // by the time a removal is seen that file is gone. What it prevents is a
 // deletion running to completion unwitnessed — trip at the two-hundredth file
 // of ten thousand and the rest are still recoverable.
 //
+// It used to watch the whole home directory. That watched ~/Library above all,
+// which deletes in bulk as a matter of routine, so most of what it caught was
+// housekeeping and each catch pinned another whole-volume snapshot on the disk.
+// Now nothing is watched that was not named.
+//
 // Like the scheduled task it needs no privileges, because tmutil asks backupd
 // to do the work.
 func runWatch(ctx context.Context, runner apfs.Runner) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("cannot find the home directory: %w", err)
+	// Read once at startup, before anything else: with no directories there is
+	// nothing to build a watcher around. The tripwire is its own process and
+	// launchd restarts it, so a changed list takes effect on the next run rather
+	// than needing anything clever here.
+	cfg, cerr := config.Load()
+	if cerr != nil {
+		// No fallback to the home directory. A settings file that cannot be read
+		// says nothing about what someone wanted watched, and the old fallback
+		// turned every such failure into watching everything — which is the
+		// behaviour this list exists to end.
+		log.Printf("configuration: %v", cerr)
 	}
 
-	w := watch.New([]string{home}, func(ctx context.Context, where []string) error {
+	roots := cfg.Tripwire.WatchRoots()
+	if len(roots) == 0 {
+		// Idle rather than exit. launchd is asked to keep this alive, so exiting
+		// would have it relaunched every thirty seconds forever, filling the log
+		// with the same line — and someone reading that log would reasonably
+		// conclude the tripwire was broken rather than unconfigured.
+		log.Print("no directories are configured to watch, so nothing is being watched. " +
+			"Add them under \"Watching for bulk deletions\" and install the watcher again.")
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
+	w := watch.New(roots, func(ctx context.Context, where []string) error {
 		snap, err := apfs.Create(ctx, runner)
 		if err != nil {
 			// Recorded even though it failed — especially because it failed. A
@@ -118,23 +141,16 @@ func runWatch(ctx context.Context, runner apfs.Runner) error {
 		}
 		return nil
 	})
-	// Read once at startup. The tripwire is its own process and launchd restarts
-	// it, so a changed ignore list or sensitivity takes effect on the next run
-	// rather than needing anything clever here.
-	if cfg, cerr := config.Load(); cerr == nil {
-		w.Ignore = cfg.Tripwire.Ignore
-		// How many deletions count as a burst. An unrecognised name gives the
-		// default rather than an error: this comes from a file someone may have
-		// typed into, and refusing to watch over a misspelling would trade the
-		// protection for the typo.
-		sensitivity := watch.Sensitivity(cfg.Tripwire.Sensitivity)
-		w.Trigger = watch.NewTrigger(watch.ThresholdFor(sensitivity), 0, 0)
-		if !watch.Known(sensitivity) && cfg.Tripwire.Sensitivity != "" {
-			log.Printf("sensitivity %q is not one this build knows; using %s",
-				cfg.Tripwire.Sensitivity, watch.Balanced)
-		}
-	} else {
-		log.Printf("configuration: %v (watching everything)", cerr)
+	w.Ignore = cfg.Tripwire.Ignore
+	// How many deletions count as a burst, in any ONE of the watched directories.
+	// An unrecognised name gives the default rather than an error: this comes from
+	// a file someone may have typed into, and refusing to watch over a misspelling
+	// would trade the protection for the typo.
+	sensitivity := watch.Sensitivity(cfg.Tripwire.Sensitivity)
+	w.Trigger = watch.NewTrigger(watch.ThresholdFor(sensitivity), 0, 0)
+	if !watch.Known(sensitivity) && cfg.Tripwire.Sensitivity != "" {
+		log.Printf("sensitivity %q is not one this build knows; using %s",
+			cfg.Tripwire.Sensitivity, watch.Balanced)
 	}
 	w.Log = log.Printf
 	return w.Run(ctx)

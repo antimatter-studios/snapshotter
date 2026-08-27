@@ -47,6 +47,12 @@ function stub() {
     ],
     "balanced",
   ] as never);
+  // What the watcher watches. Most of these tests are about the schedule and only
+  // need this to not be the real binding, but the default is a machine with
+  // something on the list: an empty one changes what the tripwire section says.
+  vi.spyOn(Config, "WatchedDirectories").mockResolvedValue([
+    { configured: "~/projects", resolved: "/Users/someone/projects", missing: false },
+  ] as never);
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -382,6 +388,114 @@ describe("how sensitive the bulk-deletion watcher is", () => {
     // Choosing a sensitivity for a watcher that is not running is a setting with
     // nothing to apply to, and it says so above the dropdown rather than below it.
     await waitFor(() => expect(screen.getByText(/nothing is being watched for/i)).toBeTruthy());
+  });
+});
+
+// What the watcher watches is the whole of what it watches.
+//
+// It used to watch the entire home directory, with an ignore list chasing
+// whatever had most recently made a noise. ~/Library deletes in bulk as a matter
+// of routine, so the wire tripped constantly and every trip pinned another
+// whole-volume snapshot on the disk. Naming directories is what makes it
+// affordable, which makes this list the most consequential control on the screen.
+describe("choosing what the watcher watches", () => {
+  it("lists the directories being watched", async () => {
+    stub();
+
+    render(<Schedule onStatus={() => {}} />);
+
+    expect(await screen.findByText("~/projects")).toBeTruthy();
+    // And what it resolved to, because a home directory that is not where someone
+    // assumes is the whole of why a watched directory sees nothing.
+    expect(screen.getByText("/Users/someone/projects")).toBeTruthy();
+  });
+
+  it("says so when nothing is being watched", async () => {
+    stub();
+    vi.spyOn(Config, "WatchedDirectories").mockResolvedValue([] as never);
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // An empty list is the state a fresh installation is in, and a screen that
+    // does not say so reads as a watcher that is working.
+    expect(await screen.findByText(/no directories are named/i)).toBeTruthy();
+  });
+
+  it("says when a watched directory is not there", async () => {
+    stub();
+    vi.spyOn(Config, "WatchedDirectories").mockResolvedValue([
+      { configured: "~/gone", resolved: "/Users/someone/gone", missing: true },
+    ] as never);
+
+    render(<Schedule onStatus={() => {}} />);
+
+    // A directory that is not there is not being watched, and nothing else on the
+    // screen would say so.
+    expect(await screen.findByText(/not found/i)).toBeTruthy();
+  });
+
+  it("adds a directory and shows the list it came back with", async () => {
+    stub();
+    const add = vi.spyOn(Config, "WatchDirectory").mockResolvedValue({ config: {} } as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    await screen.findByText("~/projects");
+
+    vi.spyOn(Config, "WatchedDirectories").mockResolvedValue([
+      { configured: "~/projects", resolved: "/Users/someone/projects", missing: false },
+      { configured: "~/Documents", resolved: "/Users/someone/Documents", missing: false },
+    ] as never);
+    await userEvent.type(screen.getByLabelText(/add a directory/i), "~/Documents");
+    await userEvent.click(screen.getByRole("button", { name: /^watch$/i }));
+
+    await waitFor(() => expect(add).toHaveBeenCalledWith("~/Documents"));
+    expect(await screen.findByText("~/Documents")).toBeTruthy();
+  });
+
+  // Typing a path and then hunting for the control that accepts it is how a list
+  // ends up with a directory in the box and none in the list.
+  it("adds the directory when Enter is pressed", async () => {
+    stub();
+    const add = vi.spyOn(Config, "WatchDirectory").mockResolvedValue({ config: {} } as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    await screen.findByText("~/projects");
+
+    await userEvent.type(screen.getByLabelText(/add a directory/i), "~/Documents{Enter}");
+
+    await waitFor(() => expect(add).toHaveBeenCalledWith("~/Documents"));
+  });
+
+  // A rejected path stays in the box to be corrected rather than having to be
+  // typed again, and the reason it was rejected is on screen.
+  it("says why a directory was refused and keeps what was typed", async () => {
+    stub();
+    vi.spyOn(Config, "WatchDirectory").mockRejectedValue(new Error("cannot watch ~/typo: no such file or directory"));
+
+    render(<Schedule onStatus={() => {}} />);
+    await screen.findByText("~/projects");
+
+    const box = screen.getByLabelText(/add a directory/i);
+    await userEvent.type(box, "~/typo{Enter}");
+
+    expect(await screen.findByText(/no such file or directory/i)).toBeTruthy();
+    expect((box as HTMLInputElement).value).toBe("~/typo");
+  });
+
+  // Removing has to be as findable as adding. A list that only grows ends with
+  // the whole home directory on it, which is what this replaced.
+  it("takes a directory off the list", async () => {
+    stub();
+    const remove = vi.spyOn(Config, "UnwatchDirectory").mockResolvedValue({ config: {} } as never);
+
+    render(<Schedule onStatus={() => {}} />);
+    await screen.findByText("~/projects");
+
+    vi.spyOn(Config, "WatchedDirectories").mockResolvedValue([] as never);
+    await userEvent.click(screen.getByRole("button", { name: /stop watching/i }));
+
+    await waitFor(() => expect(remove).toHaveBeenCalledWith("~/projects"));
+    await waitFor(() => expect(screen.queryByText("~/projects")).toBeNull());
   });
 });
 

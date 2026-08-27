@@ -344,6 +344,12 @@
   "status.noTripwire.title": {
     "other": "Nichts überwacht Massenlöschungen"
   },
+  "status.nothingWatched.detail": {
+    "other": "Die Überwachung überwacht nur Verzeichnisse, die Sie benennen, und bisher ist keines benannt. Fügen Sie unter „Massenlöschungen überwachen“ diejenigen hinzu, die nicht reproduzierbare Arbeit enthalten — einen Projektordner, Ihre Dokumente — und richten Sie die Überwachung anschließend ein."
+  },
+  "status.nothingWatched.title": {
+    "other": "Es werden keine Verzeichnisse auf Massenlöschungen überwacht"
+  },
   "status.overdue.detail": {
     "other": "Ein Snapshot war für {{.due}} fällig, der neueste stammt weiterhin von {{.newest}}. Prüfen Sie das Protokoll der geplanten Aufgabe."
   },
@@ -406,5 +412,8 @@
   },
   "tray.takeSnapshot": {
     "other": "Jetzt einen Snapshot erstellen"
+  },
+  "tripwire.nothingToWatch": {
+    "other": "Benennen Sie zuerst mindestens ein zu überwachendes Verzeichnis. Eine mit leerer Liste eingerichtete Überwachung würde sich als laufend melden und nichts überwachen."
   }
 }

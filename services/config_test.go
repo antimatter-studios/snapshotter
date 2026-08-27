@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -170,7 +171,7 @@ func TestAFolderCanBeWatchedAgain(t *testing.T) {
 	if _, err := c.IgnoreFolder("/a/build"); err != nil {
 		t.Fatal(err)
 	}
-	view, err := c.WatchFolder("/a/build/")
+	view, err := c.StopIgnoringFolder("/a/build/")
 	if err != nil {
 		t.Fatalf("watch: %v", err)
 	}
@@ -202,5 +203,177 @@ func TestIgnoringTwiceIsHarmless(t *testing.T) {
 	}
 	if n != 1 {
 		t.Errorf("stored %d times", n)
+	}
+}
+
+// The list of directories the tripwire watches.
+//
+// It is the whole of what the tripwire watches, so everything about how it is
+// added to matters more than an ignore list ever did: what is not on it is not
+// protected, and nothing on screen says so afterwards.
+
+func TestAWatchedDirectoryIsRecorded(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	c := NewConfigService()
+
+	view, err := c.WatchDirectory(dir)
+	if err != nil {
+		t.Fatalf("watch: %v", err)
+	}
+	if !slices.Contains(view.Config.Tripwire.Watch, dir) {
+		t.Errorf("the directory was not added: %v", view.Config.Tripwire.Watch)
+	}
+}
+
+// Stored as it was typed, resolved when it is read. "~/projects" keeps meaning
+// what it says on a machine where the home directory is somewhere else, and the
+// settings file says back what the person wrote.
+func TestATildeDirectoryIsStoredAsWrittenAndResolvedWhenRead(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory")
+	}
+	c := NewConfigService()
+
+	view, err := c.WatchDirectory("~")
+	if err != nil {
+		t.Fatalf("watch: %v", err)
+	}
+	if !slices.Contains(view.Config.Tripwire.Watch, "~") {
+		t.Errorf("stored as %v, want the tilde back", view.Config.Tripwire.Watch)
+	}
+	if roots := view.Config.Tripwire.WatchRoots(); len(roots) != 1 || roots[0] != filepath.Clean(home) {
+		t.Errorf("resolved to %v, want %s", roots, home)
+	}
+}
+
+// A directory that is not there is not watched, and the tripwire cannot say so
+// afterwards without someone reading its log — which nobody does until something
+// has already been lost.
+func TestADirectoryThatIsNotThereIsRefused(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	c := NewConfigService()
+
+	if _, err := c.WatchDirectory(filepath.Join(t.TempDir(), "no-such-directory")); err == nil {
+		t.Error("a directory that does not exist was accepted")
+	}
+	if got := NewConfigService().Get().Config.Tripwire.Watch; len(got) != 0 {
+		t.Errorf("a refused directory was still written: %v", got)
+	}
+}
+
+func TestAFileIsNotADirectoryToWatch(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	file := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := NewConfigService().WatchDirectory(file); err == nil {
+		t.Error("a file was accepted as a directory to watch")
+	}
+}
+
+// Watching the whole disk is what naming directories exists to stop, and a
+// button must not be able to reinstate it in one click.
+func TestTheWholeDiskCannotBeWatchedFromTheWindow(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	c := NewConfigService()
+
+	for _, bad := range []string{"/", "", "   ", "projects"} {
+		if _, err := c.WatchDirectory(bad); err == nil {
+			t.Errorf("%q was accepted", bad)
+		}
+	}
+}
+
+// A second click on the same row is a no-op, not a duplicate: two counters for
+// one directory would each need the full threshold, so a burst would count half
+// as fast as it should.
+func TestWatchingTheSameDirectoryTwiceIsHarmless(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	c := NewConfigService()
+
+	if _, err := c.WatchDirectory(dir); err != nil {
+		t.Fatal(err)
+	}
+	view, err := c.WatchDirectory(dir)
+	if err != nil {
+		t.Errorf("a second click was an error: %v", err)
+	}
+	if n := len(view.Config.Tripwire.Watch); n != 1 {
+		t.Errorf("stored %d times: %v", n, view.Config.Tripwire.Watch)
+	}
+}
+
+func TestADirectoryCanBeTakenOffTheWatchList(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	c := NewConfigService()
+
+	if _, err := c.WatchDirectory(dir); err != nil {
+		t.Fatal(err)
+	}
+	view, err := c.UnwatchDirectory(dir)
+	if err != nil {
+		t.Fatalf("unwatch: %v", err)
+	}
+	if len(view.Config.Tripwire.Watch) != 0 {
+		t.Errorf("it is still watched: %v", view.Config.Tripwire.Watch)
+	}
+}
+
+// The row is shown in one spelling and stored in another, and the button beside
+// it has to remove the row it is beside.
+func TestUnwatchingMatchesTheResolvedDirectoryToo(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory")
+	}
+	c := NewConfigService()
+
+	if _, err := c.WatchDirectory("~"); err != nil {
+		t.Fatal(err)
+	}
+	view, err := c.UnwatchDirectory(home)
+	if err != nil {
+		t.Fatalf("unwatch: %v", err)
+	}
+	if len(view.Config.Tripwire.Watch) != 0 {
+		t.Errorf("the resolved form did not match the stored one: %v", view.Config.Tripwire.Watch)
+	}
+}
+
+// A screen showing only what was typed cannot say that the directory is not
+// there, and a directory that is not there is not being watched.
+func TestTheListSaysWhatIsWatchedAndWhetherItIsThere(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	c := NewConfigService()
+
+	if _, err := c.WatchDirectory(dir); err != nil {
+		t.Fatal(err)
+	}
+	rows := c.WatchedDirectories()
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows, want 1", len(rows))
+	}
+	if rows[0].Configured != dir || rows[0].Resolved == "" {
+		t.Errorf("row = %+v", rows[0])
+	}
+	if rows[0].Missing {
+		t.Error("a directory that exists was reported missing")
+	}
+
+	// Deleted behind the application's back, which is the case worth reporting.
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatal(err)
+	}
+	if rows = c.WatchedDirectories(); len(rows) != 1 || !rows[0].Missing {
+		t.Errorf("a directory that has gone was not reported missing: %+v", rows)
 	}
 }

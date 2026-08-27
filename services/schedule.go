@@ -296,7 +296,15 @@ func (s *ScheduleService) TripwireStatus(ctx context.Context) (TripwireView, err
 }
 
 // InstallTripwire starts the watcher and keeps it started across logins.
+//
+// It refuses when no directories are configured to watch. An installed watcher
+// with an empty list is the worst of both: the Health screen reports it green,
+// launchd restarts it forever, and it is watching nothing. Naming a directory is
+// the whole configuration, so it is a precondition rather than a warning.
 func (s *ScheduleService) InstallTripwire(ctx context.Context) (TripwireView, error) {
+	if cfg, err := config.Load(); err == nil && len(cfg.Tripwire.WatchRoots()) == 0 {
+		return TripwireView{}, errors.New(i18n.T("tripwire.nothingToWatch"))
+	}
 	if err := s.Tripwire.Install(ctx); err != nil {
 		return TripwireView{}, err
 	}
@@ -386,7 +394,10 @@ func (s *ScheduleService) Restore(ctx context.Context) (Restored, error) {
 		}
 	}
 
-	if cfg.Tripwire.Enabled {
+	// The list is part of the intent, not a detail of it: "watch, but nothing"
+	// is not something anyone asked for, and putting a watcher back with an empty
+	// list would install a green tick over a protection that does not exist.
+	if cfg.Tripwire.Enabled && len(cfg.Tripwire.WatchRoots()) > 0 {
 		if st, err := s.Tripwire.Status(ctx); err != nil {
 			failures = append(failures, fmt.Errorf("reading the watcher's state: %w", err))
 		} else if !st.Installed {

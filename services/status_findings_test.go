@@ -34,7 +34,10 @@ func protected(now time.Time) Health {
 		NextDue:           &due,
 		TripwireInstalled: true,
 		TripwireRunning:   true,
-		FreePercent:       42,
+		// A watcher with nothing on its list is not protection, however installed
+		// and running it is, so a protected machine has to have named something.
+		TripwireWatching: 1,
+		FreePercent:      42,
 	}
 }
 
@@ -363,4 +366,54 @@ func findingOfKind(fs []Finding, kind string) *Finding {
 		}
 	}
 	return nil
+}
+
+// A watcher that is installed, running, and watching nothing.
+//
+// This is the state a fresh installation is in, and the one the whole rework
+// creates: the watcher used to watch the entire home directory, which meant most
+// of what it caught was ~/Library tidying up and each catch pinned another
+// whole-volume snapshot on the disk. Now nothing is watched until it is named,
+// and that has to be said — a green screen over an empty list is the silent
+// failure this application exists to avoid.
+func TestAWatcherWithNothingToWatchIsSaidSo(t *testing.T) {
+	now := time.Now()
+	h := protected(now)
+	h.TripwireWatching = 0
+
+	got := findings(h, false, nil, now)
+	f := hasKind(got, KindTripwire)
+	if f == nil {
+		t.Fatalf("a watcher with an empty list said nothing: %v", titles(got))
+	}
+	// Informational, not a warning: nothing is wrong with this machine. Choosing
+	// what to protect is a decision, not a fault.
+	if f.Level != LevelInfo {
+		t.Errorf("level %s, want info — an empty list is a decision not yet made, not a failure", f.Level)
+	}
+	// And no button, because there is no correct one. What to watch is the single
+	// thing this application cannot work out on someone's behalf, and installing
+	// the watcher first would put a tick over nothing.
+	if f.Action != "" {
+		t.Errorf("it offers %q, which would install a watcher with nothing to watch", f.Action)
+	}
+}
+
+// One finding about the watcher, not two. An empty list makes "install it"
+// unanswerable, so it replaces that finding rather than joining it.
+func TestNothingWatchedReplacesTheInstallItFinding(t *testing.T) {
+	now := time.Now()
+	h := protected(now)
+	h.TripwireWatching = 0
+	h.TripwireInstalled, h.TripwireRunning = false, false
+
+	var n int
+	for _, f := range findings(h, false, nil, now) {
+		if f.Kind == KindTripwire {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d findings about the watcher, want 1", n)
+	}
 }

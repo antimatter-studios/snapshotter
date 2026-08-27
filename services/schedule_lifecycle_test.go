@@ -172,6 +172,7 @@ func TestUninstallingStopsTheScheduleAndKeepsTheSnapshots(t *testing.T) {
 func TestTheTripwireInstallsAndUninstalls(t *testing.T) {
 	s := newStack(t, "empty")
 	ctx := context.Background()
+	watching(t, t.TempDir())
 
 	before, err := s.Schedule.TripwireStatus(ctx)
 	if err != nil {
@@ -411,17 +412,18 @@ func TestRestoreInstallsNothingOnAMachineThatNeverAskedForIt(t *testing.T) {
 		t.Error("a schedule appeared on a machine that never asked for one")
 	}
 
-	// The tripwire is the deliberate exception, and this is where that decision
-	// is written down. It costs nothing until something starts deleting in bulk,
-	// and it is the half of the protection that catches what people actually lose
-	// files to — so a fresh installation gets it without having to know it exists.
-	// The schedule is not treated the same way: it takes snapshots on a timer,
-	// which is a thing to opt into.
-	if !restored.Tripwire {
-		t.Error("the tripwire was not installed from the defaults")
+	// The tripwire is not an exception any more, and this is where that decision
+	// is written down. It used to be on by default and watching the whole home
+	// directory, on the reasoning that it costs nothing until it fires — but it
+	// fired constantly, because ~/Library deletes in bulk as a matter of routine,
+	// and every firing pinned another whole-volume snapshot on the disk. It now
+	// watches only what it is told to, and a fresh installation has been told
+	// nothing, so there is nothing to install.
+	if restored.Tripwire {
+		t.Error("a watcher was installed from the defaults, which name no directories")
 	}
-	if after, _ := s.Schedule.TripwireStatus(ctx); !after.Installed {
-		t.Error("the tripwire is on by default but was not installed")
+	if after, _ := s.Schedule.TripwireStatus(ctx); after.Installed {
+		t.Error("a watcher appeared on a machine that never said what to watch")
 	}
 }
 
@@ -430,6 +432,7 @@ func TestRestoreInstallsNothingOnAMachineThatNeverAskedForIt(t *testing.T) {
 func TestRestoreIsQuietWhenThereIsNothingToDo(t *testing.T) {
 	s := newStack(t, "empty")
 	ctx := context.Background()
+	watching(t, t.TempDir())
 
 	if _, err := s.Schedule.Install(ctx, 4, 7); err != nil {
 		t.Fatal(err)
@@ -451,6 +454,7 @@ func TestRestoreIsQuietWhenThereIsNothingToDo(t *testing.T) {
 func TestRestorePutsBackTheTripwire(t *testing.T) {
 	s := newStack(t, "empty")
 	ctx := context.Background()
+	watching(t, t.TempDir())
 
 	if _, err := s.Schedule.InstallTripwire(ctx); err != nil {
 		t.Fatal(err)
@@ -472,5 +476,23 @@ func TestRestorePutsBackTheTripwire(t *testing.T) {
 	}
 	if after, _ := s.Schedule.TripwireStatus(ctx); !after.Installed {
 		t.Error("the tripwire was not put back")
+	}
+}
+
+// watching names a directory for the tripwire to watch.
+//
+// The watcher refuses to install with an empty list — an installed watcher
+// watching nothing reports itself as running and protects nothing — so every test
+// that installs one has to say what it is for.
+func watching(t *testing.T, dirs ...string) {
+	t.Helper()
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("reading the settings: %v", err)
+	}
+	cfg.Tripwire.Watch = dirs
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("saving the settings: %v", err)
 	}
 }

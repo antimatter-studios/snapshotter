@@ -41,20 +41,35 @@ const (
 //
 // It is deliberately separate from the event source: the decision is the part
 // worth testing, and testing it should not require deleting real files.
+//
+// # Counted per watched directory, cooled down across all of them
+//
+// The count is kept per watched directory, so a hundred deletions in ~/projects
+// and a hundred in ~/Documents are two ordinary afternoons rather than one burst.
+// Summing them was how a single global counter behaved, and it meant the
+// threshold got easier to reach the more directories were being watched — the
+// opposite of what adding a directory should do.
+//
+// The cooldown is shared, because an APFS snapshot is of the whole volume: the
+// one taken for ~/projects already covers ~/Documents, and taking a second for it
+// a moment later costs disk and captures nothing new.
 type Trigger struct {
-	// Threshold is how many deletions inside Window constitute a burst.
+	// Threshold is how many deletions inside Window constitute a burst. Applied to
+	// each watched directory separately.
 	Threshold int
 	// Window is how far back a deletion still counts toward the burst.
 	Window time.Duration
-	// Cooldown is the shortest gap between two triggered snapshots.
+	// Cooldown is the shortest gap between two triggered snapshots, across every
+	// watched directory rather than within one.
 	Cooldown time.Duration
 
 	mu sync.Mutex
-	// events holds the burst still inside the window. Each carries the directory
-	// it happened in, not the file: the file is gone and its name is of no use,
+	// events holds the burst still inside the window, keyed by the watched
+	// directory the deletion happened under. Each carries the directory the file
+	// itself was in, not the file: the file is gone and its name is of no use,
 	// whereas "two hundred things vanished from Documents/Invoices" is the whole
 	// of what someone needs to decide whether they did it on purpose.
-	events []deletion
+	events map[string][]deletion
 	last   time.Time
 }
 
@@ -78,37 +93,60 @@ func NewTrigger(threshold int, window, cooldown time.Duration) *Trigger {
 	return &Trigger{Threshold: threshold, Window: window, Cooldown: cooldown}
 }
 
-// Deletion records one observed deletion, in the directory the file was in, and
-// reports whether it completes a burst that should be snapshotted.
+// Deletion records one observed deletion — under watched directory root, in the
+// directory the file itself was in — and reports whether it completes a burst
+// under that root that should be snapshotted.
+//
+// root is the counter this deletion belongs to. Deletions under different roots
+// never add up to one burst; that is the whole point of naming directories rather
+// than watching a home folder.
 //
 // Returning true also starts the cooldown, so a caller that ignores the result
 // still gets correct rate limiting on the next call. When it returns true it also
 // returns where the burst happened, commonest place first — the burst is cleared
 // on the way out, so this is the only chance to ask.
-func (t *Trigger) Deletion(now time.Time, path string) (bool, []string) {
+func (t *Trigger) Deletion(now time.Time, root, path string) (bool, []string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	cutoff := now.Add(-t.Window)
-	kept := t.events[:0]
-	for _, e := range t.events {
-		if e.at.After(cutoff) {
-			kept = append(kept, e)
-		}
+	if t.events == nil {
+		t.events = map[string][]deletion{}
 	}
-	t.events = append(kept, deletion{at: now, dir: filepath.Dir(path)})
+	cutoff := now.Add(-t.Window)
+	// Every root is swept, not only this one. A root that goes quiet mid-burst
+	// would otherwise hold its stale events until it saw another deletion, which
+	// could be never, and the memory with them.
+	for key, events := range t.events {
+		kept := events[:0]
+		for _, e := range events {
+			if e.at.After(cutoff) {
+				kept = append(kept, e)
+			}
+		}
+		if len(kept) == 0 && key != root {
+			delete(t.events, key)
+			continue
+		}
+		t.events[key] = kept
+	}
+	t.events[root] = append(t.events[root], deletion{at: now, dir: filepath.Dir(path)})
 
-	if len(t.events) < t.Threshold {
+	if len(t.events[root]) < t.Threshold {
 		return false, nil
 	}
 	if !t.last.IsZero() && now.Sub(t.last) < t.Cooldown {
 		return false, nil
 	}
 	t.last = now
-	where := placesLocked(t.events)
+	where := placesLocked(t.events[root])
 	// The burst is spent: a snapshot now covers everything still on disk, and
 	// the next one should need a fresh burst rather than the tail of this one.
-	t.events = t.events[:0]
+	//
+	// Every root is cleared, not only this one. The snapshot is of the whole
+	// volume, so it answers for all of them, and leaving another root's part-built
+	// burst in place would let it trip on the next deletion off the back of work
+	// that has already been captured.
+	clear(t.events)
 	return true, where
 }
 
@@ -145,15 +183,16 @@ func placesLocked(events []deletion) []string {
 	return dirs
 }
 
-// Pending reports how many deletions are currently inside the window, which is
-// what an interface would show while a burst is building.
-func (t *Trigger) Pending(now time.Time) int {
+// Pending reports how many deletions are currently inside the window under one
+// watched directory, which is what an interface would show while a burst is
+// building.
+func (t *Trigger) Pending(now time.Time, root string) int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	cutoff := now.Add(-t.Window)
 	n := 0
-	for _, e := range t.events {
+	for _, e := range t.events[root] {
 		if e.at.After(cutoff) {
 			n++
 		}

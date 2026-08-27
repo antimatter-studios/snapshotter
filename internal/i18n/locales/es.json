@@ -344,6 +344,12 @@
   "status.noTripwire.title": {
     "other": "Nada vigila los borrados masivos"
   },
+  "status.nothingWatched.detail": {
+    "other": "El vigilante sólo vigila los directorios que usted indique, y aún no hay ninguno. Añada en «Vigilancia de borrados masivos» los que contengan trabajo que no podría rehacer — una carpeta de proyectos, sus documentos — y después instale el vigilante."
+  },
+  "status.nothingWatched.title": {
+    "other": "No se vigila ningún directorio ante borrados masivos"
+  },
   "status.overdue.detail": {
     "other": "Se esperaba un snapshot a las {{.due}} y el más reciente sigue siendo de {{.newest}}. Revise el registro de la tarea programada."
   },
@@ -406,5 +412,8 @@
   },
   "tray.takeSnapshot": {
     "other": "Crear un snapshot ahora"
+  },
+  "tripwire.nothingToWatch": {
+    "other": "Indique primero al menos un directorio que vigilar. Un vigilante instalado con la lista vacía se declararía en marcha y no vigilaría nada."
   }
 }

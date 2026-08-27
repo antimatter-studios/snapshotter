@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/config"
 	"snapshotter/internal/mountmgr"
 	"snapshotter/internal/schedule"
 	"snapshotter/internal/text"
@@ -124,6 +125,13 @@ type Health struct {
 	// bounds how much of a single deletion you can lose.
 	TripwireInstalled bool `json:"tripwireInstalled"`
 	TripwireRunning   bool `json:"tripwireRunning"`
+	// TripwireWatching is how many directories it is set to watch.
+	//
+	// Reported because zero is a distinct kind of not-working from not-installed,
+	// and the two need different advice: one is a button, the other is a decision
+	// only the person using the machine can make. Without this, a screen offering
+	// "install the watcher" would install one that watches nothing.
+	TripwireWatching int `json:"tripwireWatching"`
 
 	// Faking reports that mounts are simulated and nothing under a mountpoint
 	// is real.
@@ -224,6 +232,9 @@ func (s *StatusService) Check(ctx context.Context) (Health, error) {
 			h.TripwireInstalled, h.TripwireRunning = tw.Installed, tw.Loaded
 		}
 	}
+	if cfg, err := config.Load(); err == nil {
+		h.TripwireWatching = len(cfg.Tripwire.WatchRoots())
+	}
 
 	tm := apfs.DestinationInfo(ctx, s.Runner)
 	conflicts := st.Conflicts
@@ -278,9 +289,16 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		}
 	}
 
-	if !h.TripwireInstalled {
+	// Three states, not two. Nothing to watch is its own finding because it is the
+	// only one whose remedy is not a button: the watcher cannot guess which
+	// directories hold work worth protecting, and installing it before it has been
+	// told would put a green tick over nothing.
+	switch {
+	case h.TripwireWatching == 0:
+		out = append(out, findingNothingWatched())
+	case !h.TripwireInstalled:
 		out = append(out, findingNoTripwire())
-	} else if !h.TripwireRunning {
+	case !h.TripwireRunning:
 		out = append(out, findingTripwireNotRunning())
 	}
 
@@ -360,6 +378,24 @@ func findingScheduleNotRunning() Finding {
 		Kind:   KindSchedule,
 		Detail: i18n.T("status.scheduleNotRunning.detail"),
 		Action: "install-schedule",
+	}
+}
+
+// findingNothingWatched is the tripwire with an empty list of directories.
+//
+// Informational rather than a warning, and deliberately: nothing is wrong with
+// this machine. The watcher watched the whole home directory once and the cost
+// was a snapshot every time ~/Library tidied up, so an empty list is now the
+// starting position and choosing what goes in it is a decision, not a fault.
+//
+// No action, because there is no correct button. What to watch is the one thing
+// this application cannot work out on someone's behalf.
+func findingNothingWatched() Finding {
+	return Finding{
+		Level:  LevelInfo,
+		Title:  i18n.T("status.nothingWatched.title"),
+		Kind:   KindTripwire,
+		Detail: i18n.T("status.nothingWatched.detail"),
 	}
 }
 

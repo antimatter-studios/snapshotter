@@ -344,6 +344,12 @@
   "status.noTripwire.title": {
     "other": "Rien ne surveille les suppressions massives"
   },
+  "status.nothingWatched.detail": {
+    "other": "La surveillance ne surveille que les répertoires que vous nommez, et aucun ne l’est encore. Ajoutez sous « Surveillance des suppressions massives » ceux qui contiennent un travail impossible à refaire — un dossier de projets, vos documents — puis installez la surveillance."
+  },
+  "status.nothingWatched.title": {
+    "other": "Aucun répertoire n’est surveillé contre les suppressions massives"
+  },
   "status.overdue.detail": {
     "other": "Un snapshot était attendu à {{.due}} et le plus récent date toujours de {{.newest}}. Consultez le journal de la tâche planifiée."
   },
@@ -406,5 +412,8 @@
   },
   "tray.takeSnapshot": {
     "other": "Créer un snapshot maintenant"
+  },
+  "tripwire.nothingToWatch": {
+    "other": "Nommez d’abord au moins un répertoire à surveiller. Une surveillance installée avec une liste vide se déclarerait en marche tout en ne surveillant rien."
   }
 }

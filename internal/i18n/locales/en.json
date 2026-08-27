@@ -344,6 +344,12 @@
   "status.noTripwire.title": {
     "other": "Nothing is watching for bulk deletion"
   },
+  "status.nothingWatched.detail": {
+    "other": "The watcher only watches directories you name, and none are named yet. Add the ones holding work you could not reproduce — a projects folder, your documents — under “Watching for bulk deletions”, then install the watcher."
+  },
+  "status.nothingWatched.title": {
+    "other": "No directories are being watched for bulk deletion"
+  },
   "status.overdue.detail": {
     "other": "A snapshot was due at {{.due}} and the newest is still from {{.newest}}. Check the scheduled task's log."
   },
@@ -406,5 +412,8 @@
   },
   "tray.takeSnapshot": {
     "other": "Take a snapshot now"
+  },
+  "tripwire.nothingToWatch": {
+    "other": "Name at least one directory to watch first. A watcher installed with an empty list would report itself as running and watch nothing."
   }
 }

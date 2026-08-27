@@ -281,6 +281,27 @@ export class Tripwire {
     "enabled": boolean;
 
     /**
+     * Watch lists the directories the tripwire watches, and is the whole of what
+     * it watches. Nothing outside them counts, and an empty list means the
+     * tripwire watches nothing at all.
+     *
+     * It used to watch the entire home directory, with an ignore list to quiet the
+     * parts that are not anybody's work. That is the wrong way round. ~/Library is
+     * machine-managed churn by the thousand — caches, container state, mail
+     * indexes, every application's idea of scratch space — so the wire tripped on
+     * deletions nobody had asked about and filled the disk with snapshots of them,
+     * and the ignore list needed to stop it is a list of everything the machine
+     * does, written after each surprise, never finished.
+     *
+     * Naming what to watch instead is both smaller and honest: ~/projects is one
+     * line and it is the thing worth protecting. What is not listed is not
+     * watched, which is a rule someone can hold in their head.
+     *
+     * A leading ~ is expanded, so "~/projects" behaves as written.
+     */
+    "watch": string[];
+
+    /**
      * Ignore lists path fragments whose deletions do not count towards a burst.
      *
      * Without it the wire is tripped by ordinary machine noise: a browser
@@ -292,6 +313,9 @@ export class Tripwire {
      * Matched as substrings of the full path, after ~ is expanded, so a fragment
      * like "/Library/Caches/" covers every application's cache without naming any
      * of them.
+     *
+     * Narrower in scope than it was: it now only has to quiet noise INSIDE a
+     * watched directory, because everything outside one is already not watched.
      */
     "ignore": string[];
 
@@ -311,6 +335,9 @@ export class Tripwire {
         if (!("enabled" in $$source)) {
             this["enabled"] = false;
         }
+        if (!("watch" in $$source)) {
+            this["watch"] = [];
+        }
         if (!("ignore" in $$source)) {
             this["ignore"] = [];
         }
@@ -326,9 +353,13 @@ export class Tripwire {
      */
     static createFrom($$source: any = {}): Tripwire {
         const $$createField1_0 = $$createType7;
+        const $$createField2_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("watch" in $$parsedSource) {
+            $$parsedSource["watch"] = $$createField1_0($$parsedSource["watch"]);
+        }
         if ("ignore" in $$parsedSource) {
-            $$parsedSource["ignore"] = $$createField1_0($$parsedSource["ignore"]);
+            $$parsedSource["ignore"] = $$createField2_0($$parsedSource["ignore"]);
         }
         return new Tripwire($$parsedSource as Partial<Tripwire>);
     }
