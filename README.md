@@ -339,6 +339,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.55.1
+
+A mistyped verb opened a window. `snapshotter health` is not a command and it
+silently launched the application, with only the one-window guard — which
+describes a different problem — saying anything at all. Anything on the command
+line now goes to the command line, which already refused an unknown verb by name.
+`snapshotter --help` is fixed by the same change: it printed Go's usage for the two
+flags the launchd agents are installed with, and never mentioned a command.
+
 ### v0.55.0
 
 The bulk-deletion watcher watches directories you name, and nothing else. It
@@ -404,12 +413,6 @@ counts that divide eight evenly.
 
 The figures at the foot of the home screen use at most four columns, so eight of
 them read as 4+4 rather than 7+1.
-
-### v0.48.0
-
-The low-space warning names the amount and the consequence — "Only 45 GB left —
-old snapshots may start being dropped" — and formats the size the way each
-language writes numbers.
 
 ## Design decisions
 

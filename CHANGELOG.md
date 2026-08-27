@@ -7,6 +7,41 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.55.1 — 2026-08-27
+
+**A mistyped verb opened a window.** `snapshotter health` — which is not a command
+— silently launched the application. Nothing said the verb was wrong: the only
+thing that spoke up was the one-window guard refusing the second copy, which
+describes a different problem and sends the reader looking somewhere else. That is
+how it was found, on a machine that then had two icons in its menu bar.
+
+The cause was `main` asking whether the first argument was a verb this build knew,
+and falling through to the window when it was not. There is no longer a question
+to ask: anything on the command line goes to the command line, which already
+refused an unknown verb by name, in every language, with the real commands listed
+beside it. That code path existed all along and was simply never reached.
+
+`snapshotter --help` is fixed by the same change, and was the same fault one layer
+down. Go's own flag set answers `-h` itself, so it printed the usage for
+`-take-snapshot` and `-watch` — the two flags the launchd agents are installed
+with — and never mentioned a single command. `snapshotter help` was correct all
+along, which is what kept the other spelling hidden. Both now print the same
+thing.
+
+| Command | Before | After |
+| --- | --- | --- |
+| `snapshotter health` | opened a window | `no such command "health"`, exit 2 |
+| `snapshotter --nonsense` | Go's flag error | `no such command "--nonsense"`, exit 2 |
+| `snapshotter --help` | listed two launchd flags | the real help, exit 0 |
+| `snapshotter help` | the real help | unchanged |
+| `snapshotter` | opens the window | unchanged |
+
+The flags the launchd agents are installed with reach their branches unchanged,
+which matters more than the rest of this: installed plists name them, and
+orphaning an agent would take the schedule off a machine silently. Both were run
+against the built binary — the watcher against an empty list, and the scheduled
+task against a scenario runner, so no real snapshot was taken to prove it.
+
 ## v0.55.0 — 2026-08-27
 
 **The bulk-deletion tripwire watches directories you name, and nothing else.** It
