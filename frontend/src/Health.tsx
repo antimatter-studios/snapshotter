@@ -179,6 +179,12 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           </div>
         ))}
 
+        {/* Inside the scrolling body, not after the figures. It was below them,
+            which put it past the panel that is pinned to the bottom of the
+            screen — so a machine with two volumes had a table it could never
+            scroll to. Both of these vary in length, which is what decides where
+            they go: the figures do not, and that is why they stay put. */}
+        <Volumes health={health} />
         <BulkDeletionWarnings />
       </div>
 
@@ -244,8 +250,6 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           <dd>{health.version}</dd>
         </div>
       </dl>
-
-      <Volumes health={health} />
     </div>
   );
 }

@@ -1156,6 +1156,19 @@ pre.log {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* One rule for the space between everything in here, rather than each element
+     bringing its own margin.
+
+     They did bring their own, and one of them brought none: consecutive findings
+     touched, while the sections around them sat 18px apart. The gap someone sees
+     between two things on this screen should not depend on which two things they
+     are, and a container that owns the spacing is how that stops being possible.
+
+     The same 16px .health puts between the verdict, this body and the figures, so
+     the rhythm does not change halfway down. */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .health .facts {
@@ -1171,9 +1184,13 @@ pre.log {
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Bulk deletion warnings: a log, read by scanning one column down. */
+/* Bulk deletion warnings: a log, read by scanning one column down.
+
+   No vertical margin: the spacing between sections belongs to .health-body's gap,
+   and a margin here would add to it rather than replace it — which is how this
+   screen came to have several different spacings in the first place. */
 .warnings {
-  margin: 18px 18px 8px;
+  margin: 0;
 }
 
 .warnings h3 {
@@ -1746,7 +1763,9 @@ button.destructive:hover:not(:disabled) {
    A table rather than more cells in the grid above: the grid answers for the
    startup disk, and these are a list whose length is whatever is plugged in. */
 .volumes {
-  margin-top: 18px;
+  /* Spacing from .health-body's gap, like every other section here. The rule
+     above it stays: it separates two kinds of thing, which is not the same job
+     as the space between them. */
   padding-top: 12px;
   border-top: 1px solid var(--line-soft);
 }

@@ -535,3 +535,54 @@ describe("the volumes being snapshotted", () => {
     expect(await screen.findByText("You are covered")).toBeTruthy();
   });
 });
+
+// Where the varying-length sections live, which is a layout rule with teeth.
+//
+// The figures at the foot of this screen are pinned: on a healthy Mac the middle
+// is nearly empty and on a sick one it is a list that outruns the window, and
+// either way the numbers should stay where the eye last found them. So anything
+// whose length varies has to sit in the part that scrolls — and the volumes table
+// did not. It was placed after the figures, which put it past the pinned panel,
+// where a machine with two volumes had a table it could never reach.
+describe("what scrolls on the health screen", () => {
+  const twoVolumes = [
+    { mountPoint: "/System/Volumes/Data", device: "disk3s1", snapshotCount: 7, purgeableCount: 7, pinningStamp: "", totalBytes: 1000, freeBytes: 500, freePercent: 50 },
+    { mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", snapshotCount: 14, purgeableCount: 14, pinningStamp: "2026-08-26-145013", totalBytes: 1000, freeBytes: 20, freePercent: 2 },
+  ];
+
+  it("keeps the volumes table inside the scrolling body", async () => {
+    check({ volumes: twoVolumes });
+    render(<Health onStatus={() => {}} />);
+
+    await screen.findByText("/Volumes/sdcard256gb");
+    const body = document.querySelector(".health-body")!;
+    const volumes = document.querySelector(".volumes")!;
+    expect(body.contains(volumes)).toBe(true);
+  });
+
+  // And the figures stay out of it, or they scroll away with everything else and
+  // the reason they are pinned is lost.
+  it("keeps the figures outside the scrolling body", async () => {
+    check({ volumes: twoVolumes });
+    render(<Health onStatus={() => {}} />);
+
+    await screen.findByText("/Volumes/sdcard256gb");
+    const body = document.querySelector(".health-body")!;
+    const facts = document.querySelector(".facts")!;
+    expect(body.contains(facts)).toBe(false);
+  });
+
+  // Every section in the body is a direct child of it, so one gap rule governs
+  // the space between all of them. Nesting one inside another would take it out
+  // of that rhythm, which is how this screen came to have several spacings.
+  it("makes every varying section a direct child of the body", async () => {
+    check({ volumes: twoVolumes, findings: [{ level: "warn", kind: "space", title: "A", detail: "a" }, { level: "warn", kind: "schedule", title: "B", detail: "b" }] });
+    render(<Health onStatus={() => {}} />);
+
+    await screen.findByText("/Volumes/sdcard256gb");
+    const body = document.querySelector(".health-body")!;
+    for (const section of document.querySelectorAll(".finding, .volumes, .warnings")) {
+      expect(section.parentElement).toBe(body);
+    }
+  });
+});
