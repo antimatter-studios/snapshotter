@@ -354,6 +354,16 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.58.0
+
+A snapshot on any volume can be opened, not just the startup disk's. The
+privileged helper still keeps an allowlist of what it may read from — it is now
+discovered as root from the machine rather than written down as one constant, so
+a caller may name a volume but not add one. Each volume mounts into its own
+directory, because two volumes' snapshots of the same moment share a date. The
+home screen also gained one spacing rule where it had several, and the volumes
+table moved into the part of it that scrolls.
+
 ### v0.57.1
 
 Grouping the snapshot list moved a wrapper between the sidebar column and the
@@ -433,11 +443,6 @@ have one: what has gone from a folder since a snapshot was taken, deleting a sin
 snapshot, and the bulk-deletion watcher's log. The Full Disk Access instructions
 appear in every language rather than only English, and the notes the service sends
 are translated rather than shipped as English prose for the window to display.
-
-### v0.52.0
-
-The menu bar names the schedule under the coverage strip, so the marks can be read
-against what they are measuring.
 
 ## Design decisions
 

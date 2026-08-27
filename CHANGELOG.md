@@ -7,6 +7,53 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.58.0 — 2026-08-27
+
+**A snapshot on any volume can be opened.** The list has shown every volume's
+snapshots since the last release and only the startup disk's had an Open button,
+which makes a row that reads as broken.
+
+The privileged helper accepted the data volume and nothing else. That was right
+while it was the only volume whose snapshots could be listed, and it no longer
+is: `tmutil localsnapshot` takes no arguments and writes to every mounted APFS
+volume at once.
+
+What has not changed is the reason the check exists — "the volume to read from"
+is exactly the argument you would want to control if you could reach an elevated
+process. So it is still an allowlist. It is now discovered rather than written
+down, and discovered as root, from the machine itself: a caller may name a
+volume, it may not add one. A volume holding no local snapshots is refused like
+any other path, including the sealed system volume, whose only snapshot is
+macOS's own. A machine that cannot be interrogated mounts nothing rather than
+falling back, since a fallback would let an unreadable mount table silently
+narrow what can be opened.
+
+Each volume mounts into a directory named for it. Two volumes' snapshots of the
+same moment share a date and would otherwise share a mountpoint — the second
+landing on top of the first, showing someone another disk's files under the row
+they opened. The data volume keeps the directory it has always used, so upgrading
+does not orphan mounts already attached.
+
+Closing the window unmounts every volume rather than the data volume. A snapshot
+left attached cannot be deleted, and its mountpoint would outlive the window that
+made it with nothing left offering to close it.
+
+Browsing what is inside is still the startup disk's alone, because the browser is
+rooted at a home directory. Another volume's snapshot opens and says where it is
+mounted.
+
+**The home screen has one spacing rule.** Two findings in a row touched while the
+sections around them sat 18px apart: each element brought its own margin and one
+brought none, so the space between two things depended on which two things they
+were. The body owns it now — one gap, the same the screen already used between
+the verdict, the body and the figures.
+
+The volumes table was also in the wrong place, and worse than untidy. It sat
+after the figures, which are pinned to the bottom of the screen, so it rendered
+outside the part that scrolls and a machine with two volumes had a table it could
+never reach. It is in the scrolling body now, where everything whose length
+varies belongs.
+
 ## v0.57.1 — 2026-08-27
 
 **The sidebar stopped scrolling and took the footer off screen.** Grouping the
