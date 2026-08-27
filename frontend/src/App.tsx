@@ -250,6 +250,14 @@ export default function App() {
             </p>
           )}
 
+          {/* One scrolling region holding every group.
+
+              It used to be the list itself, which worked while there was exactly
+              one. Grouping put a wrapper between the column and the list, so the
+              scrolling element was no longer the flex child that had to shrink —
+              the column grew to fit every group instead, and the footer was
+              pushed past the sidebar's own overflow:hidden and out of sight. */}
+          <div className="snapshot-scroll">
           {groups.map((group) => (
             <div className="volume-group" key={group.device || "startup"}>
               {/* Headed only when there is more than one. A single disk needs no
@@ -335,6 +343,7 @@ export default function App() {
           </ul>
             </div>
           ))}
+          </div>
 
           {snapshots.some((s) => !s.mounted) && (
             <button className="wide" onClick={mountAll} disabled={busy}>

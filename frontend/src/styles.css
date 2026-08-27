@@ -424,6 +424,25 @@ main {
 
 /* Snapshot list ----------------------------------------------------------- */
 
+/* The one scrolling region in the sidebar, holding every volume's group.
+
+   min-height:0 is what actually allows it to shrink: a flex item defaults to
+   min-height:auto, which refuses to go below its content and would push the
+   footer out of the column instead of scrolling.
+
+   It is this element rather than the list because there is a list per volume now.
+   With the rule on the lists, each one sized to its own content and the column
+   grew to fit them all — so nothing scrolled, and the footer went past the
+   sidebar's overflow:hidden where it could not be reached at all. */
+.snapshot-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .snapshot-list {
   list-style: none;
   margin: 0;
@@ -431,13 +450,6 @@ main {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  /* The one scrolling region in the sidebar. min-height:0 is what actually allows
-     it to shrink: a flex item defaults to min-height:auto, which refuses to go
-     below its content and would push the footer out of the column instead of
-     scrolling. */
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 .snapshot-list li {
@@ -1796,9 +1808,8 @@ button.destructive:hover:not(:disabled) {
    They are grouped because they are taken that way: `tmutil localsnapshot`
    writes to every mounted APFS volume at once, so a flat list was one volume's
    copies and no sign that the others existed. */
-.volume-group + .volume-group {
-  margin-top: 14px;
-}
+/* Spacing between groups comes from the scrolling container's gap, not from a
+   margin here: a margin would add to it rather than replace it. */
 
 .volume-head {
   display: flex;
