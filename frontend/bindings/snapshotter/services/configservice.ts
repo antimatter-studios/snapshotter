@@ -84,6 +84,23 @@ export function SetTripwireSensitivity(name: string): $CancellablePromise<void> 
 }
 
 /**
+ * StopIgnoringFolder undoes IgnoreFolder.
+ *
+ * Removing is as important as adding: an ignore list nobody can see or shorten is
+ * a list that quietly grows until the tripwire watches nothing, and the failure
+ * is silent by construction.
+ *
+ * Named for what it does to the ignore list rather than "WatchFolder", which it
+ * used to be called. There is now a list of directories the tripwire watches, and
+ * a method called WatchFolder that does not add to it is a trap.
+ */
+export function StopIgnoringFolder(fragment: string): $CancellablePromise<$models.ConfigView> {
+    return $Call.ByID(1262749405, fragment).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * TripwireSensitivities are the settings on offer, coarsest first, and which one
  * is in force.
  */
@@ -95,15 +112,43 @@ export function TripwireSensitivities(): $CancellablePromise<[$models.TripwireSe
 }
 
 /**
- * WatchFolder undoes IgnoreFolder.
+ * UnwatchDirectory takes a directory off the list the tripwire watches.
  *
- * Removing is as important as adding: an ignore list nobody can see or shorten is
- * a list that quietly grows until the tripwire watches nothing, and the failure
- * is silent by construction.
+ * Matched on what it resolves to as well as on how it was written, so a row shown
+ * as "~/projects" is removed by the button beside it whichever of the two forms
+ * the file happens to hold.
  */
-export function WatchFolder(fragment: string): $CancellablePromise<$models.ConfigView> {
-    return $Call.ByID(68344599, fragment).then(($result: any) => {
+export function UnwatchDirectory(dir: string): $CancellablePromise<$models.ConfigView> {
+    return $Call.ByID(2096027625, dir).then(($result: any) => {
         return $$createType0($result);
+    });
+}
+
+/**
+ * WatchDirectory adds a directory to the list the bulk-deletion tripwire watches.
+ *
+ * This is the list that decides what is watched at all. Before it there was one
+ * answer — the whole home directory — and the only control was an ignore list
+ * chasing whatever had most recently made a noise. Naming what to protect is both
+ * smaller and answerable: someone knows which of their directories holds work
+ * they could not reproduce.
+ *
+ * Stored as given, "~" and all, so that the settings file says back what was
+ * typed and keeps meaning it on a machine where the home directory moves. It is
+ * resolved when it is read.
+ */
+export function WatchDirectory(dir: string): $CancellablePromise<$models.ConfigView> {
+    return $Call.ByID(3815344338, dir).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
+ * WatchedDirectories lists what the tripwire is set to watch.
+ */
+export function WatchedDirectories(): $CancellablePromise<$models.WatchedDirectory[]> {
+    return $Call.ByID(1841734381).then(($result: any) => {
+        return $$createType4($result);
     });
 }
 
@@ -111,3 +156,5 @@ export function WatchFolder(fragment: string): $CancellablePromise<$models.Confi
 const $$createType0 = $models.ConfigView.createFrom;
 const $$createType1 = $models.TripwireSensitivity.createFrom;
 const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.WatchedDirectory.createFrom;
+const $$createType4 = $Create.Array($$createType3);

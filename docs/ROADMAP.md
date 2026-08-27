@@ -70,6 +70,18 @@ condition is computed in `findings` but nothing pushes it.
 `internal/watch`. Two hundred removals inside five seconds trips a snapshot, on
 a ten-minute cooldown. Verified against real FSEvents.
 
+**It watches the directories you name, and nothing else.** It used to watch the
+whole home directory with an ignore list to quiet the rest, which is the wrong way
+round: `~/Library` deletes in bulk as a matter of routine, so most of what it
+caught was housekeeping and every catch pinned another whole-volume snapshot on
+the disk. The ignore list needed to stop that is a list of everything the machine
+does, written after each surprise, never finished.
+
+The count is per watched directory and the cooldown is shared. Per directory
+because a single running total made the threshold easier to reach the more
+directories were watched; shared because an APFS snapshot is of the whole volume,
+so the one taken for `~/projects` already covers `~/Documents`.
+
 **It cannot snapshot "before the damage", and the original pitch saying so was
 wrong.** FSEvents reports what has already happened; by the time a removal is
 observed that file is gone. It is a tripwire, not an interlock: it stops a
@@ -82,7 +94,9 @@ Apple-granted entitlement and root. Out of scope.
 
 It runs from its own LaunchAgent (`schedule.Tripwire`), with `KeepAlive` rather
 than `StartInterval` since it runs continuously, so it keeps watching with the
-window closed. Installing it is one button in Health.
+window closed. Installing it is one button in Health — refused while `tripwire.watch`
+is empty, because an installed watcher watching nothing reports itself as running
+and protects nothing.
 
 ### 4. Tiered retention — ✅ built
 `internal/schedule/retention.go`. Each bucket keeps its **oldest** member on

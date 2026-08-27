@@ -40,6 +40,11 @@ export function InstallPolicy(intervalHours: number, retentionDays: number, poli
 
 /**
  * InstallTripwire starts the watcher and keeps it started across logins.
+ *
+ * It refuses when no directories are configured to watch. An installed watcher
+ * with an empty list is the worst of both: the Health screen reports it green,
+ * launchd restarts it forever, and it is watching nothing. Naming a directory is
+ * the whole configuration, so it is a precondition rather than a warning.
  */
 export function InstallTripwire(): $CancellablePromise<$models.TripwireView> {
     return $Call.ByID(3892613176).then(($result: any) => {

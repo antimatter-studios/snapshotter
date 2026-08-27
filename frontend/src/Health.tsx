@@ -317,7 +317,7 @@ function BulkDeletionWarnings() {
   const watchAgain = async (fragment: string) => {
     setProblem("");
     try {
-      const view = await Config.WatchFolder(fragment);
+      const view = await Config.StopIgnoringFolder(fragment);
       setIgnored(view.config?.tripwire?.ignore ?? []);
     } catch (err) {
       setProblem(message(err));

@@ -248,3 +248,71 @@ func TestWindowSizeRefusesTheUnusable(t *testing.T) {
 		})
 	}
 }
+
+// The directories the tripwire watches are the whole of what it watches, so how
+// this list is read is how much of the machine is under the wire.
+
+func TestWatchRootsExpandsHomeTheWayTheFileIsWritten(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory")
+	}
+	got := Tripwire{Watch: []string{"~/projects"}}.WatchRoots()
+	want := filepath.Join(home, "projects")
+	if len(got) != 1 || got[0] != want {
+		t.Errorf("got %v, want [%s] — the file is meant to be edited by hand and nothing else expands ~", got, want)
+	}
+}
+
+func TestNoWatchedDirectoriesMeansNothingIsWatched(t *testing.T) {
+	// Not the home directory, not everything: the old fallback turned an empty or
+	// unreadable list into watching the whole machine, which is the behaviour this
+	// setting exists to end.
+	if got := (Tripwire{}).WatchRoots(); len(got) != 0 {
+		t.Errorf("an empty list resolved to %v", got)
+	}
+}
+
+func TestTheWholeDiskCannotBeWatched(t *testing.T) {
+	// "/" would put every volume, cache and package manager on the machine under
+	// the wire, which is worse than what this replaced.
+	if got := (Tripwire{Watch: []string{"/"}}).WatchRoots(); len(got) != 0 {
+		t.Errorf("the root was accepted: %v", got)
+	}
+}
+
+func TestARelativeDirectoryIsRefusedRatherThanGuessedAt(t *testing.T) {
+	// The tripwire runs under launchd, which starts it wherever it likes, so a
+	// relative path would resolve somewhere nobody chose.
+	if got := (Tripwire{Watch: []string{"projects", "./work", ""}}).WatchRoots(); len(got) != 0 {
+		t.Errorf("a relative path was accepted: %v", got)
+	}
+}
+
+func TestTheSameDirectoryTwiceIsWatchedOnce(t *testing.T) {
+	// Two spellings of one directory would otherwise be two counters, each needing
+	// the full threshold, so the same burst would count half as fast as it should.
+	got := Tripwire{Watch: []string{"/a/projects", "/a/projects/", "/a/./projects"}}.WatchRoots()
+	if len(got) != 1 || got[0] != "/a/projects" {
+		t.Errorf("got %v, want one /a/projects", got)
+	}
+}
+
+// The tripwire is off, and watching nothing, until someone says otherwise.
+//
+// It used to be on and watching the whole home directory. Most of what that
+// caught was ~/Library tidying up, and every catch pinned another whole-volume
+// snapshot on the disk — a protection that is mostly false positives is a disk
+// leak with notifications.
+func TestAFreshInstallationWatchesNothing(t *testing.T) {
+	d := Defaults()
+	if d.Tripwire.Enabled {
+		t.Error("the tripwire is enabled by default")
+	}
+	if len(d.Tripwire.Watch) != 0 {
+		t.Errorf("a fresh installation already watches %v", d.Tripwire.Watch)
+	}
+	if len(d.Tripwire.WatchRoots()) != 0 {
+		t.Errorf("the defaults resolve to %v", d.Tripwire.WatchRoots())
+	}
+}

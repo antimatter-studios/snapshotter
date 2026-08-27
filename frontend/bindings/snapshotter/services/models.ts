@@ -491,6 +491,16 @@ export class Health {
     "tripwireRunning": boolean;
 
     /**
+     * TripwireWatching is how many directories it is set to watch.
+     *
+     * Reported because zero is a distinct kind of not-working from not-installed,
+     * and the two need different advice: one is a button, the other is a decision
+     * only the person using the machine can make. Without this, a screen offering
+     * "install the watcher" would install one that watches nothing.
+     */
+    "tripwireWatching": number;
+
+    /**
      * Faking reports that mounts are simulated and nothing under a mountpoint
      * is real.
      */
@@ -566,6 +576,9 @@ export class Health {
         }
         if (!("tripwireRunning" in $$source)) {
             this["tripwireRunning"] = false;
+        }
+        if (!("tripwireWatching" in $$source)) {
+            this["tripwireWatching"] = 0;
         }
         if (!("faking" in $$source)) {
             this["faking"] = false;
@@ -1421,6 +1434,49 @@ export class Warning {
             $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
         }
         return new Warning($$parsedSource as Partial<Warning>);
+    }
+}
+
+/**
+ * WatchedDirectories is the list as a screen should show it: what was configured,
+ * and what it resolves to.
+ *
+ * Both, because they differ and the difference is the whole of some bug reports.
+ * "~/projects" is what someone typed and recognises; "/Users/them/projects" is
+ * what is actually being watched, and seeing it is how they find out that the
+ * directory they meant is somewhere else.
+ */
+export class WatchedDirectory {
+    "configured": string;
+    "resolved": string;
+
+    /**
+     * Missing says the directory is not there. A watched directory that does not
+     * exist is not watched, and nothing else on the screen would say so.
+     */
+    "missing": boolean;
+
+    /** Creates a new WatchedDirectory instance. */
+    constructor($$source: Partial<WatchedDirectory> = {}) {
+        if (!("configured" in $$source)) {
+            this["configured"] = "";
+        }
+        if (!("resolved" in $$source)) {
+            this["resolved"] = "";
+        }
+        if (!("missing" in $$source)) {
+            this["missing"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WatchedDirectory instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WatchedDirectory {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WatchedDirectory($$parsedSource as Partial<WatchedDirectory>);
     }
 }
 

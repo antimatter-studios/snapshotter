@@ -60,6 +60,9 @@ func TestAFailedScheduleRestoreStillPutsTheWatcherBack(t *testing.T) {
 		c.Schedule.RetentionDays = 14
 		c.Schedule.Policy = "tiered-every-third-tuesday"
 		c.Tripwire.Enabled = true
+		// The watcher's intent is the switch AND the list: it watches what it is
+		// told to and there is nothing to put back without a directory in it.
+		c.Tripwire.Watch = []string{t.TempDir()}
 	})
 	ctx := context.Background()
 
@@ -115,6 +118,7 @@ func TestASettingsFileFromBeforeTheRenameRestores(t *testing.T) {
 		c.Schedule.RetentionDays = 14
 		c.Schedule.Policy = "tiered-52-weeks"
 		c.Tripwire.Enabled = true
+		c.Tripwire.Watch = []string{t.TempDir()}
 	})
 	ctx := context.Background()
 
@@ -155,5 +159,60 @@ func TestNothingIsRestoredThatWasDeliberatelyTurnedOff(t *testing.T) {
 	}
 	if restored.Any() {
 		t.Errorf("it installed something nobody asked for: %+v", restored)
+	}
+}
+
+// "Watch, but nothing" is not something anyone asked for.
+//
+// An installed watcher with an empty list is the worst of both: the Health screen
+// reports it green, launchd keeps it alive, and it is watching nothing. So the
+// list is part of the intent rather than a detail of it, and restoring an enabled
+// watcher with no directories would install a tick over a protection that does
+// not exist.
+func TestAWatcherWithNoDirectoriesIsNotPutBack(t *testing.T) {
+	s := newStack(t, "empty")
+	settingsWritten(t, func(c *config.Config) {
+		c.Tripwire.Enabled = true
+		c.Tripwire.Watch = nil
+	})
+	ctx := context.Background()
+
+	restored, err := s.Schedule.Restore(ctx)
+	if err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if restored.Tripwire {
+		t.Error("it installed a watcher with nothing to watch")
+	}
+	if st, statusErr := s.Schedule.TripwireStatus(ctx); statusErr == nil && st.Installed {
+		t.Error("the watcher is installed and watching nothing")
+	}
+}
+
+// And the same refusal from the button, which is where someone would hit it.
+func TestInstallingAWatcherWithNothingToWatchIsRefused(t *testing.T) {
+	s := newStack(t, "empty")
+	settingsWritten(t, func(c *config.Config) { c.Tripwire.Watch = nil })
+	ctx := context.Background()
+
+	if _, err := s.Schedule.InstallTripwire(ctx); err == nil {
+		t.Fatal("a watcher with no directories was installed")
+	}
+	if st, statusErr := s.Schedule.TripwireStatus(ctx); statusErr == nil && st.Installed {
+		t.Error("the refusal still left a watcher installed")
+	}
+}
+
+// Once a directory is named, the same button works.
+func TestInstallingAWatcherWorksOnceADirectoryIsNamed(t *testing.T) {
+	s := newStack(t, "empty")
+	settingsWritten(t, func(c *config.Config) { c.Tripwire.Watch = []string{t.TempDir()} })
+	ctx := context.Background()
+
+	if _, err := s.Schedule.InstallTripwire(ctx); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if st, err := s.Schedule.TripwireStatus(ctx); err != nil || !st.Installed {
+		t.Errorf("the watcher is not installed: %v", err)
 	}
 }

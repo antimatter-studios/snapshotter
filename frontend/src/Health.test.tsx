@@ -245,7 +245,7 @@ describe("watching a folder again", () => {
     vi.spyOn(Status, "Check").mockResolvedValue(base as never);
     vi.spyOn(Status, "RecentWarnings").mockResolvedValue([] as never);
     vi.spyOn(Config, "Get").mockResolvedValue({ config: { tripwire: { ignore: ["/Users/someone/Library/Caches"] } } } as never);
-    const watched = vi.spyOn(Config, "WatchFolder").mockResolvedValue({ config: { tripwire: { ignore: [] } } } as never);
+    const watched = vi.spyOn(Config, "StopIgnoringFolder").mockResolvedValue({ config: { tripwire: { ignore: [] } } } as never);
 
     render(<Health onStatus={() => {}} />);
     await userEvent.click(await screen.findByRole("button", { name: /watch again/i }));
@@ -260,7 +260,7 @@ describe("watching a folder again", () => {
     vi.spyOn(Status, "Check").mockResolvedValue(base as never);
     vi.spyOn(Status, "RecentWarnings").mockResolvedValue([] as never);
     vi.spyOn(Config, "Get").mockResolvedValue({ config: { tripwire: { ignore: ["/Users/someone/Library/Caches"] } } } as never);
-    vi.spyOn(Config, "WatchFolder").mockRejectedValue(new Error("the settings file is read-only"));
+    vi.spyOn(Config, "StopIgnoringFolder").mockRejectedValue(new Error("the settings file is read-only"));
 
     render(<Health onStatus={() => {}} />);
     await userEvent.click(await screen.findByRole("button", { name: /watch again/i }));

@@ -88,6 +88,7 @@ func TestASensitivityActuallyChangesWhenTheWireTrips(t *testing.T) {
 			// One folder, one file each, all inside a single window — the shape of a
 			// folder being emptied.
 			fired, _ := trigger.Deletion(now.Add(time.Duration(i)*time.Millisecond),
+				"/Users/someone/Documents",
 				fmt.Sprintf("/Users/someone/Documents/file-%d.txt", i))
 			if fired {
 				tripped = true

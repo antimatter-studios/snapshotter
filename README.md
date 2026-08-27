@@ -114,10 +114,17 @@ tiering reaches thirteen weeks in 34 or a year in 41. The settings screen shows
 both numbers for each policy, counted by planning it rather than by arithmetic,
 because those two numbers are the whole argument.
 
-**Bulk-deletion tripwire** — watches FSEvents and snapshots as soon as something
-starts deleting in bulk, from its own LaunchAgent so it keeps watching with the
-window closed. It cannot *prevent* a deletion — FSEvents reports what has already
-happened — but it stops one running to completion unwitnessed.
+**Bulk-deletion tripwire** — watches the directories you name and snapshots as
+soon as something starts deleting in bulk in one of them, from its own LaunchAgent
+so it keeps watching with the window closed. It cannot *prevent* a deletion —
+FSEvents reports what has already happened — but it stops one running to
+completion unwitnessed.
+
+Off until you name a directory, and each directory is counted on its own: 200
+deletions in `~/projects` trips it, 100 there and 100 in `~/Documents` does not.
+It used to watch the whole home directory, which meant most of what it caught was
+`~/Library` doing its housekeeping and every catch pinned another whole-volume
+snapshot on the disk.
 
 **Menu bar** — the same verdict as the Health tab, visible without the window.
 

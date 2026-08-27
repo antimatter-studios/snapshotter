@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Schedule as ScheduleAPI, Config, message, serviceChosenTail, type ScheduleView, type TripwireView, type TripwireSensitivity } from "./api";
+import { Schedule as ScheduleAPI, Config, message, serviceChosenTail, type ScheduleView, type TripwireView, type TripwireSensitivity, type WatchedDirectory } from "./api";
 import "./Schedule.css";
 import { useAction } from "./useAction";
 import { useTranslation } from "react-i18next";
@@ -58,6 +58,12 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   // dropdown cannot show a different answer from the one the watcher uses.
   const [sensitivities, setSensitivities] = useState<TripwireSensitivity[]>([]);
   const [sensitivity, setSensitivity] = useState("");
+  // What the watcher watches, which is the whole of what it watches. It used to
+  // watch the entire home directory with an ignore list chasing whatever had most
+  // recently made a noise; ~/Library alone tripped it all day and each trip cost a
+  // whole-volume snapshot.
+  const [watched, setWatched] = useState<WatchedDirectory[]>([]);
+  const [candidate, setCandidate] = useState("");
   const { busy, error, setError, run } = useAction(onStatus);
 
   // Saved as soon as it is chosen, like the theme and the language: a settings
@@ -73,6 +79,28 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         setSensitivity(previous);
         throw err;
       }
+    });
+  };
+
+  // Added and removed one at a time, saved immediately: this is the same kind of
+  // setting as the sensitivity below it, and a list with its own Apply button
+  // invites someone to type a directory and walk away from it.
+  const addDirectory = async () => {
+    const dir = candidate.trim();
+    if (!dir) return;
+    await run(async () => {
+      const view = await Config.WatchDirectory(dir);
+      setWatched(await Config.WatchedDirectories());
+      // Cleared only once it was accepted, so a rejected path stays in the box to
+      // be corrected rather than having to be typed again.
+      if (view) setCandidate("");
+    });
+  };
+
+  const removeDirectory = async (dir: string) => {
+    await run(async () => {
+      await Config.UnwatchDirectory(dir);
+      setWatched(await Config.WatchedDirectories());
     });
   };
 
@@ -96,6 +124,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       const [offered, current] = await Config.TripwireSensitivities();
       setSensitivities(offered);
       setSensitivity(current);
+      setWatched(await Config.WatchedDirectories());
     } catch (err) {
       setError(message(err));
     }
@@ -291,9 +320,69 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
         <h2>{t("tripwire.heading")}</h2>
         <p className="explain">{t("tripwire.explain")}</p>
 
-        {tripwire && !tripwire.installed && (
+        {/* The list comes first because it is the setting that decides whether
+            anything is watched at all. A sensitivity above an empty list is a
+            dial on a machine that is switched off. */}
+        <div className="watched">
+          <h4>{t("tripwire.watching")}</h4>
+          <p className="explain">{t("tripwire.watchingExplain")}</p>
+
+          {watched.length === 0 ? (
+            <p className="warning">{t("tripwire.nothingWatched")}</p>
+          ) : (
+            <ul>
+              {watched.map((d) => (
+                <li key={d.configured}>
+                  {/* Both spellings, because they differ and the difference is
+                      the whole of some confusions: "~/projects" is what was
+                      typed, and the resolved path is what is actually watched. */}
+                  <code>
+                    {d.configured}
+                    {d.resolved !== d.configured && <span className="resolved">{d.resolved}</span>}
+                    {/* A directory that is not there is not being watched, and
+                        nothing else on this screen would say so. */}
+                    {d.missing && <span className="warning">{t("tripwire.directoryMissing")}</span>}
+                  </code>
+                  <button
+                    title={t("tripwire.stopWatchingTitle", { directory: d.configured })}
+                    disabled={busy}
+                    onClick={() => void removeDirectory(d.configured)}
+                  >
+                    {t("tripwire.stopWatching")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="add-directory">
+            <label>
+              {t("tripwire.addDirectory")}
+              <input
+                type="text"
+                value={candidate}
+                placeholder={t("tripwire.directoryPlaceholder")}
+                disabled={busy}
+                onChange={(e) => setCandidate(e.target.value)}
+                // Enter is what someone types after a path; making them reach for
+                // the button is how a list ends up with one entry in it.
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void addDirectory();
+                }}
+              />
+            </label>
+            <button disabled={busy || candidate.trim() === ""} onClick={() => void addDirectory()}>
+              {t("tripwire.add")}
+            </button>
+          </div>
+        </div>
+
+        {tripwire && !tripwire.installed && watched.length > 0 && (
           // Said before the dropdown, not after: choosing a sensitivity for a
           // watcher that is not running is a setting with nothing to apply to.
+          // Only once something is watched, though — with an empty list the line
+          // above already says why nothing is happening, and two of them would
+          // read as two problems.
           <p className="warning">{t("tripwire.notInstalled")}</p>
         )}
 

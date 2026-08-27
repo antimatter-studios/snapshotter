@@ -55,6 +55,24 @@ type Schedule struct {
 
 type Tripwire struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
+	// Watch lists the directories the tripwire watches, and is the whole of what
+	// it watches. Nothing outside them counts, and an empty list means the
+	// tripwire watches nothing at all.
+	//
+	// It used to watch the entire home directory, with an ignore list to quiet the
+	// parts that are not anybody's work. That is the wrong way round. ~/Library is
+	// machine-managed churn by the thousand — caches, container state, mail
+	// indexes, every application's idea of scratch space — so the wire tripped on
+	// deletions nobody had asked about and filled the disk with snapshots of them,
+	// and the ignore list needed to stop it is a list of everything the machine
+	// does, written after each surprise, never finished.
+	//
+	// Naming what to watch instead is both smaller and honest: ~/projects is one
+	// line and it is the thing worth protecting. What is not listed is not
+	// watched, which is a rule someone can hold in their head.
+	//
+	// A leading ~ is expanded, so "~/projects" behaves as written.
+	Watch []string `yaml:"watch" json:"watch"`
 	// Ignore lists path fragments whose deletions do not count towards a burst.
 	//
 	// Without it the wire is tripped by ordinary machine noise: a browser
@@ -66,6 +84,9 @@ type Tripwire struct {
 	// Matched as substrings of the full path, after ~ is expanded, so a fragment
 	// like "/Library/Caches/" covers every application's cache without naming any
 	// of them.
+	//
+	// Narrower in scope than it was: it now only has to quiet noise INSIDE a
+	// watched directory, because everything outside one is already not watched.
 	Ignore []string `yaml:"ignore" json:"ignore"`
 	// Sensitivity is how readily a burst counts as one worth snapshotting:
 	// "cautious", "balanced", "sensitive" or "very-sensitive". Empty means
@@ -158,15 +179,31 @@ type Paths struct {
 func Defaults() Config {
 	return Config{
 		Schedule: Schedule{IntervalHours: 6, RetentionDays: 14, Policy: "flat"},
-		// On by default. It is the half of the protection that catches the thing
-		// people actually lose files to — something deleting in bulk right now —
-		// and it costs nothing until it fires. An existing settings file keeps
-		// whatever it already says, so this only reaches new installations; the
-		// rest are told by a finding, with a button.
+		// Off, with nothing to watch, until someone says what to watch.
+		//
+		// It was on by default and watching the whole home directory, which cost
+		// far more than it was worth: most of the bursts it caught were ~/Library
+		// doing its housekeeping, and each one pinned another whole-volume snapshot
+		// on the disk. A protection that is mostly false positives is not a
+		// protection, it is a disk-space leak with notifications.
+		//
+		// So the default is now no directories and not installed, and the Health
+		// screen asks for the directories before it offers to install anything.
+		// An existing settings file keeps whatever it already says.
 		Tripwire: Tripwire{
-			Enabled: true,
+			Enabled: false,
 			// The setting every build before this one had, named.
 			Sensitivity: string(watch.Balanced),
+			// Nothing until someone names something. There is no sensible guess:
+			// the whole point of the setting is that only the person using the
+			// machine knows which of their directories holds work they could not
+			// reproduce.
+			//
+			// Empty rather than nil, so that the defaults survive a round trip
+			// through the file: YAML writes both as "watch: []" and reads it back
+			// as an empty slice, and a nil here would make Defaults() and a
+			// freshly written settings file compare unequal.
+			Watch: []string{},
 			// Machine-managed churn, not anybody's documents. Deliberately short:
 			// every entry here is a place this application will stay quiet about,
 			// so it holds only things no one would ask to recover.
@@ -315,6 +352,45 @@ func ResolvePath(configured, fallback string) string {
 		}
 	}
 	return configured
+}
+
+// WatchRoots is the directories the tripwire should watch, expanded and cleaned.
+//
+// Empty means watch nothing, which is a real answer rather than a missing one:
+// the tripwire watches what it is told to and there is no fallback. It used to
+// fall back to the whole home directory, and a fallback that broad turns any
+// failure to read this list — a typo, an unreadable file — into watching
+// everything, which is the behaviour this setting exists to end.
+//
+// Duplicates are dropped and "~" is expanded, because this file is meant to be
+// edited by hand and neither of those should need thinking about.
+func (t Tripwire) WatchRoots() []string {
+	seen := make(map[string]bool, len(t.Watch))
+	out := make([]string, 0, len(t.Watch))
+	for _, dir := range t.Watch {
+		dir = strings.TrimSpace(dir)
+		if dir == "" {
+			continue
+		}
+		dir = filepath.Clean(ResolvePath(dir, ""))
+		// Absolute or nothing. A relative path means nothing to a launchd agent,
+		// which starts wherever launchd starts it, and quietly watching the wrong
+		// directory is worse than watching none.
+		if !filepath.IsAbs(dir) {
+			continue
+		}
+		// "/" would watch the entire disk, which is worse than what this replaced:
+		// no ignore list survives every volume, cache and package manager at once.
+		if dir == string(filepath.Separator) {
+			continue
+		}
+		if seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		out = append(out, dir)
+	}
+	return out
 }
 
 // MenuBarRefresh and WindowRefresh are the intervals as durations, with anything
