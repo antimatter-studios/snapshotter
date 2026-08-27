@@ -30,8 +30,25 @@ type Mounter interface {
 // Deps is everything the services share.
 type Deps struct {
 	Runner apfs.Runner
+	// Mounts is the data volume's mounts, and is what the browsing screens use.
+	//
+	// They are about one volume by nature: they compare a snapshot against the
+	// live disk, and the live disk they mean is this one. So the data volume keeps
+	// a distinguished place here rather than every caller having to say which
+	// volume it means when there is only ever one answer.
 	Mounts Mounter
-	Agent  *schedule.Agent
+	// MountsOn is the mounts for any other volume, built on demand.
+	//
+	// Snapshots exist on every mounted APFS volume — `tmutil localsnapshot` takes
+	// no arguments — so opening one means naming which volume's copy. Each volume
+	// gets its own mountpoint directory, because two volumes' snapshots of the same
+	// moment share a date and would otherwise share a mountpoint, the second mount
+	// landing on top of the first.
+	//
+	// Nil is allowed and means only the data volume can be opened, which is what
+	// every caller that does not set it gets.
+	MountsOn func(volume, device string) Mounter
+	Agent    *schedule.Agent
 	// Tripwire is the continuously running bulk-deletion watcher, which is a
 	// separate launchd job from Agent because they fail differently and are
 	// worth turning on and off independently.

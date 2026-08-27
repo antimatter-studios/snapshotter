@@ -139,8 +139,11 @@ export default function App() {
   const act = (fn: () => Promise<unknown>, done: string) => run(fn, done, refresh);
 
 
+  // The volume as well as the name: a date is not an identity, since every volume
+  // mounted when a snapshot was taken has one of that date, and each is a
+  // separate thing to attach.
   const mount = (snapshot: SnapshotView) =>
-    act(() => Snapshots.Mount([snapshot.name]), `Opened the snapshot from ${stamp(snapshot.taken)}`);
+    act(() => Snapshots.Mount(snapshot.device, [snapshot.name]), `Opened the snapshot from ${stamp(snapshot.taken)}`);
 
   // Which snapshot has been asked about but not yet confirmed. One at a time, so
   // pressing Delete on a second row puts the first question away rather than
@@ -164,11 +167,16 @@ export default function App() {
     );
   };
 
+  // One call per volume, because each raises its own authorization prompt and
+  // each attaches into its own directory. Opening everything on a machine with
+  // two disks is two prompts, which is honest: they are two mounts.
   const mountAll = () =>
-    act(
-      () => Snapshots.Mount(snapshots.filter((s) => !s.mounted).map((s) => s.name)),
-      t("app.openedEvery"),
-    );
+    act(async () => {
+      for (const group of groups) {
+        const closed = group.snapshots.filter((s) => !s.mounted).map((s) => s.name);
+        if (closed.length) await Snapshots.Mount(group.device, closed);
+      }
+    }, t("app.openedEvery"));
 
   return (
     <div className="app">
@@ -283,13 +291,7 @@ export default function App() {
                 onClick={() => group.isStartupDisk && (setSelected(snapshot.name), setView("snapshots"))}
               >
                 <div className="when">
-                  {/* The dot means "open", which only the startup disk's
-                      snapshots can be. Elsewhere it would be a light that is
-                      always off, which reads as a fault rather than as a
-                      capability that does not apply. */}
-                  {group.isStartupDisk && (
-                    <span className="dot" title={snapshot.mounted ? t("app.isOpen") : t("app.notOpen")} />
-                  )}
+                  <span className="dot" title={snapshot.mounted ? t("app.isOpen") : t("app.notOpen")} />
                   <span>{stamp(snapshot.taken)}</span>
                 </div>
                 <div className="age">{age(snapshot.taken, t)}</div>
@@ -313,12 +315,13 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      {/* Opening is the startup disk's alone for now: mounting
-                          runs through a privileged helper that accepts one volume
-                          by design, and widening it is its own piece of work. */}
-                      {group.isStartupDisk &&
-                        (snapshot.mounted ? (
-                          <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), t("app.closed")))}>
+                      {/* Every volume, now that the privileged helper builds its
+                          allowlist from the machine rather than from a constant.
+                          Browsing what is inside is still the startup disk's
+                          alone — the browser is rooted at a home directory — so
+                          another volume's snapshot opens and says where. */}
+                      {(snapshot.mounted ? (
+                          <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount(snapshot.device, [snapshot.name]), t("app.closed")))}>
                             {t("app.close")}
                           </button>
                         ) : (

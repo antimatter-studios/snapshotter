@@ -8,6 +8,7 @@ import (
 	"io"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"snapshotter/internal/apfs"
@@ -22,14 +23,34 @@ import (
 // directory belonging to some user's Application Support, and nowhere else.
 var rootTail = filepath.Join("Library", "Application Support", "Snapshotter", "mounts")
 
-// checkVolume refuses any source but the data volume. An arbitrary one is not
-// something this ever needs, and "the volume to read from" is exactly the
-// argument you would want to control if you could reach an elevated process.
-func checkVolume(volume string) error {
-	if volume != apfs.DataVolume {
-		return fmt.Errorf("mountmgr: the helper only mounts snapshots of %s, not %q", apfs.DataVolume, volume)
+// checkVolume refuses any source that is not a volume actually holding local
+// snapshots.
+//
+// It used to accept the data volume and nothing else, which was right while that
+// was the only volume whose snapshots could be listed. It no longer is: `tmutil
+// localsnapshot` writes to every mounted APFS volume at once, and a snapshot you
+// can see and cannot open is a row that reads as broken.
+//
+// What has not changed is that "the volume to read from" is exactly the argument
+// you would want to control if you could reach an elevated process. So this is
+// still an allowlist, and the allowlist is built HERE, as root, from the machine
+// itself — never from anything the caller said. A caller can name a volume; it
+// cannot add one to the list, and naming one that holds no snapshots is refused
+// like any other path.
+func checkVolume(ctx context.Context, r apfs.Runner, volume string) error {
+	vols, err := apfs.Volumes(ctx, r)
+	if err != nil {
+		// Refused rather than fallen back to the data volume. A fallback would
+		// mean an unreadable mount table silently narrows what can be opened, and
+		// the failure would look like a broken button rather than a broken query.
+		return fmt.Errorf("mountmgr: cannot tell which volumes hold snapshots, so nothing was mounted: %w", err)
 	}
-	return nil
+	for _, v := range vols {
+		if v.MountPoint == volume {
+			return nil
+		}
+	}
+	return fmt.Errorf("mountmgr: %q is not a mounted volume holding local snapshots, so nothing was mounted", volume)
 }
 
 // checkRoot confines the mountpoints to a user's own Application Support.
@@ -48,8 +69,23 @@ func checkRoot(root string) error {
 	if filepath.Clean(root) != root {
 		return fmt.Errorf("mountmgr: %q is not a clean path", root)
 	}
+	// Either the mounts directory itself, or one volume's subdirectory of it.
+	//
+	// The subdirectory is what keeps two volumes' snapshots of the same moment
+	// apart: they share a date, so they would otherwise share a mountpoint, and
+	// the second mount would land on top of the first. The data volume keeps the
+	// bare directory it has always used, so an upgrade does not orphan mounts that
+	// are already attached.
+	//
+	// One component, and it has to look like a volume identifier — not any path
+	// the caller fancies. Without that this would accept the tail plus arbitrary
+	// depth, which is most of the way back to accepting anything.
 	if !strings.HasSuffix(root, string(filepath.Separator)+rootTail) {
-		return fmt.Errorf("mountmgr: the helper only mounts under %s, not %q", rootTail, root)
+		parent, device := filepath.Split(root)
+		parent = strings.TrimSuffix(parent, string(filepath.Separator))
+		if !devicePattern.MatchString(device) || !strings.HasSuffix(parent, string(filepath.Separator)+rootTail) {
+			return fmt.Errorf("mountmgr: the helper only mounts under %s, not %q", rootTail, root)
+		}
 	}
 	// Deliberately not also anchored to /Users. That would read as tighter but
 	// only rules out paths this tail already rules out, while breaking a home
@@ -57,6 +93,11 @@ func checkRoot(root string) error {
 	// no gain. The tail is the part that matters.
 	return nil
 }
+
+// devicePattern is the shape of a volume identifier, "disk8s1". It guards the one
+// path component the caller gets to choose, and is anchored for the same reason
+// every other guard here is: this is a root-privileged entry point reading argv.
+var devicePattern = regexp.MustCompile(`^disk\d+(s\d+)+$`)
 
 // HelperFlag is the flag that turns this application into its own privileged
 // helper. It is deliberately not a documented command: nothing but Manager
@@ -119,7 +160,7 @@ func IsHelperInvocation(args []string) bool {
 // classifyMount reads that text, so swallowing it here would turn a diagnosable
 // refusal into a bare failure.
 func RunHelper(ctx context.Context, args []string, out io.Writer) error {
-	script, err := helperPlan(args, out)
+	script, err := helperPlan(ctx, apfs.SystemRunner(), args, out)
 	if err != nil {
 		return err
 	}
@@ -140,7 +181,11 @@ func RunHelper(ctx context.Context, args []string, out io.Writer) error {
 // It is separate from RunHelper so the refusals can be tested for what actually
 // matters: that a rejected argument yields no command at all, rather than a
 // command that merely happened to fail.
-func helperPlan(args []string, out io.Writer) (string, error) {
+// r is how the allowlist is discovered. Injected rather than reached for, so the
+// guards below can be exercised against a described machine instead of whichever
+// one the tests happen to run on — a build machine has no volumes holding local
+// snapshots, and every case would pass for the wrong reason.
+func helperPlan(ctx context.Context, r apfs.Runner, args []string, out io.Writer) (string, error) {
 	fs := flag.NewFlagSet("snapshotter "+HelperFlag, flag.ContinueOnError)
 	fs.SetOutput(out)
 	mode := fs.String(HelperFlag, "", "mount or unmount")
@@ -160,7 +205,7 @@ func helperPlan(args []string, out io.Writer) (string, error) {
 	// to run this binary can reach it, and the checks in Manager are beside it
 	// rather than in front of it. The same reasoning as apfs.Delete refusing
 	// anything but a bare date stamp: the guard lives next to the dangerous call.
-	if err := checkVolume(*volume); err != nil {
+	if err := checkVolume(ctx, r, *volume); err != nil {
 		return "", err
 	}
 	if err := checkRoot(*root); err != nil {

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"syscall"
 	"time"
@@ -185,12 +186,31 @@ func (s *SnapshotService) grouped(ctx context.Context, dataViews []SnapshotView)
 			out = append(out, group)
 			continue
 		}
+		// Mount state per volume, from that volume's own mountpoints. Asking the
+		// data volume's would answer about a different snapshot that happens to
+		// share a date, and the row would offer Close on something never opened.
+		var mounts Mounter
+		if s.MountsOn != nil {
+			mounts = s.MountsOn(v.MountPoint, v.Device)
+		}
 		for _, snap := range v.Snapshots {
-			group.Snapshots = append(group.Snapshots, SnapshotView{
+			view := SnapshotView{
 				Name: snap.Name, Stamp: snap.Stamp, Taken: snap.Taken,
 				Device: v.Device, UUID: snap.UUID,
 				Purgeable: snap.Purgeable, LimitsContainer: snap.LimitsContainer,
-			})
+			}
+			if mounts != nil {
+				// Errors leave the row unmounted rather than dropping it. Being
+				// unable to say whether it is open is not a reason to hide that it
+				// exists, which is the whole point of listing these at all.
+				if mp, err := mounts.MountPoint(snap.Name); err == nil {
+					view.MountPoint = mp
+				}
+				if mounted, err := mounts.IsMounted(snap.Name); err == nil {
+					view.Mounted = mounted
+				}
+			}
+			group.Snapshots = append(group.Snapshots, view)
 		}
 		out = append(out, group)
 	}
@@ -273,27 +293,93 @@ func (s *SnapshotService) onStartupDisk(ctx context.Context, device string) bool
 
 // Mount attaches snapshots so their contents can be read. One authorization
 // prompt covers the whole batch.
-func (s *SnapshotService) Mount(ctx context.Context, names []string) error {
-	return describeAuth(s.Mounts.Mount(ctx, names))
+//
+// device names which volume's copies to attach, because a date is not an
+// identity: every volume mounted when a snapshot was taken has one of that date.
+// Empty means the data volume, which is what the browsing screens ask for.
+func (s *SnapshotService) Mount(ctx context.Context, device string, names []string) error {
+	m, err := s.mountsFor(ctx, device)
+	if err != nil {
+		return err
+	}
+	return describeAuth(m.Mount(ctx, names))
 }
 
-// Unmount detaches snapshots.
-func (s *SnapshotService) Unmount(ctx context.Context, names []string) error {
-	return describeAuth(s.Mounts.Unmount(ctx, names))
+// mountsFor resolves a volume identifier to the mounts that belong to it.
+//
+// The data volume answers from Deps.Mounts rather than being rebuilt, so the
+// mountpoints the browsing screens read are the same ones opening a snapshot
+// creates. Rebuilding it would be a second answer to the same question, free to
+// disagree with the first — and it would move where the data volume mounts, which
+// would orphan anything already attached.
+func (s *SnapshotService) mountsFor(ctx context.Context, device string) (Mounter, error) {
+	if device == "" {
+		return s.Mounts, nil
+	}
+	vols, err := apfs.Volumes(ctx, s.Runner)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range vols {
+		if v.Device != device {
+			continue
+		}
+		if v.MountPoint == s.Volume {
+			return s.Mounts, nil
+		}
+		if s.MountsOn == nil {
+			return nil, fmt.Errorf("services: this build can only open snapshots of %s", s.Volume)
+		}
+		return s.MountsOn(v.MountPoint, v.Device), nil
+	}
+	return nil, fmt.Errorf("services: %q is not a volume holding snapshots", device)
+}
+
+// Unmount detaches snapshots, on the volume named by device.
+func (s *SnapshotService) Unmount(ctx context.Context, device string, names []string) error {
+	m, err := s.mountsFor(ctx, device)
+	if err != nil {
+		return err
+	}
+	return describeAuth(m.Unmount(ctx, names))
 }
 
 // UnmountAll detaches everything this application mounted, which is what the
 // window's close handler calls.
+//
+// Every volume, not the data volume. Leaving another volume's snapshots attached
+// would leave them undeletable — a mounted snapshot cannot be removed — and the
+// mountpoints would outlive the window that made them with nothing left offering
+// to close them.
 func (s *SnapshotService) UnmountAll(ctx context.Context) error {
-	snaps, err := apfs.List(ctx, s.Runner, s.Volume)
+	vols, err := apfs.Volumes(ctx, s.Runner)
 	if err != nil {
 		return err
 	}
-	names := make([]string, 0, len(snaps))
-	for _, snap := range snaps {
-		names = append(names, snap.Name)
+
+	// Each volume is attempted whatever happened to the others, and every failure
+	// is carried back rather than returned at the first one: they are separate
+	// disks, and one refusing says nothing about the rest.
+	var failures []error
+	for _, v := range vols {
+		mounts, err := s.mountsFor(ctx, v.Device)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		names := make([]string, 0, len(v.Snapshots))
+		for _, snap := range v.Snapshots {
+			names = append(names, snap.Name)
+		}
+		attached := mounts.MountedNames(names)
+		if len(attached) == 0 {
+			continue
+		}
+		if err := describeAuth(mounts.Unmount(ctx, attached)); err != nil {
+			failures = append(failures, err)
+		}
 	}
-	return describeAuth(s.Mounts.Unmount(ctx, s.Mounts.MountedNames(names)))
+	return errors.Join(failures...)
 }
 
 // describeAuth turns a dismissed authorization dialog into a message the UI can

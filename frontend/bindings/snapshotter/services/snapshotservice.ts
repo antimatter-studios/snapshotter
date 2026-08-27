@@ -45,9 +45,13 @@ export function List(): $CancellablePromise<$models.SnapshotView[]> {
 /**
  * Mount attaches snapshots so their contents can be read. One authorization
  * prompt covers the whole batch.
+ *
+ * device names which volume's copies to attach, because a date is not an
+ * identity: every volume mounted when a snapshot was taken has one of that date.
+ * Empty means the data volume, which is what the browsing screens ask for.
  */
-export function Mount(names: string[]): $CancellablePromise<void> {
-    return $Call.ByID(2362689787, names);
+export function Mount(device: string, names: string[]): $CancellablePromise<void> {
+    return $Call.ByID(2362689787, device, names);
 }
 
 /**
@@ -71,15 +75,20 @@ export function TakeNow(): $CancellablePromise<$models.SnapshotView> {
 }
 
 /**
- * Unmount detaches snapshots.
+ * Unmount detaches snapshots, on the volume named by device.
  */
-export function Unmount(names: string[]): $CancellablePromise<void> {
-    return $Call.ByID(153321518, names);
+export function Unmount(device: string, names: string[]): $CancellablePromise<void> {
+    return $Call.ByID(153321518, device, names);
 }
 
 /**
  * UnmountAll detaches everything this application mounted, which is what the
  * window's close handler calls.
+ *
+ * Every volume, not the data volume. Leaving another volume's snapshots attached
+ * would leave them undeletable — a mounted snapshot cannot be removed — and the
+ * mountpoints would outlive the window that made them with nothing left offering
+ * to close them.
  */
 export function UnmountAll(): $CancellablePromise<void> {
     return $Call.ByID(706770877);

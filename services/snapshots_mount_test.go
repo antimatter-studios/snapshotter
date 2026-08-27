@@ -27,7 +27,7 @@ func TestMountingAndUnmountingRoundTrips(t *testing.T) {
 	}
 	name := snaps[0].Name
 
-	if err := s.Snapshots.Mount(ctx, []string{name}); err != nil {
+	if err := s.Snapshots.Mount(ctx, "", []string{name}); err != nil {
 		t.Fatalf("mount: %v", err)
 	}
 	mounted, err := s.Deps.Mounts.IsMounted(name)
@@ -38,7 +38,7 @@ func TestMountingAndUnmountingRoundTrips(t *testing.T) {
 		t.Fatal("mount reported success but nothing is mounted")
 	}
 
-	if err := s.Snapshots.Unmount(ctx, []string{name}); err != nil {
+	if err := s.Snapshots.Unmount(ctx, "", []string{name}); err != nil {
 		t.Fatalf("unmount: %v", err)
 	}
 	if mounted, _ := s.Deps.Mounts.IsMounted(name); mounted {
@@ -60,7 +60,7 @@ func TestUnmountAllLeavesNothingAttached(t *testing.T) {
 	for _, snap := range snaps {
 		names = append(names, snap.Name)
 	}
-	if err := s.Snapshots.Mount(ctx, names); err != nil {
+	if err := s.Snapshots.Mount(ctx, "", names); err != nil {
 		t.Fatalf("mount: %v", err)
 	}
 
