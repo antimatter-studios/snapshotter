@@ -13,6 +13,7 @@ import (
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/schedule"
 	"snapshotter/internal/verdict"
+	"snapshotter/internal/vfs"
 )
 
 // Mounter attaches snapshots so their contents can be read.
@@ -148,4 +149,31 @@ func (d Deps) homeDir() string {
 		return home
 	}
 	return "/Users"
+}
+
+// volumeFor is the live root a device's snapshots were taken of, which is what
+// turns a path inside one back into a path on the running system.
+//
+// The data volume answers as the zero Volume rather than as its mount point: it
+// is the one root that is not a plain prefix, being presented at "/" with a fixed
+// set of top-level directories and the system volume's symlinks pointing into it.
+//
+// A device that cannot be resolved answers as the data volume. That is the
+// conservative end: translating against it refuses anything under /Volumes, so a
+// failure here shows "not covered" rather than reading a path out of the wrong
+// disk.
+func (d Deps) volumeFor(ctx context.Context, device string) vfs.Volume {
+	if device == "" {
+		return vfs.Volume{}
+	}
+	vols, err := apfs.Volumes(ctx, d.Runner)
+	if err != nil {
+		return vfs.Volume{}
+	}
+	for _, v := range vols {
+		if v.Device == device {
+			return vfs.At(v.MountPoint)
+		}
+	}
+	return vfs.Volume{}
 }

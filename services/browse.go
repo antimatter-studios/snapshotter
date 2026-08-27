@@ -52,8 +52,13 @@ func (b *BrowseService) Home(device string) string {
 }
 
 // ListLive reads a directory on the running system.
-func (b *BrowseService) ListLive(livePath string) (Listing, error) {
-	out := Listing{LivePath: filepath.Clean(livePath), Parent: parentOf(livePath), Covered: vfs.Covered(livePath)}
+//
+// device says which volume's coverage to judge against. Asked about the data
+// volume, a path on an external disk is correctly "not covered" — and that answer
+// is nonsense when the disk in question is the one on screen.
+func (b *BrowseService) ListLive(device, livePath string) (Listing, error) {
+	volume := b.volumeFor(context.Background(), device)
+	out := Listing{LivePath: filepath.Clean(livePath), Parent: parentOf(livePath), Covered: volume.Covered(livePath)}
 	if !out.Covered {
 		out.Note = i18n.T("browse.notCovered")
 	}
@@ -75,7 +80,7 @@ func (b *BrowseService) ListSnapshot(device, snapshotName, livePath string) (Lis
 	if err != nil {
 		return out, err
 	}
-	snapPath, err := vfs.ToSnapshot(mountPoint, livePath)
+	snapPath, err := b.volumeFor(context.Background(), device).ToSnapshot(mountPoint, livePath)
 	if err != nil {
 		out.Covered = false
 		out.Note = err.Error()
@@ -92,7 +97,7 @@ func (b *BrowseService) ListSnapshot(device, snapshotName, livePath string) (Lis
 
 	// Report paths in live terms so the two panes line up.
 	for i := range entries {
-		if live, err := vfs.ToLive(mountPoint, entries[i].Path); err == nil {
+		if live, err := b.volumeFor(context.Background(), device).ToLive(mountPoint, entries[i].Path); err == nil {
 			entries[i].Path = live
 		}
 	}
@@ -124,7 +129,7 @@ func (b *BrowseService) Merged(device, snapshotName, livePath string, includeSam
 	if err != nil {
 		return out, err
 	}
-	snapshotDir, err := vfs.ToSnapshot(mountPoint, livePath)
+	snapshotDir, err := b.volumeFor(context.Background(), device).ToSnapshot(mountPoint, livePath)
 	if err != nil {
 		out.Note = err.Error()
 		return out, nil
@@ -167,6 +172,9 @@ type Presence struct {
 // still hold this path. Only mounted snapshots can be inspected, so the result
 // says which ones were checked rather than implying an answer for the rest.
 func (b *BrowseService) Locate(ctx context.Context, livePath string) ([]Presence, error) {
+	// One volume's snapshots, and the startup disk's. Locate has no route in from
+	// the window — see reachable_test — so it is left describing the volume it
+	// always described rather than being half-widened.
 	snaps, err := apfs.List(ctx, b.Runner, b.Volume)
 	if err != nil {
 		return nil, err
@@ -186,7 +194,10 @@ func (b *BrowseService) Locate(ctx context.Context, livePath string) ([]Presence
 			if err != nil {
 				return nil, err
 			}
-			if snapPath, err := vfs.ToSnapshot(mountPoint, livePath); err == nil {
+			// The data volume throughout: this lists its snapshots and resolves
+			// them through its mounts, so translating against any other volume
+			// would be reading one disk's paths out of another's snapshot.
+			if snapPath, err := (vfs.Volume{}).ToSnapshot(mountPoint, livePath); err == nil {
 				if entry, err := vfs.Stat(snapPath); err == nil {
 					p.Present = true
 					p.Size = entry.Size
@@ -207,7 +218,7 @@ func (b *BrowseService) RevealInFinder(device, snapshotName, livePath string) er
 		if err != nil {
 			return err
 		}
-		target, err = vfs.ToSnapshot(mountPoint, livePath)
+		target, err = b.volumeFor(context.Background(), device).ToSnapshot(mountPoint, livePath)
 		if err != nil {
 			return err
 		}
@@ -286,7 +297,7 @@ func (b *BrowseService) DirectoryStatus(device, snapshotName, livePath string) (
 	// vfs.ToSnapshot, not string surgery: it is the same mapping Merged uses, and
 	// a hand-rolled one here would compare a different directory than the one the
 	// row came from.
-	snapshotDir, err := vfs.ToSnapshot(mountPoint, livePath)
+	snapshotDir, err := b.volumeFor(context.Background(), device).ToSnapshot(mountPoint, livePath)
 	if err != nil {
 		return FolderVerdict{Status: string(diffs.NotExamined), Why: err.Error()}, err
 	}

@@ -5,7 +5,9 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"path/filepath"
+	"snapshotter/internal/apfs"
 	"snapshotter/internal/boot"
 	"snapshotter/internal/config"
 	"snapshotter/internal/mountmgr"
@@ -122,5 +124,36 @@ func watchForChanges(ctx context.Context, root string, cache *verdict.Cache) {
 		case ev := <-events:
 			cache.Touched(ev.Path())
 		}
+	}
+}
+
+// watchEveryVolume keeps the folder-verdict cache honest for every volume whose
+// snapshots can be browsed.
+//
+// The home directory alone was enough while the startup disk was the only volume
+// that could be opened. It is not now: a verdict about a folder on an external
+// disk would stay cached after that folder changed, and a stale verdict does not
+// look stale — it looks like a comparison that is wrong.
+//
+// The home directory rather than the whole data volume, because that is the part
+// of it anyone browses and watching all of it costs a stream over every
+// application and framework on the machine.
+func watchEveryVolume(ctx context.Context, deps services.Deps) {
+	roots := map[string]bool{}
+	if home, err := os.UserHomeDir(); err == nil {
+		roots[home] = true
+	}
+	vols, err := apfs.Volumes(ctx, deps.Runner)
+	if err != nil {
+		log.Printf("cached folder verdicts: cannot list volumes, watching the home folder only: %v", err)
+	}
+	for _, v := range vols {
+		if v.MountPoint != deps.Volume {
+			roots[v.MountPoint] = true
+		}
+	}
+
+	for root := range roots {
+		go watchForChanges(ctx, root, deps.Verdicts)
 	}
 }

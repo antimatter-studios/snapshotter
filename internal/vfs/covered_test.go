@@ -26,7 +26,7 @@ func TestCoveredAcceptsWhatTheDataVolumeHolds(t *testing.T) {
 		// The data volume's own prefix, as it appears on a running system.
 		"/System/Volumes/Data/Users/someone",
 	} {
-		if !Covered(path) {
+		if !dataVolume.Covered(path) {
 			t.Errorf("%s is on the data volume and was reported as not covered", path)
 		}
 	}
@@ -39,7 +39,7 @@ func TestCoveredRefusesWhatNoSnapshotHolds(t *testing.T) {
 		"relative/path",
 		"",
 	} {
-		if Covered(path) {
+		if dataVolume.Covered(path) {
 			t.Errorf("%s cannot be in a snapshot of the data volume and was reported as covered", path)
 		}
 	}

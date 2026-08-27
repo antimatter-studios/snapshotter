@@ -84,7 +84,7 @@ func TestBrowsingStartsSomewhereUseful(t *testing.T) {
 func TestListingTheLiveDiskNamesWhatIsThere(t *testing.T) {
 	svc, seed := browseFixture(t)
 
-	got, err := svc.ListLive(filepath.Join(seed, "Documents"))
+	got, err := svc.ListLive("", filepath.Join(seed, "Documents"))
 	if err != nil {
 		t.Fatalf("listing: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestListingTheLiveDiskNamesWhatIsThere(t *testing.T) {
 func TestListingSomethingThatIsNotThereIsAnError(t *testing.T) {
 	svc, seed := browseFixture(t)
 
-	if _, err := svc.ListLive(filepath.Join(seed, "no-such-directory")); err == nil {
+	if _, err := svc.ListLive("", filepath.Join(seed, "no-such-directory")); err == nil {
 		t.Error("listing a missing directory came back without an error")
 	}
 }

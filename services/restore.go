@@ -6,7 +6,6 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/restore"
-	"snapshotter/internal/vfs"
 )
 
 // errNotMounted is returned when a snapshot has to be attached first. Mounting
@@ -60,7 +59,7 @@ func (r *RestoreService) Restore(ctx context.Context, req RestoreRequest) (resto
 	if err != nil {
 		return out, err
 	}
-	source, err := vfs.ToSnapshot(mountPoint, req.LivePath)
+	source, err := r.volumeFor(ctx, req.Device).ToSnapshot(mountPoint, req.LivePath)
 	if err != nil {
 		return out, err
 	}

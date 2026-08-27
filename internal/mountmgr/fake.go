@@ -140,7 +140,9 @@ func (f *Fake) MountedNames(names []string) []string {
 // touched.
 func (f *Fake) populate(ctx context.Context, mp string, snap apfs.Snapshot) error {
 	seed := filepath.Clean(f.Seed)
-	canonical, err := vfs.Canonical(seed)
+	// The data volume explicitly: the fake stands in for the startup disk's
+	// snapshots and seeds from a directory on it.
+	canonical, err := vfs.Volume{}.Canonical(seed)
 	if err != nil {
 		return fmt.Errorf("mountmgr: the fake seed %s is not on the data volume: %w", seed, err)
 	}
