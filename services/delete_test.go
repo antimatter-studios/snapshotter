@@ -12,6 +12,17 @@ import (
 // A snapshot records a state of the disk that has passed: nothing recreates it,
 // and the two guards in front of it are the whole safety of the operation. Both
 // were reached by one branch out of three.
+//
+// It deletes ONE VOLUME'S COPY. `tmutil localsnapshot` writes to every mounted
+// APFS volume at once, so a date exists in several places and deleting by date
+// removes all of them — which is right for retention and wrong for a button
+// beside one row.
+
+// aDevice and aUUID identify one copy, the way the window does.
+const (
+	aDevice = "disk3s1"
+	aUUID   = "8DE94CCB-5B60-4C09-B249-D7E0067AE4B4"
+)
 
 // stubMounts answers the two questions Delete asks and records nothing else.
 type stubMounts struct {
@@ -43,14 +54,50 @@ func TestDeletingAnUnmountedSnapshotReachesTheTool(t *testing.T) {
 	r := &deleteRunner{}
 	s := NewSnapshotService(Deps{Runner: r, Mounts: &stubMounts{mounted: map[string]bool{}}})
 
-	if err := s.Delete(context.Background(), "2026-08-20-120000"); err != nil {
+	if err := s.Delete(context.Background(), aDevice, aUUID, "2026-08-20-120000"); err != nil {
 		t.Fatalf("deleting: %v", err)
 	}
-	if len(r.ran) == 0 {
-		t.Fatal("nothing was run")
+
+	// diskutil, naming the volume and the copy — not tmutil naming the date.
+	// tmutil would take every volume's copy of that date, including snapshots the
+	// person pressing the button was never shown.
+	var deletion string
+	for _, ran := range r.ran {
+		if strings.Contains(ran, "deleteSnapshot") {
+			deletion = ran
+		}
 	}
-	if !strings.Contains(r.ran[0], "2026-08-20-120000") {
-		t.Errorf("ran %q, which does not name the snapshot", r.ran[0])
+	if deletion == "" {
+		t.Fatalf("nothing deleted anything: %v", r.ran)
+	}
+	if !strings.Contains(deletion, aDevice) || !strings.Contains(deletion, aUUID) {
+		t.Errorf("ran %q, which does not name the volume and the copy", deletion)
+	}
+	for _, ran := range r.ran {
+		if strings.Contains(ran, "deletelocalsnapshots") {
+			t.Errorf("ran %q, which deletes that date from every volume holding it", ran)
+		}
+	}
+}
+
+// Without a volume and an identifier there is no call that deletes one copy, and
+// the only one available deletes them all. So it refuses.
+func TestACopyThatCannotBeIdentifiedIsNotDeleted(t *testing.T) {
+	for _, c := range []struct{ device, uuid string }{
+		{"", aUUID}, {aDevice, ""}, {"", ""},
+		{"; rm -rf /", aUUID}, {aDevice, "not-a-uuid"},
+	} {
+		r := &deleteRunner{}
+		s := NewSnapshotService(Deps{Runner: r, Mounts: &stubMounts{mounted: map[string]bool{}}})
+
+		if err := s.Delete(context.Background(), c.device, c.uuid, "2026-08-20-120000"); err == nil {
+			t.Errorf("device=%q uuid=%q was accepted", c.device, c.uuid)
+		}
+		for _, ran := range r.ran {
+			if strings.Contains(ran, "deleteSnapshot") || strings.Contains(ran, "deletelocalsnapshots") {
+				t.Errorf("device=%q uuid=%q still ran %q", c.device, c.uuid, ran)
+			}
+		}
 	}
 }
 
@@ -62,15 +109,17 @@ func TestAMountedSnapshotIsRefusedWithAnInstruction(t *testing.T) {
 	name := "com.apple.TimeMachine.2026-08-20-120000.local"
 	s := NewSnapshotService(Deps{Runner: r, Mounts: &stubMounts{mounted: map[string]bool{name: true}}})
 
-	err := s.Delete(context.Background(), "2026-08-20-120000")
+	err := s.Delete(context.Background(), aDevice, aUUID, "2026-08-20-120000")
 	if err == nil {
 		t.Fatal("a mounted snapshot was deleted")
 	}
 	if !strings.Contains(err.Error(), "unmount") {
 		t.Errorf("the refusal does not say what to do: %v", err)
 	}
-	if len(r.ran) != 0 {
-		t.Errorf("it ran %v anyway", r.ran)
+	for _, ran := range r.ran {
+		if strings.Contains(ran, "deleteSnapshot") {
+			t.Errorf("it ran %q anyway", ran)
+		}
 	}
 }
 
@@ -81,12 +130,14 @@ func TestAStampThatIsNotADateNeverReachesTheTool(t *testing.T) {
 	s := NewSnapshotService(Deps{Runner: r, Mounts: &stubMounts{mounted: map[string]bool{}}})
 
 	for _, bad := range []string{"", "yesterday", "2026-08-20", "2026-08-20-120000 ; rm -rf /"} {
-		if err := s.Delete(context.Background(), bad); err == nil {
+		if err := s.Delete(context.Background(), aDevice, aUUID, bad); err == nil {
 			t.Errorf("%q was accepted", bad)
 		}
 	}
-	if len(r.ran) != 0 {
-		t.Errorf("something was run for a stamp that is not a date: %v", r.ran)
+	for _, ran := range r.ran {
+		if strings.Contains(ran, "deleteSnapshot") {
+			t.Errorf("something was run for a stamp that is not a date: %q", ran)
+		}
 	}
 }
 
@@ -100,10 +151,12 @@ func TestAnUnansweredMountCheckStopsTheDeletion(t *testing.T) {
 		Mounts: &stubMounts{err: errors.New("cannot tell")},
 	})
 
-	if err := s.Delete(context.Background(), "2026-08-20-120000"); err == nil {
+	if err := s.Delete(context.Background(), aDevice, aUUID, "2026-08-20-120000"); err == nil {
 		t.Fatal("a snapshot was deleted without knowing whether it was mounted")
 	}
-	if len(r.ran) != 0 {
-		t.Errorf("it ran %v anyway", r.ran)
+	for _, ran := range r.ran {
+		if strings.Contains(ran, "deleteSnapshot") {
+			t.Errorf("it ran %q anyway", ran)
+		}
 	}
 }

@@ -29,6 +29,7 @@
   "app.openFdaSettings": "Open Full Disk Access settings",
   "app.openedEvery": "Opened every snapshot — one password, and now any of them can be searched",
   "app.options": "Options",
+  "app.otherVolumeNote": "Snapshotted and pruned here. Opening one is not yet possible from this window.",
   "app.scenario": "Scenario",
   "app.simulatedLead": "Simulated machine.",
   "app.snapshotTaken": "Snapshot taken",

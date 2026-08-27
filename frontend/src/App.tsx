@@ -117,6 +117,23 @@ export default function App() {
   useLiveRefresh(refresh);
 
   const snapshots = overview?.snapshots ?? [];
+  // Grouped by the disk they are on. `tmutil localsnapshot` takes no arguments
+  // and writes to every mounted APFS volume at once, so a flat list of one
+  // volume's copies was most of a machine's snapshots missing — with no way to
+  // see the ones on an external disk at all.
+  //
+  // Falls back to a single unnamed group, so a service that cannot enumerate the
+  // volumes still shows the startup disk's list rather than nothing.
+  const groups =
+    overview?.volumes?.length
+      ? overview.volumes
+      : [{ name: "", mountPoint: "", device: "", isStartupDisk: true, snapshots, freeBytes: 0, totalBytes: 0 }];
+  const startupDevice = groups.find((g) => g.isStartupDisk)?.device ?? "";
+  const total = groups.reduce((n, g) => n + g.snapshots.length, 0);
+  // Identity of one COPY, for the row key and the delete confirmation. The name
+  // repeats across volumes, so confirming by name alone would arm every volume's
+  // row for that date at once.
+  const copyID = (device: string, name: string) => `${device}/${name}`;
   const current = snapshots.find((s) => s.name === selected) ?? null;
 
   const act = (fn: () => Promise<unknown>, done: string) => run(fn, done, refresh);
@@ -130,15 +147,19 @@ export default function App() {
   // leaving two of them open.
   const remove = (snapshot: SnapshotView) => {
     setConfirming("");
-    // By stamp, which is what the service deletes by. And the selection has to go
-    // with it: leaving it pointing at a snapshot that no longer exists shows an
-    // empty browser under a heading naming something that is gone.
-    if (snapshot.name === selected) {
+    // The selection has to go with it: leaving it pointing at a snapshot that no
+    // longer exists shows an empty browser under a heading naming something that
+    // is gone. Only the startup disk's rows are ever selected, so only they can
+    // be the one being pointed at.
+    if (snapshot.device === startupDevice && snapshot.name === selected) {
       setSelected("");
       setView("home");
     }
+    // By volume and identifier, not by date. The same date exists on every volume
+    // mounted when it was taken, and deleting by date removes all of them — so a
+    // button beside one row would silently take snapshots that were not on screen.
     return act(
-      () => Snapshots.Delete(snapshot.stamp),
+      () => Snapshots.Delete(snapshot.device, snapshot.uuid, snapshot.stamp),
       t("app.deleted", { when: stamp(snapshot.taken) }),
     );
   };
@@ -220,24 +241,47 @@ export default function App() {
 
           <div className="aside-head">
             <h2>{t("nav.snapshots")}</h2>
-            <span className="count">{snapshots.length}</span>
+            <span className="count">{total}</span>
           </div>
 
-          {snapshots.length === 0 && (
+          {total === 0 && (
             <p className="aside-empty">
               {t("app.noneYet")}
             </p>
           )}
 
+          {groups.map((group) => (
+            <div className="volume-group" key={group.device || "startup"}>
+              {/* Headed only when there is more than one. A single disk needs no
+                  label saying which disk, and adding one would make every machine
+                  look like it had something to disambiguate. */}
+              {groups.length > 1 && (
+                <div className="volume-head" title={`${group.mountPoint} (${group.device})`}>
+                  <span className="volume-name">{group.name || group.mountPoint}</span>
+                  <span className="count">{group.snapshots.length}</span>
+                </div>
+              )}
+              {/* Said once per group rather than per row: every row in it is the
+                  same, and repeating it would bury the dates it sits beside. */}
+              {!group.isStartupDisk && groups.length > 1 && (
+                <p className="volume-note">{t("app.otherVolumeNote")}</p>
+              )}
+
           <ul className="snapshot-list">
-            {snapshots.map((snapshot) => (
+            {group.snapshots.map((snapshot) => (
               <li
-                key={snapshot.name}
-                className={`${snapshot.name === selected ? "selected" : ""} ${snapshot.mounted ? "mounted" : ""}`}
-                onClick={() => (setSelected(snapshot.name), setView("snapshots"))}
+                key={copyID(snapshot.device, snapshot.name)}
+                className={`${group.isStartupDisk && snapshot.name === selected ? "selected" : ""} ${snapshot.mounted ? "mounted" : ""} ${group.isStartupDisk ? "" : "read-only"}`}
+                onClick={() => group.isStartupDisk && (setSelected(snapshot.name), setView("snapshots"))}
               >
                 <div className="when">
-                  <span className="dot" title={snapshot.mounted ? t("app.isOpen") : t("app.notOpen")} />
+                  {/* The dot means "open", which only the startup disk's
+                      snapshots can be. Elsewhere it would be a light that is
+                      always off, which reads as a fault rather than as a
+                      capability that does not apply. */}
+                  {group.isStartupDisk && (
+                    <span className="dot" title={snapshot.mounted ? t("app.isOpen") : t("app.notOpen")} />
+                  )}
                   <span>{stamp(snapshot.taken)}</span>
                 </div>
                 <div className="age">{age(snapshot.taken, t)}</div>
@@ -246,7 +290,7 @@ export default function App() {
                       records a state of the disk that has passed. Inline rather
                       than in a dialog — the row being asked about stays visible,
                       which is the whole question. */}
-                  {confirming === snapshot.name ? (
+                  {confirming === copyID(snapshot.device, snapshot.name) ? (
                     <>
                       <button
                         className="destructive"
@@ -261,13 +305,17 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      {snapshot.mounted ? (
-                        <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), t("app.closed")))}>
-                          {t("app.close")}
-                        </button>
-                      ) : (
-                        <button onClick={(e) => (e.stopPropagation(), mount(snapshot))}>{t("app.open")}</button>
-                      )}
+                      {/* Opening is the startup disk's alone for now: mounting
+                          runs through a privileged helper that accepts one volume
+                          by design, and widening it is its own piece of work. */}
+                      {group.isStartupDisk &&
+                        (snapshot.mounted ? (
+                          <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount([snapshot.name]), t("app.closed")))}>
+                            {t("app.close")}
+                          </button>
+                        ) : (
+                          <button onClick={(e) => (e.stopPropagation(), mount(snapshot))}>{t("app.open")}</button>
+                        ))}
                       {/* Offered but refused while it is open, rather than hidden:
                           the service will not delete a mounted snapshot, and a
                           button that is missing leaves the reader wondering
@@ -275,7 +323,7 @@ export default function App() {
                       <button
                         title={snapshot.mounted ? t("app.closeToDelete") : t("app.deleteTitle")}
                         disabled={snapshot.mounted}
-                        onClick={(e) => (e.stopPropagation(), setConfirming(snapshot.name))}
+                        onClick={(e) => (e.stopPropagation(), setConfirming(copyID(snapshot.device, snapshot.name)))}
                       >
                         {t("app.delete")}
                       </button>
@@ -285,6 +333,8 @@ export default function App() {
               </li>
             ))}
           </ul>
+            </div>
+          ))}
 
           {snapshots.some((s) => !s.mounted) && (
             <button className="wide" onClick={mountAll} disabled={busy}>

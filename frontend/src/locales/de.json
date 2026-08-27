@@ -29,6 +29,7 @@
   "app.openFdaSettings": "Einstellungen für vollen Festplattenzugriff öffnen",
   "app.openedEvery": "Alle Snapshots geöffnet — ein Passwort, und nun ist jeder davon durchsuchbar",
   "app.options": "Optionen",
+  "app.otherVolumeNote": "Hier gesichert und aufgeräumt. Das Öffnen ist aus diesem Fenster noch nicht möglich.",
   "app.scenario": "Szenario",
   "app.simulatedLead": "Simulierte Maschine.",
   "app.snapshotTaken": "Snapshot erstellt",

@@ -29,6 +29,7 @@
   "app.openFdaSettings": "Ouvrir les réglages d'accès complet au disque",
   "app.openedEvery": "Tous les snapshots sont ouverts — un mot de passe, et chacun devient consultable",
   "app.options": "Options",
+  "app.otherVolumeNote": "Capturés et purgés ici. Les ouvrir n'est pas encore possible depuis cette fenêtre.",
   "app.scenario": "Scénario",
   "app.simulatedLead": "Machine simulée.",
   "app.snapshotTaken": "Snapshot créé",

@@ -1790,3 +1790,46 @@ button.destructive:hover:not(:disabled) {
   color: var(--error-fg);
   font-weight: 600;
 }
+
+/* Snapshots grouped by the disk they are on.
+
+   They are grouped because they are taken that way: `tmutil localsnapshot`
+   writes to every mounted APFS volume at once, so a flat list was one volume's
+   copies and no sign that the others existed. */
+.volume-group + .volume-group {
+  margin-top: 14px;
+}
+
+.volume-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0 2px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.volume-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Said once per group. Every row under it is the same, and repeating it per row
+   would bury the dates it sits beside. */
+.volume-note {
+  margin: 4px 0 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* A row that cannot be opened is not a row that failed to open. It takes no
+   selection and no hover lift, so the pointer says so before the click does. */
+.snapshot-list li.read-only {
+  cursor: default;
+}

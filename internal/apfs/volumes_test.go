@@ -221,8 +221,8 @@ func TestTheUnionHoldsEveryDateOnceAcrossVolumes(t *testing.T) {
 	only, _ := ParseName("com.apple.TimeMachine.2026-08-26-134707.local")
 
 	got := EverySnapshot([]Volume{
-		{Device: "disk3s1", Snapshots: []Snapshot{shared}},
-		{Device: "disk8s1", Snapshots: []Snapshot{shared, only}},
+		{Device: "disk3s1", Snapshots: []VolumeSnapshot{{Snapshot: shared}}},
+		{Device: "disk8s1", Snapshots: []VolumeSnapshot{{Snapshot: shared}, {Snapshot: only}}},
 	})
 
 	if len(got) != 2 {

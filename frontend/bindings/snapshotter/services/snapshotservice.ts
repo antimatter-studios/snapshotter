@@ -15,12 +15,22 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * Delete removes a snapshot, identified by its date stamp. This is the one
- * irreversible action in the application: a deleted snapshot cannot be
- * recreated, because it recorded a past state of the disk.
+ * Delete removes ONE VOLUME'S COPY of a snapshot, identified by the volume it is
+ * on and its identifier there. This is the one irreversible action in the
+ * application: a deleted snapshot cannot be recreated, because it recorded a past
+ * state of the disk.
+ *
+ * One copy, which is a change. It used to delete by date through tmutil, and
+ * tmutil removes a date from every volume holding it — so deleting what looked
+ * like one row took the external disk's snapshot of the same moment with it,
+ * silently, because that snapshot was not on screen to begin with. Now that every
+ * volume's copies are listed, a button beside one row has to mean that row.
+ *
+ * Retention still deletes by date, and should: a policy's verdict on a date is
+ * the same on every volume, so removing it everywhere is the whole intent there.
  */
-export function Delete(stamp: string): $CancellablePromise<void> {
-    return $Call.ByID(2844585045, stamp);
+export function Delete(device: string, uuid: string, stamp: string): $CancellablePromise<void> {
+    return $Call.ByID(2844585045, device, uuid, stamp);
 }
 
 /**

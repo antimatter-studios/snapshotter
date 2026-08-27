@@ -44,6 +44,7 @@ export {
     TripwireSensitivity,
     TripwireView,
     VolumeHealth,
+    VolumeSnapshots,
     Warning,
     WatchedDirectory
 } from "./models.js";
