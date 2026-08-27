@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -288,4 +289,65 @@ func TestNoCacheStillAnswers(t *testing.T) {
 	if _, err := svc.DirectoryStatus("", browseSnapshot, seed+"/Documents"); err != nil {
 		t.Errorf("without a cache: %v", err)
 	}
+}
+
+// Where browsing starts, per volume.
+//
+// Every volume starts at its own root; the startup disk is the exception, and a
+// deliberate one — the home directory is where a person's work is, and starting
+// at "/" would put four system directories in front of it. An external disk has
+// no home directory, so starting at one would open a path that does not exist
+// inside that snapshot and read as an empty snapshot rather than a wrong path.
+func TestBrowsingStartsAtTheHomeFolderOnTheStartupDisk(t *testing.T) {
+	svc := &BrowseService{Deps: Deps{Runner: &volumeRunner{}, Volume: apfs.DataVolume}}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory")
+	}
+	if got := svc.Home(""); got != home {
+		t.Errorf("the startup disk starts at %q, want the home folder %q", got, home)
+	}
+}
+
+func TestBrowsingStartsAtTheVolumeRootAnywhereElse(t *testing.T) {
+	svc := &BrowseService{Deps: Deps{Runner: &volumeRunner{}, Volume: apfs.DataVolume}}
+
+	if got := svc.Home("disk8s1"); got != "/Volumes/sdcard256gb" {
+		t.Errorf("an external volume starts at %q, want its own root", got)
+	}
+	// And the data volume answers as the home folder even when named by device,
+	// since that is the special case rather than a property of being first.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory")
+	}
+	if got := svc.Home("disk3s1"); got != home {
+		t.Errorf("the data volume named by device starts at %q, want the home folder", got)
+	}
+}
+
+// volumeRunner describes a machine with a startup disk and one external volume,
+// each holding a snapshot.
+type volumeRunner struct{}
+
+func (volumeRunner) Run(_ context.Context, name string, args ...string) (string, error) {
+	const snap = "com.apple.TimeMachine.2026-08-27-120000.local"
+	block := func(dev string) string {
+		return "Snapshots for " + dev + " (1 found)\n|\n+-- 00000000-0000-0000-0000-000000000000\n" +
+			"|   Name:        " + snap + "\n|   XID:         1\n|   Purgeable:   Yes\n"
+	}
+	switch {
+	case name == "mount":
+		return "/dev/disk3s1 on " + apfs.DataVolume + " (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, journaled)\n", nil
+	case name == "diskutil" && len(args) == 3 && args[1] == "listSnapshots":
+		switch args[2] {
+		case apfs.DataVolume:
+			return block("disk3s1"), nil
+		case "/Volumes/sdcard256gb":
+			return block("disk8s1"), nil
+		}
+	}
+	return "", errors.New("unexpected command")
 }

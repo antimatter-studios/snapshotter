@@ -8,6 +8,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
 	"snapshotter/internal/apfs"
@@ -72,7 +73,6 @@ type Deps struct {
 	Scenario string
 	// Space reports a volume's total and available bytes. Nil means ask the
 	// kernel.
-
 	//
 	// It exists because free space is the one input that does not arrive through
 	// Runner: statfs(2) is a syscall, not a command, so a scenario could describe
@@ -121,23 +121,36 @@ func (d Deps) mountsFor(ctx context.Context, device string) (Mounter, error) {
 
 // rootFor is where browsing a volume's snapshot starts.
 //
-// The home directory for the startup disk, because that is where a person's work
-// is and starting at "/" would put four system directories in front of it. Any
-// other volume starts at its own root: it has no home directory, and the whole of
-// it is what someone plugged in to look at.
+// Every volume starts at its own root. The startup disk is the exception, and a
+// deliberate one: it starts at the home directory, because that is where a
+// person's work is and starting at "/" would put four system directories in
+// front of it. Any other volume has no home directory, and the whole of it is
+// what someone plugged in to look at.
+//
+// A device that cannot be resolved gets the home directory too, which is right
+// only because it is the startup disk's answer and a volume nobody can identify
+// is not one anything else can be said about. It is not a good answer for an
+// external disk — a home path does not exist inside that snapshot, so the listing
+// would come back empty and read as an empty snapshot — so the reason it could
+// not be resolved is worth knowing, and is logged rather than swallowed.
 func (d Deps) rootFor(ctx context.Context, device string) string {
 	if device == "" {
 		return d.homeDir()
 	}
 	vols, err := apfs.Volumes(ctx, d.Runner)
 	if err != nil {
+		log.Printf("browse: cannot tell which volume %s is, starting in the home folder: %v", device, err)
 		return d.homeDir()
 	}
 	for _, v := range vols {
-		if v.Device == device && v.MountPoint != d.Volume {
+		if v.Device == device {
+			if v.MountPoint == d.Volume {
+				return d.homeDir()
+			}
 			return v.MountPoint
 		}
 	}
+	log.Printf("browse: %s holds no snapshots this build can see, starting in the home folder", device)
 	return d.homeDir()
 }
 
