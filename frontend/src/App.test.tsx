@@ -619,3 +619,63 @@ describe("snapshots grouped by volume", () => {
     expect(document.querySelectorAll(".volume-head").length).toBe(0);
   });
 });
+
+// The sidebar's shape, which is load-bearing and not decorative.
+//
+// The column does not scroll; one region inside it does, and the footer is held
+// below that region by margin-top:auto. Grouping the list broke this by putting a
+// wrapper between the column and the scrolling element — every group then sized
+// to its own content, the column grew to fit them all, and the footer was pushed
+// past the sidebar's overflow:hidden where it could not be reached at all.
+//
+// jsdom has no layout engine, so this asserts the structure that layout depends
+// on rather than the pixels: one scrolling region, every group inside it, and the
+// controls outside it.
+describe("the sidebar's scrolling region", () => {
+  const twoVolumes = {
+    volumes: [
+      { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+      { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: [{ name: "snap-x", stamp: "2026-08-19-090000", taken: "2026-08-19T09:00:00Z", mounted: false, mountPoint: "", device: "disk8s1", uuid: "BBBBBBBB-0000-0000-0000-000000000001" }], freeBytes: 20, totalBytes: 1000 },
+    ],
+  };
+
+  it("holds every volume's group in one scrolling region", async () => {
+    stub(twoVolumes);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+
+    // One, or the sidebar has two things competing to be the part that shrinks.
+    expect(document.querySelectorAll(".snapshot-scroll").length).toBe(1);
+    const scroll = document.querySelector(".snapshot-scroll")!;
+    for (const group of document.querySelectorAll(".volume-group")) {
+      expect(scroll.contains(group)).toBe(true);
+    }
+  });
+
+  // The footer is what goes missing when this is wrong, and it holds the controls
+  // that act on the machine — the ones that must stay reachable however long the
+  // list gets.
+  it("keeps the footer outside the scrolling region", async () => {
+    stub(twoVolumes);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelector(".aside-footer")).not.toBeNull());
+    const scroll = document.querySelector(".snapshot-scroll")!;
+    const footer = document.querySelector(".aside-footer")!;
+    expect(scroll.contains(footer)).toBe(false);
+    // And it is a later sibling, so margin-top:auto pins it to the bottom rather
+    // than floating it above the list.
+    expect(scroll.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // Open all and Close all act on the whole machine too, so they scroll away with
+  // the list only if they are inside the region. They are not.
+  it("keeps the whole-machine buttons outside the scrolling region", async () => {
+    stub(twoVolumes);
+    render(<App />);
+
+    const openAll = await screen.findByRole("button", { name: /open all|open every/i });
+    expect(document.querySelector(".snapshot-scroll")!.contains(openAll)).toBe(false);
+  });
+});
