@@ -354,6 +354,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.57.0
+
+The snapshot list is grouped by the volume the snapshots are on, so the ones on an
+external disk are visible at all — there was no way to see them before. Deleting
+is now per copy: it deleted by date, and a date exists on every volume mounted
+when it was taken, so one press quietly took an external disk's snapshot of the
+same moment too. `diskutil apfs deleteSnapshot -uuid` is the only call that tells
+two copies apart.
+
 ### v0.56.0
 
 Snapshots were taken on every APFS volume and pruned on one. `tmutil
@@ -428,11 +437,6 @@ against what they are measuring.
 
 The menu bar strip draws one mark per scheduled snapshot rather than per hour, so
 a working schedule fills it and a gap means a snapshot that did not happen.
-
-### v0.50.0
-
-The home screen figures use four columns, or eight on a wide window — the only two
-counts that divide eight evenly.
 
 ## Design decisions
 

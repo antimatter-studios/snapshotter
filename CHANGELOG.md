@@ -7,6 +7,56 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.57.0 — 2026-08-27
+
+**The snapshot list is grouped by the volume the snapshots are on**, headed by
+the disk's name. Headed only when there is more than one: a single disk needs no
+label saying which disk, and adding one would make every Mac look as though it
+had something to disambiguate.
+
+There was no way to see the snapshots on any volume but the startup disk. `tmutil
+localsnapshot` takes no arguments and writes to every mounted APFS volume at
+once, so a flat list showed one volume's copies and gave no sign the others
+existed — including, on the machine that found this, the six on the SD card
+holding this application's own source.
+
+**Deleting is now per copy, which is a change in behaviour.** It deleted by date
+through tmutil, and tmutil removes a date from every volume holding it — so
+pressing delete on what looked like one row took an external disk's snapshot of
+the same moment with it, silently, because that snapshot was not on screen to
+begin with.
+
+`diskutil apfs deleteSnapshot <device> -uuid` is the only call that can tell two
+copies apart, and the UUID is the only identifier that differs between them: one
+date on two volumes has two. Verified on real hardware rather than reasoned
+about — a snapshot created, its external copy deleted by UUID, the startup disk's
+copy of the same date confirmed still present, then both cleaned up. No
+authorization prompt: diskutil's "Ownership of the affected disks is required" is
+satisfied by the console user, on an internal volume and an external one alike.
+
+Retention still deletes by date, and should. A policy's verdict on a date is the
+same on every volume, so removing it everywhere is the whole intent there; it is
+a button beside one row that has to mean that row.
+
+- The row identity is the copy, not the date. Confirming a deletion arms one row
+  rather than every volume's row for that date, which a second click would
+  otherwise delete unseen.
+- Deletion fails closed: without a volume and an identifier the only call
+  available is the one that deletes every copy, so it refuses instead.
+
+Opening stays the startup disk's alone. Mounting runs through a privileged helper
+that accepts one volume by design — "the volume to read from" is exactly the
+argument worth controlling in a process that mounts as root — and widening it is
+its own piece of work. The other groups say so in a line under the heading rather
+than offering a button that cannot work.
+
+A test flake is fixed along the way, and it had nothing to do with any test. The
+Wails runtime polls for its environment on import with a setInterval whose
+callback dereferences `window`; the timer outlives the jsdom environment, and the
+tick after teardown threw an unhandled error that failed the run with all 252
+tests passing. It was a race against the length of the run, so it stayed
+invisible until the suite grew enough to still be going a hundred ticks later.
+
 ## v0.56.0 — 2026-08-27
 
 **Snapshots were taken on every volume and pruned on one.**
