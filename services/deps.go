@@ -7,6 +7,8 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/schedule"
@@ -69,6 +71,7 @@ type Deps struct {
 	Scenario string
 	// Space reports a volume's total and available bytes. Nil means ask the
 	// kernel.
+
 	//
 	// It exists because free space is the one input that does not arrive through
 	// Runner: statfs(2) is a syscall, not a command, so a scenario could describe
@@ -81,4 +84,68 @@ type Deps struct {
 	// simply means every answer is computed afresh, which is what the command
 	// line does.
 	Verdicts *verdict.Cache
+}
+
+// mountsFor resolves a volume identifier to the mounts that belong to it.
+//
+// On Deps rather than on one service, because every screen that reads inside a
+// snapshot has to ask it: browsing, comparing, searching and restoring all resolve
+// a snapshot to a mountpoint, and a second answer to that question would be free
+// to disagree with the first.
+//
+// The data volume answers from Mounts rather than being rebuilt. Rebuilding it
+// would move where it mounts, which would orphan anything already attached.
+func (d Deps) mountsFor(ctx context.Context, device string) (Mounter, error) {
+	if device == "" {
+		return d.Mounts, nil
+	}
+	vols, err := apfs.Volumes(ctx, d.Runner)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range vols {
+		if v.Device != device {
+			continue
+		}
+		if v.MountPoint == d.Volume {
+			return d.Mounts, nil
+		}
+		if d.MountsOn == nil {
+			return nil, fmt.Errorf("services: this build can only open snapshots of %s", d.Volume)
+		}
+		return d.MountsOn(v.MountPoint, v.Device), nil
+	}
+	return nil, fmt.Errorf("services: %q is not a volume holding snapshots", device)
+}
+
+// rootFor is where browsing a volume's snapshot starts.
+//
+// The home directory for the startup disk, because that is where a person's work
+// is and starting at "/" would put four system directories in front of it. Any
+// other volume starts at its own root: it has no home directory, and the whole of
+// it is what someone plugged in to look at.
+func (d Deps) rootFor(ctx context.Context, device string) string {
+	if device == "" {
+		return d.homeDir()
+	}
+	vols, err := apfs.Volumes(ctx, d.Runner)
+	if err != nil {
+		return d.homeDir()
+	}
+	for _, v := range vols {
+		if v.Device == device && v.MountPoint != d.Volume {
+			return v.MountPoint
+		}
+	}
+	return d.homeDir()
+}
+
+func (d Deps) homeDir() string {
+	if d.Faking && d.FakeSeed != "" {
+		return d.FakeSeed
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return home
+	}
+	return "/Users"
 }

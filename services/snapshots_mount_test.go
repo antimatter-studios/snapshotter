@@ -139,7 +139,7 @@ func TestDeletedSinceFindsWhatIsGoneFromTheLiveDisk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := search.DeletedSince(ctx, name, live, false)
+	res, err := search.DeletedSince(ctx, "", name, live, false)
 	if err != nil {
 		t.Fatalf("deleted since: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestDeletedSinceRefusesAnUnmountedSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := search.DeletedSince(context.Background(), snaps[0].Name, t.TempDir(), false); err == nil {
+	if _, err := search.DeletedSince(context.Background(), "", snaps[0].Name, t.TempDir(), false); err == nil {
 		t.Error("comparing against an unmounted snapshot came back without an error")
 	}
 }

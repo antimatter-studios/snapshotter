@@ -305,36 +305,6 @@ func (s *SnapshotService) Mount(ctx context.Context, device string, names []stri
 	return describeAuth(m.Mount(ctx, names))
 }
 
-// mountsFor resolves a volume identifier to the mounts that belong to it.
-//
-// The data volume answers from Deps.Mounts rather than being rebuilt, so the
-// mountpoints the browsing screens read are the same ones opening a snapshot
-// creates. Rebuilding it would be a second answer to the same question, free to
-// disagree with the first — and it would move where the data volume mounts, which
-// would orphan anything already attached.
-func (s *SnapshotService) mountsFor(ctx context.Context, device string) (Mounter, error) {
-	if device == "" {
-		return s.Mounts, nil
-	}
-	vols, err := apfs.Volumes(ctx, s.Runner)
-	if err != nil {
-		return nil, err
-	}
-	for _, v := range vols {
-		if v.Device != device {
-			continue
-		}
-		if v.MountPoint == s.Volume {
-			return s.Mounts, nil
-		}
-		if s.MountsOn == nil {
-			return nil, fmt.Errorf("services: this build can only open snapshots of %s", s.Volume)
-		}
-		return s.MountsOn(v.MountPoint, v.Device), nil
-	}
-	return nil, fmt.Errorf("services: %q is not a volume holding snapshots", device)
-}
-
 // Unmount detaches snapshots, on the volume named by device.
 func (s *SnapshotService) Unmount(ctx context.Context, device string, names []string) error {
 	m, err := s.mountsFor(ctx, device)

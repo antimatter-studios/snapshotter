@@ -714,3 +714,68 @@ describe("the sidebar's scrolling region", () => {
     expect(document.querySelector(".snapshot-scroll")!.contains(openAll)).toBe(false);
   });
 });
+
+// Selecting a snapshot on another volume, which is the whole point of listing
+// them.
+//
+// They mounted and could not be opened: the row was not selectable, because the
+// browser roots at a home directory and another volume has none. So a snapshot
+// could be attached and then not looked at, which is most of the way to not
+// working.
+describe("browsing a snapshot on another volume", () => {
+  const external = [
+    { name: "snap-x", stamp: "2026-08-19-090000", taken: "2026-08-19T09:00:00Z", mounted: true, mountPoint: "/tmp/x", device: "disk8s1", uuid: "BBBBBBBB-0000-0000-0000-000000000001" },
+  ];
+  const twoVolumes = {
+    volumes: [
+      { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+      { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: external, freeBytes: 20, totalBytes: 1000 },
+    ],
+  };
+
+  it("asks where browsing starts on the volume that was selected", async () => {
+    stub(twoVolumes);
+    const home = vi.spyOn(Browse, "Home").mockResolvedValue("/Volumes/sdcard256gb" as never);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const group = within(document.querySelectorAll(".volume-group")[1] as HTMLElement);
+    await userEvent.click(group.getByText(/2026|Aug/));
+
+    // The volume's own root, not a home directory: another disk has none, and
+    // starting at one would open an empty listing that reads as an empty snapshot.
+    await waitFor(() => expect(home).toHaveBeenCalledWith("disk8s1"));
+  });
+
+  // Every row is selectable now. One that is not reads as broken, since it is
+  // sitting in a list beside rows that are.
+  it("selects a row on any volume", async () => {
+    stub(twoVolumes);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const group = document.querySelectorAll(".volume-group")[1] as HTMLElement;
+    await userEvent.click(within(group).getByText(/2026|Aug/));
+
+    await waitFor(() => expect(group.querySelector("li.selected")).not.toBeNull());
+  });
+
+  // The same date exists on both volumes and both can be open at once, so
+  // selecting one must not light up the other.
+  it("selects one copy of a date, not every copy", async () => {
+    const sameDate = [{ ...snapshots[0], device: "disk8s1", uuid: "CCCCCCCC-0000-0000-0000-000000000001" }];
+    stub({
+      volumes: [
+        { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+        { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: sameDate, freeBytes: 20, totalBytes: 1000 },
+      ],
+    });
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const group = document.querySelectorAll(".volume-group")[1] as HTMLElement;
+    await userEvent.click(within(group).getAllByText(/2026|Aug/)[0]);
+
+    await waitFor(() => expect(document.querySelectorAll("li.selected").length).toBe(1));
+  });
+});

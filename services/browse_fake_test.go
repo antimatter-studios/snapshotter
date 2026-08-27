@@ -47,7 +47,7 @@ func TestBrowseAgainstAFakeMount(t *testing.T) {
 
 	browse := NewBrowseService(Deps{Mounts: fake, Volume: "/System/Volumes/Data", Faking: true})
 
-	merged, err := browse.Merged(testSnapshot, seed, true)
+	merged, err := browse.Merged("", testSnapshot, seed, true)
 	if err != nil {
 		t.Fatalf("Merged: %v", err)
 	}

@@ -20,7 +20,7 @@ import (
 func versionsOf(t *testing.T, svc *DiffService, live string) FileVersions {
 	t.Helper()
 
-	got, err := svc.FileVersions(browseSnapshot, live, "")
+	got, err := svc.FileVersions("", browseSnapshot, live, "")
 	if err != nil {
 		t.Fatalf("file versions for %s: %v", live, err)
 	}

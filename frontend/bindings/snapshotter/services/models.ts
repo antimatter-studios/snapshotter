@@ -25,6 +25,13 @@ export class CompareRequest {
     "snapshot": string;
 
     /**
+     * Device names the volume the snapshot is on, empty meaning the startup disk.
+     * A snapshot name does not say: the same date exists on every volume mounted
+     * when it was taken.
+     */
+    "device": string;
+
+    /**
      * LivePath is the folder to compare, in the running system's terms.
      */
     "livePath": string;
@@ -44,6 +51,9 @@ export class CompareRequest {
     constructor($$source: Partial<CompareRequest> = {}) {
         if (!("snapshot" in $$source)) {
             this["snapshot"] = "";
+        }
+        if (!("device" in $$source)) {
+            this["device"] = "";
         }
         if (!("livePath" in $$source)) {
             this["livePath"] = "";
@@ -80,6 +90,13 @@ export class CompareSnapshotsRequest {
     "newer": string;
 
     /**
+     * Device names the volume BOTH snapshots are on. Comparing across volumes is
+     * not offered: the two would be different trees, and the differences reported
+     * would be between two disks rather than between two moments.
+     */
+    "device": string;
+
+    /**
      * LivePath is the folder to compare, in the running system's terms. Both
      * sides are translated from it, so the same place in the tree is compared in
      * each snapshot however their mountpoints differ.
@@ -104,6 +121,9 @@ export class CompareSnapshotsRequest {
         }
         if (!("newer" in $$source)) {
             this["newer"] = "";
+        }
+        if (!("device" in $$source)) {
+            this["device"] = "";
         }
         if (!("livePath" in $$source)) {
             this["livePath"] = "";
@@ -938,6 +958,15 @@ export class RestoreRequest {
     "snapshot": string;
 
     /**
+     * Device names the volume the snapshot is on, empty meaning the startup disk.
+     *
+     * The snapshot name does not say: the same date exists on every volume mounted
+     * when it was taken, and both copies can be attached at once. Restoring from
+     * the wrong one would write another disk's file over this one's.
+     */
+    "device": string;
+
+    /**
      * LivePath is where the file belongs. In the default mode the restored
      * copy lands beside it rather than on it.
      */
@@ -953,6 +982,9 @@ export class RestoreRequest {
     constructor($$source: Partial<RestoreRequest> = {}) {
         if (!("snapshot" in $$source)) {
             this["snapshot"] = "";
+        }
+        if (!("device" in $$source)) {
+            this["device"] = "";
         }
         if (!("livePath" in $$source)) {
             this["livePath"] = "";

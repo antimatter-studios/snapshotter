@@ -67,7 +67,7 @@ func (browseRunner) Run(_ context.Context, name string, args ...string) (string,
 func TestBrowsingStartsSomewhereUseful(t *testing.T) {
 	svc, seed := browseFixture(t)
 
-	if got := svc.Home(); got != seed {
+	if got := svc.Home(""); got != seed {
 		t.Errorf("faking: want the seed %q, got %q", seed, got)
 	}
 
@@ -76,7 +76,7 @@ func TestBrowsingStartsSomewhereUseful(t *testing.T) {
 	if err != nil {
 		t.Skip("no home directory")
 	}
-	if got := real.Home(); got != home {
+	if got := real.Home(""); got != home {
 		t.Errorf("not faking: want the home directory %q, got %q", home, got)
 	}
 }
@@ -120,7 +120,7 @@ func TestListingSomethingThatIsNotThereIsAnError(t *testing.T) {
 func TestListingInsideASnapshotShowsThatSnapshotsContents(t *testing.T) {
 	svc, seed := browseFixture(t)
 
-	got, err := svc.ListSnapshot(browseSnapshot, filepath.Join(seed, "Documents"))
+	got, err := svc.ListSnapshot("", browseSnapshot, filepath.Join(seed, "Documents"))
 	if err != nil {
 		t.Fatalf("listing the snapshot: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestListingInsideASnapshotShowsThatSnapshotsContents(t *testing.T) {
 func TestListingAnUnmountedSnapshotSaysSoRatherThanShowingNothing(t *testing.T) {
 	svc, seed := browseFixture(t)
 
-	_, err := svc.ListSnapshot("com.apple.TimeMachine.2020-01-01-000000.local", filepath.Join(seed, "Documents"))
+	_, err := svc.ListSnapshot("", "com.apple.TimeMachine.2020-01-01-000000.local", filepath.Join(seed, "Documents"))
 	if err == nil {
 		t.Error("listing a snapshot that is not open came back without an error")
 	}
@@ -190,7 +190,7 @@ func TestLocateReportsPresencePerSnapshot(t *testing.T) {
 func TestTheListingDefersFolderVerdictsAndResolvesThemSeparately(t *testing.T) {
 	svc, seed := browseFixture(t)
 
-	listing, err := svc.Merged(browseSnapshot, seed, true)
+	listing, err := svc.Merged("", browseSnapshot, seed, true)
 	if err != nil {
 		t.Fatalf("merged: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestTheListingDefersFolderVerdictsAndResolvesThemSeparately(t *testing.T) {
 
 	// And asking directly answers it. The fake mount copies the seed, so nothing
 	// has changed between the two sides.
-	status, err := svc.DirectoryStatus(browseSnapshot, seed+"/Documents")
+	status, err := svc.DirectoryStatus("", browseSnapshot, seed+"/Documents")
 	if err != nil {
 		t.Fatalf("directory status: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestAChangedFolderResolvesToChanged(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	status, err := svc.DirectoryStatus(browseSnapshot, seed+"/Documents")
+	status, err := svc.DirectoryStatus("", browseSnapshot, seed+"/Documents")
 	if err != nil {
 		t.Fatalf("directory status: %v", err)
 	}
@@ -247,7 +247,7 @@ func TestAFolderVerdictIsRememberedUntilTheDiskMoves(t *testing.T) {
 	svc.Verdicts = verdict.New()
 	folder := seed + "/Documents"
 
-	first, err := svc.DirectoryStatus(browseSnapshot, folder)
+	first, err := svc.DirectoryStatus("", browseSnapshot, folder)
 	if err != nil {
 		t.Fatalf("directory status: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestAFolderVerdictIsRememberedUntilTheDiskMoves(t *testing.T) {
 	if err := os.WriteFile(folder+"/notes.md", []byte("edited, and quite a bit longer"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	again, err := svc.DirectoryStatus(browseSnapshot, folder)
+	again, err := svc.DirectoryStatus("", browseSnapshot, folder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func TestAFolderVerdictIsRememberedUntilTheDiskMoves(t *testing.T) {
 
 	// Once told, it walks again and sees the change.
 	svc.Verdicts.Touched(folder + "/notes.md")
-	after, err := svc.DirectoryStatus(browseSnapshot, folder)
+	after, err := svc.DirectoryStatus("", browseSnapshot, folder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestNoCacheStillAnswers(t *testing.T) {
 	svc, seed := browseFixture(t)
 	svc.Verdicts = nil
 
-	if _, err := svc.DirectoryStatus(browseSnapshot, seed+"/Documents"); err != nil {
+	if _, err := svc.DirectoryStatus("", browseSnapshot, seed+"/Documents"); err != nil {
 		t.Errorf("without a cache: %v", err)
 	}
 }

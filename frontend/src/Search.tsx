@@ -47,12 +47,16 @@ export function Search({
   // question this screen is not asking.
   const look = async () => {
     if (!snapshot) return;
-    await perform(async () => setGone(await SearchAPI.DeletedSince(snapshot.name, folder || path, deep)));
+    await perform(async () =>
+      setGone(await SearchAPI.DeletedSince(snapshot.device, snapshot.name, folder || path, deep)),
+    );
   };
 
-  const restore = async (snapshot: string, livePath: string) => {
+  // The volume travels with the name: a date names a moment, not a copy, and the
+  // same moment exists on every volume that was mounted for it.
+  const restore = async (name: string, device: string, livePath: string) => {
     try {
-      const res = await Restore.Restore({ snapshot, livePath, replace: false });
+      const res = await Restore.Restore({ snapshot: name, device, livePath, replace: false });
       onStatus(t("search.restoredTo", { path: res.destination }));
     } catch (err) {
       setError(message(err));
@@ -169,7 +173,7 @@ export function Search({
                   <td>{stamp(c.snapModTime)}</td>
                   <td className="num">{c.isDir ? "—" : bytes(c.snapSize)}</td>
                   <td className="actions">
-                    <button onClick={() => void restore(snapshot!.name, c.absLive)}>
+                    <button onClick={() => void restore(snapshot!.name, snapshot!.device, c.absLive)}>
                       {t("search.restore")}
                     </button>
                   </td>
@@ -200,7 +204,10 @@ export function Search({
                   <td>{stamp(h.modTime)}</td>
                   <td className="num">{h.isDir ? "—" : bytes(h.size)}</td>
                   <td className="actions">
-                    <button onClick={() => void restore(h.snapshot, h.livePath)}>{t("search.restore")}</button>
+                    <button onClick={() => // Search looks through the startup disk's snapshots, so a hit is
+                        // always one of those. When it learns to search the others,
+                        // the hit will have to say which one it came from.
+                        void restore(h.snapshot, "", h.livePath)}>{t("search.restore")}</button>
                   </td>
                 </tr>
               ))}

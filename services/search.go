@@ -112,17 +112,21 @@ func (s *SearchService) Search(ctx context.Context, term, under string) (SearchR
 // This is the recovery view. Compare shows everything that differs, which after
 // a week of ordinary work is mostly noise; the only rows that matter when
 // something has gone missing are the ones that are gone.
-func (s *SearchService) DeletedSince(ctx context.Context, snapshotName, livePath string, deep bool) (diffs.Result, error) {
+func (s *SearchService) DeletedSince(ctx context.Context, device, snapshotName, livePath string, deep bool) (diffs.Result, error) {
 	var out diffs.Result
 
-	mounted, err := s.Mounts.IsMounted(snapshotName)
+	mounts, err := s.mountsFor(ctx, device)
+	if err != nil {
+		return diffs.Result{}, err
+	}
+	mounted, err := mounts.IsMounted(snapshotName)
 	if err != nil {
 		return out, err
 	}
 	if !mounted {
 		return out, errNotMounted
 	}
-	mountPoint, err := s.Mounts.MountPoint(snapshotName)
+	mountPoint, err := mounts.MountPoint(snapshotName)
 	if err != nil {
 		return out, err
 	}

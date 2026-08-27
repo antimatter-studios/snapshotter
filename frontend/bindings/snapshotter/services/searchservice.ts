@@ -3,7 +3,7 @@
 
 /**
  * SearchService answers the question that follows a deletion.
- * 
+ *
  * Browse assumes you know where to look. After losing something you know what
  * it was called and roughly when it still existed, and almost never which
  * directory it was in. Every other screen here is organised by place; this one
@@ -26,13 +26,13 @@ import * as $models from "./models.js";
 /**
  * DeletedSince lists what a folder held when the snapshot was taken and no
  * longer holds.
- * 
+ *
  * This is the recovery view. Compare shows everything that differs, which after
  * a week of ordinary work is mostly noise; the only rows that matter when
  * something has gone missing are the ones that are gone.
  */
-export function DeletedSince(snapshotName: string, livePath: string, deep: boolean): $CancellablePromise<diffs$0.Result> {
-    return $Call.ByID(2851642391, snapshotName, livePath, deep).then(($result: any) => {
+export function DeletedSince(device: string, snapshotName: string, livePath: string, deep: boolean): $CancellablePromise<diffs$0.Result> {
+    return $Call.ByID(2851642391, device, snapshotName, livePath, deep).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -40,7 +40,7 @@ export function DeletedSince(snapshotName: string, livePath: string, deep: boole
 /**
  * Search looks inside every mounted snapshot for entries whose name contains
  * term.
- * 
+ *
  * Only mounted snapshots can be searched, and rather than mounting on the user's
  * behalf — which costs an authorization prompt per batch — the unsearched ones
  * are named so the user can decide to open them.
