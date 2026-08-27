@@ -54,11 +54,17 @@ func runScheduledSnapshot(ctx context.Context, runner apfs.Runner) error {
 		return err
 	}
 
-	remaining, err := apfs.List(ctx, runner, apfs.DataVolume)
+	// Every volume, because the pruning above covered every volume. Counting the
+	// data volume's alone reported a number the run had not acted on, which is
+	// the shape of a log line that quietly stops being true.
+	vols, err := apfs.Volumes(ctx, runner)
 	if err != nil {
 		return err
 	}
-	log.Printf("holding %d snapshots, keeping %s", len(remaining), schedule.Describe(policy))
+	for _, v := range vols {
+		log.Printf("holding %d snapshots on %s, keeping %s",
+			len(v.Snapshots), v.MountPoint, schedule.Describe(policy))
+	}
 	return nil
 }
 

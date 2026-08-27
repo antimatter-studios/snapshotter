@@ -461,8 +461,13 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 
 		// Browsing asks for a folder's verdict constantly, and the answer only
 		// stops being true when the live disk moves.
-		if home, herr := os.UserHomeDir(); herr == nil && deps.Verdicts != nil {
-			go watchForChanges(context.Background(), home, deps.Verdicts)
+		//
+		// Every volume holding snapshots, not just the home directory. Snapshots
+		// on another volume can be browsed, so a verdict about one of its folders
+		// can go stale — and watching only home meant it stayed stale until the
+		// window was reopened, which reads as a comparison that is simply wrong.
+		if deps.Verdicts != nil {
+			go watchEveryVolume(context.Background(), deps)
 		}
 	})
 	return app.Run()

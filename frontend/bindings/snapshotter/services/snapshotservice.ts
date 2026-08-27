@@ -67,6 +67,13 @@ export function Overview(): $CancellablePromise<$models.Overview> {
 /**
  * TakeNow creates a snapshot immediately. No authorization is needed: tmutil
  * asks backupd to do the work.
+ *
+ * One call, several snapshots: `tmutil localsnapshot` takes no arguments and
+ * writes to every mounted APFS volume at once. What comes back describes the
+ * startup disk's, which is the one the window selects and browses — the others
+ * appear in their own groups on the next refresh. The mountpoint is the startup
+ * disk's for the same reason, and is where this snapshot would attach rather
+ * than where it has.
  */
 export function TakeNow(): $CancellablePromise<$models.SnapshotView> {
     return $Call.ByID(2919724211).then(($result: any) => {

@@ -36,6 +36,10 @@ type Hit struct {
 // Options bound a search. A snapshot is a whole volume, so an unbounded walk of
 // several of them is not something to start by accident.
 type Options struct {
+	// Volume is the live root the snapshot was taken of, which is what turns a
+	// path inside it back into a path on the running system. The zero value is
+	// the data volume.
+	Volume vfs.Volume
 	// Limit stops the walk once this many hits are found. Zero means DefaultLimit.
 	Limit int
 	// MaxEntries bounds the walk itself. Zero means DefaultMaxEntries.
@@ -103,7 +107,7 @@ func Search(ctx context.Context, mountPoint, snapshotName, stamp, term string, o
 	root := mountPoint
 	if opts.Under != "" {
 		var err error
-		if root, err = vfs.ToSnapshot(mountPoint, opts.Under); err != nil {
+		if root, err = opts.Volume.ToSnapshot(mountPoint, opts.Under); err != nil {
 			return nil, err
 		}
 	}
@@ -151,7 +155,7 @@ func Search(ctx context.Context, mountPoint, snapshotName, stamp, term string, o
 			return nil
 		}
 
-		live, err := vfs.ToLive(mountPoint, path)
+		live, err := opts.Volume.ToLive(mountPoint, path)
 		if err != nil {
 			return nil
 		}

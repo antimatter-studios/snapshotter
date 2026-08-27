@@ -40,9 +40,13 @@ export function Home(device: string): $CancellablePromise<string> {
 
 /**
  * ListLive reads a directory on the running system.
+ *
+ * device says which volume's coverage to judge against. Asked about the data
+ * volume, a path on an external disk is correctly "not covered" — and that answer
+ * is nonsense when the disk in question is the one on screen.
  */
-export function ListLive(livePath: string): $CancellablePromise<$models.Listing> {
-    return $Call.ByID(3553074810, livePath).then(($result: any) => {
+export function ListLive(device: string, livePath: string): $CancellablePromise<$models.Listing> {
+    return $Call.ByID(3553074810, device, livePath).then(($result: any) => {
         return $$createType1($result);
     });
 }

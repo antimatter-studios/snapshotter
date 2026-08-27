@@ -23,7 +23,6 @@ import (
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/diffs"
 	"snapshotter/internal/i18n"
-	"snapshotter/internal/vfs"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -237,7 +236,7 @@ func (d *DiffService) mountedSide(device, name, livePath string) (SnapshotView, 
 	}
 	// Each side is translated against its own mountpoint: one live path lands at
 	// a different absolute path inside every snapshot.
-	dir, err := vfs.ToSnapshot(mountPoint, livePath)
+	dir, err := d.volumeFor(context.Background(), device).ToSnapshot(mountPoint, livePath)
 	if err != nil {
 		return SnapshotView{}, "", err
 	}

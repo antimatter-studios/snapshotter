@@ -69,8 +69,12 @@ func (s *SearchService) Search(ctx context.Context, term, under string) (SearchR
 			return out, err
 		}
 
+		// The data volume, stated rather than defaulted: this loop lists that
+		// volume's snapshots and resolves them through its mounts, so a hit is
+		// always one of those. Crossing volumes needs a volume on the hit type
+		// first, or a result could be restored from the wrong copy.
 		hits, err := find.Search(ctx, mountPoint, snap.Name, snap.Stamp, term,
-			find.Options{Under: under})
+			find.Options{Under: under, Volume: vfs.Volume{}})
 		out.Hits = append(out.Hits, hits...)
 		out.Searched = append(out.Searched, snap.Stamp)
 
@@ -130,7 +134,7 @@ func (s *SearchService) DeletedSince(ctx context.Context, device, snapshotName, 
 	if err != nil {
 		return out, err
 	}
-	snapshotDir, err := vfs.ToSnapshot(mountPoint, livePath)
+	snapshotDir, err := s.volumeFor(ctx, device).ToSnapshot(mountPoint, livePath)
 	if err != nil {
 		return out, err
 	}
