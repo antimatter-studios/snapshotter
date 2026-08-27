@@ -354,6 +354,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.59.0
+
+A snapshot on another volume can be looked inside, not only opened. Browsing,
+comparing, searching and restoring all name the volume now, because a snapshot
+name does not identify a copy — the same date exists on every volume that was
+mounted when it was taken. Browsing starts at a home directory on the startup
+disk and at the volume's own root anywhere else.
+
 ### v0.58.0
 
 A snapshot on any volume can be opened, not just the startup disk's. The
@@ -432,17 +440,6 @@ translating the old names, so a settings file naming one restored nothing, and a
 shared early return took the bulk-deletion watcher down with the schedule. Both
 fixed, a failed restore now says so out loud, and only one window may run at a
 time whatever it was built from.
-
-### v0.53.0
-
-Retention rules move into a package with no dependencies, presets are built from
-the period and window actually chosen, and the description that was false is gone.
-
-Three capabilities that were implemented, tested, and had no way to be invoked now
-have one: what has gone from a folder since a snapshot was taken, deleting a single
-snapshot, and the bulk-deletion watcher's log. The Full Disk Access instructions
-appear in every language rather than only English, and the notes the service sends
-are translated rather than shipped as English prose for the window to display.
 
 ## Design decisions
 
