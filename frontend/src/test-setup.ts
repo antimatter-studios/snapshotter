@@ -3,7 +3,7 @@
 // next, and a query that should find one element finds two.
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterAll, afterEach } from "vitest";
 
 // Registered by hand because Testing Library only installs it automatically when
 // vitest is running with globals, and this suite is not. Without it a component
@@ -56,3 +56,32 @@ if (typeof globalThis.localStorage === "undefined") {
     Object.defineProperty(window, "localStorage", { value: storage, configurable: true });
   }
 }
+
+// Intervals started at import time are stopped when the file that started them
+// is done with.
+//
+// The Wails runtime's drag module polls for its environment on import: up to a
+// hundred ticks of a setInterval whose callback dereferences `window`. Nothing
+// in the test suite asks for it — importing the bindings is enough — and the
+// timer outlives the jsdom environment it was created in. When vitest tears that
+// down between files the next tick throws "ReferenceError: window is not
+// defined", which vitest reports as an unhandled error and exits non-zero on,
+// with every test passing.
+//
+// It is a race against the length of the run rather than against anything in a
+// test, so it stayed invisible until the suite grew enough to still be going a
+// hundred ticks later. Clearing what a file started is the narrow fix: it does
+// not silence unhandled errors, and a timer a test genuinely needs is cleared
+// only after that test's file has finished.
+const startedIntervals = new Set<number>();
+const realSetInterval = globalThis.setInterval;
+globalThis.setInterval = ((...args: Parameters<typeof realSetInterval>) => {
+  const id = realSetInterval(...args);
+  startedIntervals.add(id as unknown as number);
+  return id;
+}) as typeof realSetInterval;
+
+afterAll(() => {
+  for (const id of startedIntervals) clearInterval(id);
+  startedIntervals.clear();
+});
