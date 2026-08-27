@@ -60,18 +60,33 @@ func newEnv(r *fakeRunner) (Env, *bytes.Buffer, *bytes.Buffer) {
 	}, out, errBuf
 }
 
-func TestIsCommandDistinguishesVerbsFromABareInvocation(t *testing.T) {
-	for _, v := range []string{"list", "status", "take", "run", "help", "--help"} {
-		if !IsCommand(v) {
-			t.Errorf("IsCommand(%q) = false", v)
-		}
+// A mistyped verb has to be told it was mistyped.
+//
+// It used to open a window instead. main asked IsCommand whether the first
+// argument was one this build knew and, when it was not, fell through to the
+// window — so `snapshotter health`, which is not a command, silently launched the
+// application. Nothing said the verb was wrong; the only thing that spoke up was
+// the one-window guard refusing the second copy, which describes a different
+// problem entirely and sends the reader somewhere else.
+//
+// So there is no longer a question main can ask. Anything on the command line
+// comes here, and an unknown verb is answered here — which this test now covers
+// from the outside, because the function that used to decide it is gone.
+func TestAnUnknownVerbIsRefusedAndNamed(t *testing.T) {
+	e, _, errBuf := newEnv(&fakeRunner{})
+
+	if code := Run(context.Background(), e, []string{"health"}); code != 2 {
+		t.Errorf("an unknown verb exited %d, want 2", code)
 	}
-	// A bare invocation must open the window, and the launchd flags must not be
-	// swallowed by the command dispatcher.
-	for _, v := range []string{"", "--take-snapshot", "--watch", "nonsense"} {
-		if IsCommand(v) {
-			t.Errorf("IsCommand(%q) = true; it would stop the window opening", v)
-		}
+	// Named, because the whole value of the message is telling someone WHICH word
+	// was wrong when they cannot see the typo.
+	if !strings.Contains(errBuf.String(), "health") {
+		t.Errorf("the message does not name the verb:\n%s", errBuf.String())
+	}
+	// And the real commands beside it, or the reader is told they are wrong and
+	// not what would have been right.
+	if !strings.Contains(errBuf.String(), "status") {
+		t.Errorf("the message does not list the real commands:\n%s", errBuf.String())
 	}
 }
 
