@@ -290,9 +290,26 @@ func buildDeps(s setup, runner apfs.Runner) services.Deps {
 		log.Printf("mounts are simulated: %s is set, seeding from %s", mountmgr.FakeEnabled, fake.Seed)
 	}
 
+	// Any other volume's snapshots mount under a directory of their own, named
+	// for the volume. Two volumes' snapshots of the same moment share a date, so
+	// they would otherwise share a mountpoint and the second would land on top of
+	// the first. The data volume keeps the bare directory it has always used, so
+	// upgrading does not orphan mounts that are already attached.
+	//
+	// Nil while mounts are simulated: the fake has one seed directory and no
+	// notion of a second volume, and inventing one would put rows on screen that
+	// describe nothing.
+	mountsOn := func(volume, device string) services.Mounter {
+		return mountmgr.New(elevate.Osascript{}, volume, filepath.Join(p.mountRoot, device), p.program)
+	}
+	if faking {
+		mountsOn = nil
+	}
+
 	return services.Deps{
-		Runner: runner,
-		Mounts: mounts,
+		Runner:   runner,
+		Mounts:   mounts,
+		MountsOn: mountsOn,
 		Agent: &schedule.Agent{
 			Runner:   runner,
 			AgentDir: p.agentDir,

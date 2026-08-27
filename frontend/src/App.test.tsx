@@ -202,7 +202,7 @@ describe("choosing a snapshot", () => {
 
     // The button stops the click reaching the row. Without that, closing a
     // snapshot also navigated into the one just closed.
-    await waitFor(() => expect(closed).toHaveBeenCalledWith(["snap-a"]));
+    await waitFor(() => expect(closed).toHaveBeenCalledWith("disk3s1", ["snap-a"]));
     expect(screen.queryByRole("button", { name: /browse/i })).toBeNull();
   });
 
@@ -214,8 +214,9 @@ describe("choosing a snapshot", () => {
     await userEvent.click(await screen.findByRole("button", { name: /^open all/i }));
 
     // snap-a is already open. Asking for it again is a second authorization
-    // prompt for no gain.
-    await waitFor(() => expect(opened).toHaveBeenCalledWith(["snap-b"]));
+    // prompt for no gain. Named by volume too, since a date alone would not say
+    // which disk's copy of it to attach.
+    await waitFor(() => expect(opened).toHaveBeenCalledWith("disk3s1", ["snap-b"]));
   });
 });
 
@@ -554,18 +555,52 @@ describe("snapshots grouped by volume", () => {
     expect(document.querySelectorAll(".volume-head").length).toBe(0);
   });
 
-  // Opening runs through a privileged helper that accepts one volume by design.
-  // A button that cannot work is worse than no button: it reads as a failure
-  // rather than as a capability that is not there yet.
-  it("offers no Open on a volume that cannot be mounted", async () => {
+  // Opening works on every volume now that the privileged helper builds its
+  // allowlist from the machine rather than from a constant.
+  it("opens a snapshot on a volume that is not the startup disk", async () => {
     stub(twoVolumes);
+    const mounted = vi.spyOn(Snapshots, "Mount").mockResolvedValue(undefined as never);
     render(<App />);
 
     await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
-    const group = document.querySelectorAll(".volume-group")[1];
-    expect(within(group as HTMLElement).queryByRole("button", { name: /^open$/i })).toBeNull();
-    // Deleting one IS possible, and is the whole reason the row is actionable.
-    expect(within(group as HTMLElement).getByRole("button", { name: /delete/i })).toBeTruthy();
+    const group = within(document.querySelectorAll(".volume-group")[1] as HTMLElement);
+    await userEvent.click(group.getByRole("button", { name: /^open$/i }));
+
+    // Named by volume as well as by snapshot: a date is not an identity, and the
+    // data volume has one of the same date that must not be attached instead.
+    await waitFor(() => expect(mounted).toHaveBeenCalledWith("disk8s1", ["snap-x"]));
+  });
+
+  it("closes a snapshot on the volume it was opened on", async () => {
+    const open = [{ name: "snap-x", stamp: "2026-08-19-090000", taken: "2026-08-19T09:00:00Z", mounted: true, mountPoint: "/tmp/x", device: "disk8s1", uuid: "BBBBBBBB-0000-0000-0000-000000000001" }];
+    stub({
+      volumes: [
+        { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+        { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: open, freeBytes: 20, totalBytes: 1000 },
+      ],
+    });
+    const unmounted = vi.spyOn(Snapshots, "Unmount").mockResolvedValue(undefined as never);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const group = within(document.querySelectorAll(".volume-group")[1] as HTMLElement);
+    await userEvent.click(group.getByRole("button", { name: /^close$/i }));
+
+    await waitFor(() => expect(unmounted).toHaveBeenCalledWith("disk8s1", ["snap-x"]));
+  });
+
+  // Opening everything is one call per volume: each raises its own authorization
+  // prompt and each attaches into its own directory.
+  it("opens everything one volume at a time", async () => {
+    stub(twoVolumes);
+    const mounted = vi.spyOn(Snapshots, "Mount").mockResolvedValue(undefined as never);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    await userEvent.click(screen.getByRole("button", { name: /open all|open every/i }));
+
+    await waitFor(() => expect(mounted).toHaveBeenCalledWith("disk3s1", ["snap-b"]));
+    expect(mounted).toHaveBeenCalledWith("disk8s1", ["snap-x"]);
   });
 
   // The row is one copy of a date, not the date. Deleting it must name the volume

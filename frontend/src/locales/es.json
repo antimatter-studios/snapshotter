@@ -29,7 +29,7 @@
   "app.openFdaSettings": "Abrir ajustes de Acceso total al disco",
   "app.openedEvery": "Se abrieron todos los snapshots: una contraseña y ya se puede buscar en cualquiera",
   "app.options": "Opciones",
-  "app.otherVolumeNote": "Capturados y depurados aquí. Abrir uno todavía no es posible desde esta ventana.",
+  "app.otherVolumeNote": "Capturados, depurados y se pueden abrir aquí. Explorar el contenido es solo para el disco de arranque: al abrir uno se indica dónde queda montado.",
   "app.scenario": "Escenario",
   "app.simulatedLead": "Máquina simulada.",
   "app.snapshotTaken": "Snapshot creado",
