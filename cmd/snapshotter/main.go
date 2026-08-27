@@ -11,6 +11,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -55,11 +56,27 @@ func main() {
 		return
 	}
 
-	takeSnapshot := flag.Bool("take-snapshot", false,
+	// A flag set of this program's own, rather than the global one, so that a
+	// command line this does not understand reaches the command line dispatcher
+	// instead of being answered here.
+	//
+	// The global flag set answers -h itself, with a usage message listing the two
+	// flags below and nothing else — so `snapshotter --help` described the launchd
+	// agents' internal flags and never mentioned a single command. It also exits
+	// on anything it does not recognise, which is why an unknown flag never got the
+	// chance to be reported as an unknown command.
+	//
+	// ContinueOnError with the output discarded turns both of those into a value
+	// this function can act on: flag.ErrHelp for -h, some other error for an
+	// unrecognised flag, and either way the argument list is passed on intact.
+	flags := flag.NewFlagSet("snapshotter", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	takeSnapshot := flags.Bool("take-snapshot", false,
 		"take a snapshot, prune expired ones, and exit; this is what the scheduled task runs")
-	watchMode := flag.Bool("watch", false,
+	watchMode := flags.Bool("watch", false,
 		"watch for bulk deletion and take a snapshot when one starts; runs until stopped")
-	flag.Parse()
+	argv := os.Args[1:]
+	parseErr := flags.Parse(argv)
 
 	// Resolved before anything below and shared by every entry point, so the
 	// command line, the launchd modes and the window cannot end up describing
@@ -91,10 +108,25 @@ func main() {
 	// depend on whichever language the machine happened to be set to.
 	boot.ApplyFromFile()
 
-	// A verb means the command line; a bare invocation means the window. The
-	// launchd agents still use the original flags, because their installed
-	// plists name them and changing that would orphan an installed agent.
-	if rest := flag.Args(); len(rest) > 0 && cli.IsCommand(rest[0]) {
+	// Anything on the command line means the command line; a BARE invocation means
+	// the window. The launchd agents still use the original flags, because their
+	// installed plists name them and changing that would orphan an installed agent.
+	//
+	// Anything, rather than anything this build recognises. A verb it did not know
+	// used to fall through to here and open a window: `snapshotter health` — which
+	// is not a command — silently launched the application, and the only thing that
+	// said so was the one-window guard refusing the second copy. A mistyped verb
+	// has to be told it was mistyped, and cli.Run already does that, in every
+	// language and with the list of real commands beside it.
+	//
+	// parseErr covers the arguments that never became flag.Args() at all: -h, and
+	// any flag this build does not have. Those are answered by the same dispatcher,
+	// from the original argument list, so the help someone asked for is the help
+	// about commands rather than about two flags meant for launchd.
+	if rest := flags.Args(); len(rest) > 0 || parseErr != nil {
+		if parseErr != nil {
+			rest = argv
+		}
 		env := cli.SystemEnv()
 		env.Runner = runner
 		os.Exit(cli.Run(context.Background(), env, rest))

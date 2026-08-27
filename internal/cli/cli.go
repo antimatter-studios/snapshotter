@@ -101,16 +101,6 @@ func commands() map[string]command {
 	}
 }
 
-// IsCommand reports whether the first argument names a command, so main can
-// tell `snapshotter list` from a bare `snapshotter` that should open a window.
-func IsCommand(arg string) bool {
-	if arg == "help" || arg == "-h" || arg == "--help" {
-		return true
-	}
-	_, ok := commands()[arg]
-	return ok
-}
-
 // Run dispatches one command and returns the process exit code.
 func Run(ctx context.Context, e Env, args []string) int {
 	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
