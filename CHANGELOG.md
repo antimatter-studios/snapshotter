@@ -7,6 +7,58 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.55.0 — 2026-08-27
+
+**The bulk-deletion tripwire watches directories you name, and nothing else.** It
+watched the entire home directory, with an ignore list to quiet the parts that are
+not anybody's work — which is the wrong way round. `~/Library` deletes in bulk as
+a matter of routine: caches, container state, mail indexes, every application's
+idea of scratch space. So the wire tripped on deletions nobody had asked about,
+and each trip pinned another whole-volume snapshot on the disk. The ignore list
+needed to stop that is a list of everything the machine does, written after each
+surprise, and it is never finished.
+
+Naming what to watch instead is smaller and answerable: `~/projects` is one line
+and it is the thing worth protecting. What is not on the list is not watched,
+which is a rule someone can hold in their head.
+
+- New setting `tripwire.watch`, a list of directories. A leading `~` is expanded.
+  Editable in the window under *Watching for bulk deletions*, or from the command
+  line with `snapshotter config` like every other setting.
+- **The tripwire is off by default, with nothing on its list.** It was on by
+  default before, on the reasoning that it costs nothing until it fires — but it
+  fired constantly. An existing settings file keeps whatever it already says, so
+  this reaches new installations; the Health screen says when nothing is named.
+- Deletions are counted **per watched directory** rather than in one running
+  total. A single total made the threshold easier to reach the more directories
+  were watched, which is the opposite of what adding one should do. Two hundred
+  gone from `~/projects` trips it; a hundred there and a hundred in `~/Documents`
+  does not.
+- The cooldown after a snapshot stays **shared** across all of them. An APFS
+  snapshot is of the whole volume, so the one taken for `~/projects` already
+  covers `~/Documents`, and a second a moment later costs disk and captures
+  nothing new.
+- Installing the watcher is refused while the list is empty, and such a watcher is
+  no longer restored at startup. Installed and watching nothing reports itself as
+  running and protects nothing.
+- The Health screen reports an empty list as information rather than a warning,
+  and offers no button: what to watch is the one thing this application cannot
+  work out on someone's behalf.
+- There is no fallback to the home directory when the settings cannot be read.
+  That fallback turned any such failure into watching everything, which is the
+  behaviour this list exists to end. The agent logs why and idles rather than
+  exiting, so `KeepAlive` cannot turn an unconfigured watcher into a crash loop.
+
+A deletion is attributed to the longest matching watched directory, on the
+resolved path. So a directory watched inside another keeps its own count rather
+than feeding its parent's, `~/projects-archive` is never counted against
+`~/projects`, and a root named through a symlink still matches — FSEvents reports
+`/private/tmp` and never `/tmp`.
+
+`ConfigService.WatchFolder`, which removed an entry from the *ignore* list, is now
+`StopIgnoringFolder`. Next to a list of watched directories, a method called
+`WatchFolder` that does not add to it is a trap.
+
 ## v0.54.1 — 2026-08-22
 
 **v0.54.0 shipped with no window in it on Apple Silicon.** It worked on Intel. On

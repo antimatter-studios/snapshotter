@@ -339,6 +339,16 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.55.0
+
+The bulk-deletion watcher watches directories you name, and nothing else. It
+watched the whole home directory with an ignore list to quiet the rest, which is
+the wrong way round — `~/Library` deletes in bulk as a matter of routine, so most
+of what it caught was housekeeping and every catch pinned another whole-volume
+snapshot on the disk. It is now off with an empty list until a directory is named,
+each directory is counted on its own, and the cooldown stays shared because a
+snapshot is of the whole volume anyway.
+
 ### v0.54.1
 
 v0.54.0 shipped with no window in it on Apple Silicon — the universal build
@@ -400,12 +410,6 @@ them read as 4+4 rather than 7+1.
 The low-space warning names the amount and the consequence — "Only 45 GB left —
 old snapshots may start being dropped" — and formats the size the way each
 language writes numbers.
-
-### v0.47.0
-
-The program's entry point lives in `cmd/snapshotter` and the repository root holds
-no Go files. `frontend/embed.go` carries the built window; the menu bar glyphs moved
-into the package that draws them.
 
 ## Design decisions
 
