@@ -354,6 +354,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.59.1
+
+Browsing a snapshot on another volume reported that the volume was "not on the
+data volume", because path translation assumed there was only one. It now
+translates against the volume being browsed — and coming back out lands on that
+volume too, where it used to return a path on the startup disk and aim a restore
+at the wrong disk.
+
 ### v0.59.0
 
 A snapshot on another volume can be looked inside, not only opened. Browsing,
@@ -431,15 +439,6 @@ profile is now chosen before the two numbers it uses, which are labelled for the
 profile in force rather than for the flat one alone. And a translated message
 nobody asks for is a test failure — which found five screens still hardcoded in
 English.
-
-### v0.53.1
-
-Upgrading through Homebrew removes both launchd agents, and the application puts
-them back at startup — but v0.53.0 renamed the retention presets without
-translating the old names, so a settings file naming one restored nothing, and a
-shared early return took the bulk-deletion watcher down with the schedule. Both
-fixed, a failed restore now says so out loud, and only one window may run at a
-time whatever it was built from.
 
 ## Design decisions
 
