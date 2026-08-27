@@ -323,6 +323,16 @@
   "status.lowSpace.title": {
     "other": "Nur noch {{.Free}} frei — alte Snapshots könnten entfernt werden"
   },
+  "status.lowSpaceVolume.detail": {
+    "one": "{{.Percent}} davon sind frei, und es enthält {{.Count}} lokalen Snapshot. Snapshots werden auf allen eingehängten APFS-Volumes gleichzeitig erstellt — tmutil bietet keine Auswahl — dieses Laufwerk wird also zusammen mit dem Startvolume gesichert.",
+    "other": "{{.Percent}} davon sind frei, und es enthält {{.Count}} lokale Snapshots. Snapshots werden auf allen eingehängten APFS-Volumes gleichzeitig erstellt — tmutil bietet keine Auswahl — dieses Laufwerk wird also zusammen mit dem Startvolume gesichert."
+  },
+  "status.lowSpaceVolume.pinned": {
+    "other": "{{.Stamp}} hält den Container dieses Volumes auf seiner aktuellen Größe; erst sein Löschen gibt Speicherplatz zurück."
+  },
+  "status.lowSpaceVolume.title": {
+    "other": "Auf {{.Volume}} sind nur noch {{.Free}} frei"
+  },
   "status.noSchedule.detail": {
     "other": "macOS plant lokale Snapshots nur, wenn für Time Machine ein Backup-Ziel eingerichtet ist. Ohne eines und ohne diesen Zeitplan ist der heutige Snapshot der letzte."
   },

@@ -482,6 +482,19 @@ export class Health {
     "pinningStamp"?: string;
 
     /**
+     * Volumes is every mounted APFS volume holding local snapshots, the data
+     * volume among them.
+     *
+     * More than one, always, on a machine with anything plugged in. `tmutil
+     * localsnapshot` takes no arguments and writes to all of them, and this
+     * screen reported the data volume alone — so an external disk could fill with
+     * snapshots this application had taken and nothing here would say so. The one
+     * that found it was at 98% full with its own pinning snapshot, while the
+     * figures above described a boot volume that was fine.
+     */
+    "volumes": VolumeHealth[];
+
+    /**
      * TripwireInstalled and TripwireRunning describe the bulk-deletion watcher.
      * It is reported separately from the schedule because it covers a different
      * failure: the schedule bounds how much time you can lose, the tripwire
@@ -571,6 +584,9 @@ export class Health {
         if (!("purgeableCount" in $$source)) {
             this["purgeableCount"] = 0;
         }
+        if (!("volumes" in $$source)) {
+            this["volumes"] = [];
+        }
         if (!("tripwireInstalled" in $$source)) {
             this["tripwireInstalled"] = false;
         }
@@ -592,9 +608,13 @@ export class Health {
      */
     static createFrom($$source: any = {}): Health {
         const $$createField3_0 = $$createType2;
+        const $$createField23_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
+        }
+        if ("volumes" in $$parsedSource) {
+            $$parsedSource["volumes"] = $$createField23_0($$parsedSource["volumes"]);
         }
         return new Health($$parsedSource as Partial<Health>);
     }
@@ -678,7 +698,7 @@ export class Listing {
      * Creates a new Listing instance from a string or object.
      */
     static createFrom($$source: any = {}): Listing {
-        const $$createField2_0 = $$createType4;
+        const $$createField2_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField2_0($$parsedSource["entries"]);
@@ -730,7 +750,7 @@ export class MergedListing {
      * Creates a new MergedListing instance from a string or object.
      */
     static createFrom($$source: any = {}): MergedListing {
-        const $$createField2_0 = $$createType6;
+        const $$createField2_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField2_0($$parsedSource["rows"]);
@@ -776,7 +796,7 @@ export class Overview {
      * Creates a new Overview instance from a string or object.
      */
     static createFrom($$source: any = {}): Overview {
-        const $$createField0_0 = $$createType8;
+        const $$createField0_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("snapshots" in $$parsedSource) {
             $$parsedSource["snapshots"] = $$createField0_0($$parsedSource["snapshots"]);
@@ -839,7 +859,7 @@ export class PolicyOption {
      * Creates a new PolicyOption instance from a string or object.
      */
     static createFrom($$source: any = {}): PolicyOption {
-        const $$createField3_0 = $$createType10;
+        const $$createField3_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tiers" in $$parsedSource) {
             $$parsedSource["tiers"] = $$createField3_0($$parsedSource["tiers"]);
@@ -1056,8 +1076,8 @@ export class ScheduleView {
      * Creates a new ScheduleView instance from a string or object.
      */
     static createFrom($$source: any = {}): ScheduleView {
-        const $$createField6_0 = $$createType11;
-        const $$createField11_0 = $$createType10;
+        const $$createField6_0 = $$createType13;
+        const $$createField11_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("conflicts" in $$parsedSource) {
             $$parsedSource["conflicts"] = $$createField6_0($$parsedSource["conflicts"]);
@@ -1126,9 +1146,9 @@ export class SearchResult {
      * Creates a new SearchResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SearchResult {
-        const $$createField1_0 = $$createType13;
-        const $$createField2_0 = $$createType11;
-        const $$createField3_0 = $$createType11;
+        const $$createField1_0 = $$createType15;
+        const $$createField2_0 = $$createType13;
+        const $$createField3_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hits" in $$parsedSource) {
             $$parsedSource["hits"] = $$createField1_0($$parsedSource["hits"]);
@@ -1200,9 +1220,9 @@ export class SnapshotComparison {
      * Creates a new SnapshotComparison instance from a string or object.
      */
     static createFrom($$source: any = {}): SnapshotComparison {
-        const $$createField0_0 = $$createType7;
-        const $$createField1_0 = $$createType7;
-        const $$createField4_0 = $$createType14;
+        const $$createField0_0 = $$createType9;
+        const $$createField1_0 = $$createType9;
+        const $$createField4_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("older" in $$parsedSource) {
             $$parsedSource["older"] = $$createField0_0($$parsedSource["older"]);
@@ -1374,6 +1394,80 @@ export class TripwireView {
 }
 
 /**
+ * VolumeHealth is one APFS volume's own numbers.
+ *
+ * Its own, because the container is its own: an external disk has its own free
+ * space and its own pinning snapshot, and neither is knowable from the boot
+ * volume's. Reporting one volume's figures for a machine that snapshots several
+ * is not an approximation, it is an answer about a different disk.
+ */
+export class VolumeHealth {
+    /**
+     * MountPoint is where it is attached, which is the name a person knows it by.
+     */
+    "mountPoint": string;
+
+    /**
+     * Device is the volume identifier, like "disk8s1". Two mount points can name
+     * one volume, so this is what makes a row distinct.
+     */
+    "device": string;
+
+    /**
+     * SnapshotCount is how many local snapshots it holds.
+     */
+    "snapshotCount": number;
+
+    /**
+     * PurgeableCount is how many of those macOS may reclaim on its own.
+     */
+    "purgeableCount": number;
+
+    /**
+     * PinningStamp names the one holding this container's minimum size up.
+     */
+    "pinningStamp"?: string;
+    "totalBytes": number;
+    "freeBytes": number;
+    "freePercent": number;
+
+    /** Creates a new VolumeHealth instance. */
+    constructor($$source: Partial<VolumeHealth> = {}) {
+        if (!("mountPoint" in $$source)) {
+            this["mountPoint"] = "";
+        }
+        if (!("device" in $$source)) {
+            this["device"] = "";
+        }
+        if (!("snapshotCount" in $$source)) {
+            this["snapshotCount"] = 0;
+        }
+        if (!("purgeableCount" in $$source)) {
+            this["purgeableCount"] = 0;
+        }
+        if (!("totalBytes" in $$source)) {
+            this["totalBytes"] = 0;
+        }
+        if (!("freeBytes" in $$source)) {
+            this["freeBytes"] = 0;
+        }
+        if (!("freePercent" in $$source)) {
+            this["freePercent"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VolumeHealth instance from a string or object.
+     */
+    static createFrom($$source: any = {}): VolumeHealth {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VolumeHealth($$parsedSource as Partial<VolumeHealth>);
+    }
+}
+
+/**
  * Warning is a bulk deletion the tripwire saw, as the window shows it.
  *
  * It comes from a file rather than from memory because the tripwire is a
@@ -1424,8 +1518,8 @@ export class Warning {
      * Creates a new Warning instance from a string or object.
      */
     static createFrom($$source: any = {}): Warning {
-        const $$createField1_0 = $$createType11;
-        const $$createField2_0 = $$createType11;
+        const $$createField1_0 = $$createType13;
+        const $$createField2_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("where" in $$parsedSource) {
             $$parsedSource["where"] = $$createField1_0($$parsedSource["where"]);
@@ -1484,15 +1578,17 @@ export class WatchedDirectory {
 const $$createType0 = config$0.Config.createFrom;
 const $$createType1 = Finding.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = vfs$0.Entry.createFrom;
+const $$createType3 = VolumeHealth.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = diffs$0.Change.createFrom;
+const $$createType5 = vfs$0.Entry.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = SnapshotView.createFrom;
+const $$createType7 = diffs$0.Change.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = TierView.createFrom;
+const $$createType9 = SnapshotView.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $Create.Array($Create.Any);
-const $$createType12 = find$0.Hit.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = diffs$0.Result.createFrom;
+const $$createType11 = TierView.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $Create.Array($Create.Any);
+const $$createType14 = find$0.Hit.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = diffs$0.Result.createFrom;

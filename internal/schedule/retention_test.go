@@ -549,30 +549,60 @@ func TestIdentifyPolicyNamesWhatIsActuallyInstalled(t *testing.T) {
 	}
 }
 
-// listingRunner answers the two tmutil commands pruning uses and records the
-// deletions, so the deleting can be checked without any snapshot existing.
+// listingRunner answers the commands pruning uses and records the deletions, so
+// the deleting can be checked without any snapshot existing.
+//
+// It answers for a machine with more than one APFS volume, because that is what
+// a Mac with anything plugged into it is. `tmutil localsnapshot` takes no
+// arguments and writes to all of them, and a fake that knew about only one was
+// how a whole class of undeletable snapshot went unnoticed.
 type listingRunner struct {
-	snaps   []apfs.Snapshot
+	// snaps are on the data volume.
+	snaps []apfs.Snapshot
+	// extra are on a second volume and NOT on the first, which is the shape that
+	// used to be unprunable: macOS purges the data volume's copy under space
+	// pressure, and the survivor elsewhere was never listed and so never deleted.
+	extra   []apfs.Snapshot
 	deleted []string
 }
 
 func (l *listingRunner) Run(_ context.Context, name string, args ...string) (string, error) {
-	if name != "tmutil" || len(args) == 0 {
-		return "", fmt.Errorf("unexpected command %s %v", name, args)
-	}
-	switch args[0] {
-	case "listlocalsnapshots":
-		var out strings.Builder
-		out.WriteString("Snapshots for disk /System/Volumes/Data:\n")
-		for _, s := range l.snaps {
-			out.WriteString(s.Name + "\n")
+	switch {
+	case name == "mount":
+		return "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/backup (apfs, local, journaled)\n" +
+			"/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled)\n", nil
+
+	case name == "diskutil" && len(args) == 3 && args[0] == "apfs" && args[1] == "listSnapshots":
+		switch args[2] {
+		case "/System/Volumes/Data":
+			return snapshotListing("disk3s1", l.snaps), nil
+		case "/Volumes/backup":
+			return snapshotListing("disk8s1", append(append([]apfs.Snapshot{}, l.snaps...), l.extra...)), nil
+		case "/System/Volumes/VM":
+			return "No snapshots for disk3s6\n", nil
 		}
-		return out.String(), nil
-	case "deletelocalsnapshots":
+		return "", fmt.Errorf("unexpected volume %q", args[2])
+
+	case name == "tmutil" && len(args) > 0 && args[0] == "deletelocalsnapshots":
 		l.deleted = append(l.deleted, args[1])
 		return "", nil
 	}
-	return "", fmt.Errorf("unexpected tmutil %v", args)
+	return "", fmt.Errorf("unexpected command %s %v", name, args)
+}
+
+// snapshotListing renders diskutil's block-per-snapshot format, which is what
+// the volume enumeration reads. tmutil's flat list names no volume, so there
+// would be nothing to tell two volumes apart by.
+func snapshotListing(device string, snaps []apfs.Snapshot) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "Snapshots for %s (%d found)\n", device, len(snaps))
+	for _, s := range snaps {
+		out.WriteString("|\n+-- 00000000-0000-0000-0000-000000000000\n")
+		fmt.Fprintf(&out, "|   Name:        %s\n", s.Name)
+		out.WriteString("|   XID:         1\n|   Purgeable:   Yes\n")
+	}
+	return out.String()
 }
 
 func TestPruneByPolicyDeletesExactlyWhatThePlanPrunes(t *testing.T) {
@@ -580,7 +610,7 @@ func TestPruneByPolicyDeletesExactlyWhatThePlanPrunes(t *testing.T) {
 	r := &listingRunner{snaps: snaps}
 	policy := Presets(6*time.Hour, 14*day)[0].Policy
 
-	deleted, err := PruneByPolicy(context.Background(), r, apfs.DataVolume, policy, planNow)
+	deleted, err := PruneByPolicy(context.Background(), r, policy, planNow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -615,7 +645,7 @@ func TestPruneByPolicyDeletesExactlyWhatThePlanPrunes(t *testing.T) {
 
 func TestPruneByPolicyDeletesNothingUnderAnEmptyPolicy(t *testing.T) {
 	r := &listingRunner{snaps: history(planNow, 6*time.Hour, 100)}
-	deleted, err := PruneByPolicy(context.Background(), r, apfs.DataVolume, Policy{}, planNow)
+	deleted, err := PruneByPolicy(context.Background(), r, Policy{}, planNow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -669,5 +699,68 @@ func TestTheDescribedPolicyIsTranslated(t *testing.T) {
 	// multi-byte letter is not cut in half.
 	if !strings.HasSuffix(german, ".") {
 		t.Errorf("German lost its full stop: %q", german)
+	}
+}
+
+// A snapshot on a second volume and not on the data volume must still be pruned.
+//
+// This is the bug in one test. `tmutil localsnapshot` takes no arguments, so it
+// writes to every eligible mounted APFS volume at once — and pruning planned over
+// the data volume's list alone. Snapshots are purgeable, so macOS reclaims them
+// per volume under space pressure; a date it drops from a full data volume before
+// the retention window expires survives on every other volume, where nothing was
+// looking. Nothing ever asked for its deletion, so it stayed forever.
+//
+// Found on a real machine: an SD card at 98% full holding eight snapshots that
+// existed nowhere else, one of them pinning its container's minimum size.
+func TestASnapshotOnAnotherVolumeAloneIsStillPruned(t *testing.T) {
+	// Old enough that no policy would keep it, and deliberately not in the data
+	// volume's list — which is exactly the state macOS leaves behind.
+	orphan := apfs.Snapshot{
+		Name:  "com.apple.TimeMachine.2020-01-01-000000.local",
+		Stamp: "2020-01-01-000000",
+		Taken: planNow.Add(-2000 * day),
+	}
+	r := &listingRunner{snaps: history(planNow, 6*time.Hour, 40), extra: []apfs.Snapshot{orphan}}
+
+	deleted, err := PruneByPolicy(context.Background(), r, Presets(6*time.Hour, 14*day)[0].Policy, planNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+	for _, s := range deleted {
+		if s.Stamp == orphan.Stamp {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("a snapshot living only on a second volume was not pruned, so nothing would ever delete it. Deleted: %v", r.deleted)
+	}
+}
+
+// And it is deleted once, not once per volume that holds it.
+//
+// `tmutil deletelocalsnapshots <date>` removes that date wherever it lives, so a
+// second call for the same date is a command that can only fail — and a loop per
+// volume rather than over the union would make one for every volume but the first.
+func TestASnapshotOnEveryVolumeIsDeletedOnce(t *testing.T) {
+	r := &listingRunner{snaps: history(planNow, 6*time.Hour, int((120*day)/(6*time.Hour)))}
+
+	if _, err := PruneByPolicy(context.Background(), r, Presets(6*time.Hour, 14*day)[0].Policy, planNow); err != nil {
+		t.Fatal(err)
+	}
+
+	seen := map[string]int{}
+	for _, stamp := range r.deleted {
+		seen[stamp]++
+	}
+	for stamp, n := range seen {
+		if n != 1 {
+			t.Errorf("%s was deleted %d times; it is on two volumes and one call removes it from both", stamp, n)
+		}
+	}
+	if len(seen) == 0 {
+		t.Fatal("nothing was deleted, so this test proved nothing")
 	}
 }

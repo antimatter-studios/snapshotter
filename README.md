@@ -320,11 +320,19 @@ at the same time.
   presents as a regression in the mount path rather than as a lapsed grant. A
   stable signing identity is a prerequisite, not a distribution nicety. For the
   same reason a grant aimed at a bundle on removable media is not durable.
-- **Snapshots are whole-volume.** APFS has no per-path snapshot and no exclusion
-  mechanism. A separate APFS volume in the same container shares free space and
-  mounts anywhere, but `tmutil localsnapshot` takes no volume argument and
-  `diskutil apfs` has no create verb — so moving a folder to its own volume
-  *excludes* it from coverage rather than giving it a schedule.
+- **Snapshots are whole-volume, and every volume at once.** APFS has no per-path
+  snapshot and no exclusion mechanism. `tmutil localsnapshot` takes no arguments
+  at all — not a volume, not a flag — so it snapshots every eligible mounted APFS
+  volume simultaneously, and there is no way to ask for one. Every neighbouring
+  verb takes a mount point (`listlocalsnapshots`, `thinlocalsnapshots`,
+  `deletelocalsnapshots`); creation is the one Apple did not make selectable.
+
+  So an external APFS disk is snapshotted whenever the startup disk is, whether
+  or not anyone wanted that. Snapshotter lists and prunes every volume for this
+  reason, and the Health screen reports each one's own free space and pinning
+  snapshot — a container is per volume, so neither is knowable from the boot
+  volume's numbers. `tmutil addexclusion -v <volume>` is the only lever for
+  keeping a disk out of it altogether.
 - **No per-snapshot size, ever.** A snapshot shares blocks with the live volume
   and with its neighbours, so the question has no single answer. What is reported
   instead is which snapshots are purgeable and which one pins the container.
@@ -332,8 +340,15 @@ at the same time.
   prompt on the way out is a poor trade for tidying something read-only. A mounted
   snapshot cannot be deleted, so leftover mounts block pruning — *Close all* is in
   the sidebar.
-- **This source tree is not protected by the snapshots it manages.** It lives on
-  an SD card, which is a different volume.
+- **This source tree is snapshotted, but not reachable from inside the
+  application.** It lives on an SD card, which is a different volume — and an
+  APFS one, so `tmutil localsnapshot` sweeps it up with everything else. The
+  snapshots exist and are pruned along with the rest.
+
+  What they are not is browsable or restorable here: `mountmgr` refuses any
+  source but the data volume, deliberately, because "the volume to read from" is
+  exactly the argument worth controlling in a process that mounts as root. Recover
+  from them with `mount_apfs` by hand.
 
 ## Changelog
 

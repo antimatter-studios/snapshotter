@@ -439,3 +439,99 @@ describe("the schedule figure", () => {
     expect(cell?.textContent).toBe("None");
   });
 });
+
+// Every APFS volume holding snapshots, with its own numbers.
+//
+// The figures grid answers for the startup disk, and that used to be all there
+// was — which was wrong rather than incomplete. `tmutil localsnapshot` takes no
+// arguments and snapshots every mounted APFS volume at once, so an external disk
+// fills with snapshots this application took while the screen reports a boot
+// volume that is fine. The one that found it was at 98% full with its own pinning
+// snapshot, and nothing anywhere said so.
+describe("the volumes being snapshotted", () => {
+  const twoVolumes = [
+    {
+      mountPoint: "/System/Volumes/Data",
+      device: "disk3s1",
+      snapshotCount: 7,
+      purgeableCount: 7,
+      pinningStamp: "",
+      totalBytes: 1000,
+      freeBytes: 500,
+      freePercent: 50,
+    },
+    {
+      mountPoint: "/Volumes/sdcard256gb",
+      device: "disk8s1",
+      snapshotCount: 14,
+      purgeableCount: 14,
+      pinningStamp: "2026-08-26-145013",
+      totalBytes: 1000,
+      freeBytes: 20,
+      freePercent: 2,
+    },
+  ];
+
+  it("names every volume, not just the startup disk", async () => {
+    check({ volumes: twoVolumes });
+    render(<Health onStatus={() => {}} />);
+
+    expect(await screen.findByText("/Volumes/sdcard256gb")).toBeTruthy();
+    expect(screen.getByText("/System/Volumes/Data")).toBeTruthy();
+    // The device too, because two mount points can name one volume and the row
+    // has to stay identifiable when they do.
+    expect(screen.getByText("disk8s1")).toBeTruthy();
+  });
+
+  it("gives each volume its own snapshot count and free space", async () => {
+    check({ volumes: twoVolumes });
+    render(<Health onStatus={() => {}} />);
+
+    await screen.findByText("/Volumes/sdcard256gb");
+    // 14 on the external disk against 7 on the startup disk: the divergence is
+    // the whole point, and a single figure cannot show it.
+    expect(screen.getByText(/14 \(14 purgeable\)/)).toBeTruthy();
+    expect(screen.getByText(/7 \(7 purgeable\)/)).toBeTruthy();
+    expect(screen.getByText(/2%/)).toBeTruthy();
+  });
+
+  it("names the snapshot holding a container open", async () => {
+    check({ volumes: twoVolumes });
+    render(<Health onStatus={() => {}} />);
+
+    // The one whose deletion actually returns space, and the reason a volume can
+    // hold fourteen purgeable snapshots and still be full.
+    expect(await screen.findByText("2026-08-26-145013")).toBeTruthy();
+  });
+
+  // A row that looked comfortable beside a warning saying otherwise would be
+  // worse than either alone, so the threshold is the one the finding uses.
+  it("marks a volume that is short of space", async () => {
+    check({ volumes: twoVolumes });
+    const { container } = render(<Health onStatus={() => {}} />);
+
+    await screen.findByText("/Volumes/sdcard256gb");
+    const low = container.querySelectorAll("td.low");
+    expect(low.length).toBe(1);
+    expect(low[0].textContent).toContain("2%");
+  });
+
+  // One volume is what the grid above already describes, and a table repeating it
+  // invites the reader to look for the difference between them.
+  it("says nothing when there is only the startup disk", async () => {
+    check({ volumes: [twoVolumes[0]] });
+    render(<Health onStatus={() => {}} />);
+
+    await screen.findByText("You are covered");
+    expect(screen.queryByText(/volumes being snapshotted/i)).toBeNull();
+  });
+
+  // An older service, or one that could not enumerate them, sends no list at all.
+  // The screen is otherwise correct and must still render.
+  it("survives a service that reports no volumes", async () => {
+    check({ volumes: undefined });
+    render(<Health onStatus={() => {}} />);
+
+    expect(await screen.findByText("You are covered")).toBeTruthy();
+  });
+});

@@ -364,28 +364,49 @@ func IdentifyPolicy(p Policy) string {
 	return "custom"
 }
 
-// PruneByPolicy lists the snapshots on a volume, plans them, and deletes what
-// the plan prunes, returning the deleted ones.
+// PruneByPolicy lists the snapshots on every volume that holds any, plans them,
+// and deletes what the plan prunes, returning the deleted ones.
+//
+// Every volume, not the data volume. `tmutil localsnapshot` takes no arguments,
+// so it writes to every eligible mounted APFS volume at once — and this used to
+// plan over the data volume's list alone. Any date that reached another volume
+// and not that one was invisible here, and therefore permanent: nothing ever
+// asked for its deletion. They diverge because snapshots are purgeable, so macOS
+// reclaims them per volume under space pressure, dropping dates from a full
+// volume that survive everywhere else.
+//
+// Planning over the union is what fixes it, and the union is the right unit
+// rather than a loop per volume: `tmutil deletelocalsnapshots <date>` removes
+// that date wherever it lives, so a date is kept or dropped everywhere at once
+// however the decision is reached. What was missing was only ever the seeing.
 //
 // It sits beside apfs.Prune, which implements the flat window, so the scheduled
 // run has one call to make whichever kind of retention is configured. The
 // planning is separate and pure; this is only the part that talks to tmutil.
-func PruneByPolicy(ctx context.Context, r apfs.Runner, volume string, policy Policy, now time.Time) ([]apfs.Snapshot, error) {
-	snaps, err := apfs.List(ctx, r, volume)
+func PruneByPolicy(ctx context.Context, r apfs.Runner, policy Policy, now time.Time) ([]apfs.Snapshot, error) {
+	vols, err := apfs.Volumes(ctx, r)
 	if err != nil {
 		return nil, err
 	}
-	_, prune := Plan(snaps, policy, now)
+	return prune(ctx, r, apfs.EverySnapshot(vols), policy, now)
+}
+
+// prune is the deciding and the deleting, given the snapshots to decide over.
+//
+// Separate from the enumeration so the policy can be exercised without a mount
+// table to answer for.
+func prune(ctx context.Context, r apfs.Runner, snaps []apfs.Snapshot, policy Policy, now time.Time) ([]apfs.Snapshot, error) {
+	_, toPrune := Plan(snaps, policy, now)
 
 	// Oldest first, so a run that fails partway leaves the same shape a
 	// completed one would — thinned from the far end — rather than a history
 	// with holes recently punched in the middle of it.
 	var deleted []apfs.Snapshot
-	for i := len(prune) - 1; i >= 0; i-- {
-		if err := apfs.Delete(ctx, r, prune[i].Stamp); err != nil {
+	for i := len(toPrune) - 1; i >= 0; i-- {
+		if err := apfs.Delete(ctx, r, toPrune[i].Stamp); err != nil {
 			return deleted, fmt.Errorf("schedule: pruning by policy %s: %w", policy, err)
 		}
-		deleted = append(deleted, prune[i])
+		deleted = append(deleted, toPrune[i])
 	}
 	return deleted, nil
 }
