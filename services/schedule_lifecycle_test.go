@@ -275,7 +275,7 @@ func TestDeleteRefusesAnythingThatIsNotAStamp(t *testing.T) {
 	}
 
 	for _, bad := range []string{"/", apfs.DataVolume, "com.apple.TimeMachine.2026-08-13-172036.local", "", "2026-08-13-172036 ; rm -rf /"} {
-		if err := s.Snapshots.Delete(ctx, bad); err == nil {
+		if err := s.Snapshots.Delete(ctx, "disk1s1", "8DE94CCB-5B60-4C09-B249-D7E0067AE4B4", bad); err == nil {
 			t.Errorf("%q was accepted as a deletion target", bad)
 		}
 	}

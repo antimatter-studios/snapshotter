@@ -3,6 +3,8 @@ package apfs
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -28,11 +30,15 @@ type Volume struct {
 	// the volume group rather than the volume asked about. Deduplicating on the
 	// path would count those snapshots twice and prune them twice.
 	Device string
+	// Name is the volume's own name, "sdcard256gb" rather than its mount point.
+	// It is what a person calls the disk, and what a heading over its snapshots
+	// should say.
+	Name string
 	// Snapshots are its Time Machine local snapshots, newest first.
 	//
 	// Only those: the sealed system volume carries a com.apple.os.update-<hash>
 	// snapshot which is macOS's own and is not ours to count or delete.
-	Snapshots []Snapshot
+	Snapshots []VolumeSnapshot
 	// Purgeable is how many of them macOS may reclaim on its own.
 	Purgeable int
 	// PinningStamp names the one diskutil reports as holding the container's
@@ -42,6 +48,22 @@ type Volume struct {
 	// this bug had its own pinning snapshot, on its own container, and the only
 	// one ever reported was the boot volume's.
 	PinningStamp string
+}
+
+// VolumeSnapshot is one snapshot as it exists on one volume.
+//
+// The same date can exist on several — `tmutil localsnapshot` writes to all of
+// them at once — and each copy is a separate thing that can be deleted on its
+// own. So the identity here is the UUID, which is per volume, and not the date,
+// which is not.
+type VolumeSnapshot struct {
+	Snapshot
+	// UUID identifies this copy, and is what deletes only this copy.
+	UUID string
+	// Purgeable reports that macOS may reclaim it without being asked.
+	Purgeable bool
+	// LimitsContainer reports it as the one holding this container's floor up.
+	LimitsContainer bool
 }
 
 // Volumes returns every mounted APFS volume that holds at least one Time Machine
@@ -74,7 +96,7 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 		}
 		seen[device] = true
 
-		vol := Volume{MountPoint: mount, Device: device}
+		vol := Volume{MountPoint: mount, Device: device, Name: volumeName(ctx, r, mount)}
 		// diskutil's listing, not tmutil's: the same call answers what is there and
 		// what macOS thinks of each one, so the flags cost no second command.
 		for _, d := range parseDetails(listing) {
@@ -82,7 +104,10 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 			if !ok {
 				continue
 			}
-			vol.Snapshots = append(vol.Snapshots, snap)
+			vol.Snapshots = append(vol.Snapshots, VolumeSnapshot{
+				Snapshot: snap, UUID: d.UUID,
+				Purgeable: d.Purgeable, LimitsContainer: d.LimitsContainer,
+			})
 			if d.Purgeable {
 				vol.Purgeable++
 			}
@@ -105,6 +130,58 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 	sort.Slice(vols, func(i, j int) bool { return vols[i].Device < vols[j].Device })
 	return vols, nil
 }
+
+// volumeName asks diskutil what the volume is called, falling back to the last
+// component of its mount point.
+//
+// A fallback rather than an error: the name is a heading, and a listing that
+// refuses to appear because one disk would not say its name is a worse answer
+// than a heading reading "sdcard256gb" because that is where it is mounted.
+func volumeName(ctx context.Context, r Runner, mount string) string {
+	fallback := filepath.Base(mount)
+	out, err := r.Run(ctx, "diskutil", "info", mount)
+	if err != nil {
+		return fallback
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if key, value, ok := splitField(line); ok && key == "Volume Name" && value != "" {
+			return value
+		}
+	}
+	return fallback
+}
+
+// DeleteOn removes one snapshot from one volume, leaving every other volume's
+// copy of the same date alone.
+//
+// This is the difference between a retention policy and a button. Retention
+// decides about a DATE — the policy's verdict is the same on every volume, so
+// `tmutil deletelocalsnapshots <date>`, which removes it everywhere, is exactly
+// right. A button beside one row is about one COPY, and deleting the SD card's
+// snapshot must not take the startup disk's with it.
+//
+// It needs no privileges. diskutil says "Ownership of the affected disks is
+// required", which the console user has for their own disks; this was checked
+// against both an internal volume and an external one, and neither raised a
+// prompt.
+func DeleteOn(ctx context.Context, r Runner, device, uuid string) error {
+	if !devicePattern.MatchString(device) {
+		return fmt.Errorf("apfs: refusing to delete from %q: not a volume identifier", device)
+	}
+	if !uuidPattern.MatchString(uuid) {
+		return fmt.Errorf("apfs: refusing to delete %q: not a snapshot identifier", uuid)
+	}
+	out, err := r.Run(ctx, "diskutil", "apfs", "deleteSnapshot", device, "-uuid", uuid)
+	if err != nil {
+		return fmt.Errorf("apfs: deleting snapshot %s from %s: %w: %s", uuid, device, err, strings.TrimSpace(out))
+	}
+	return nil
+}
+
+// devicePattern guards the volume handed to diskutil, for the same reason
+// stampPattern guards a date: it is an argument to a command that deletes, and
+// "disk3s1" is the only shape it is ever meant to take.
+var devicePattern = regexp.MustCompile(`^disk\d+(s\d+)+$`)
 
 // mountedAPFS pulls the mount points of every APFS filesystem out of mount(8).
 //
@@ -170,7 +247,7 @@ func EverySnapshot(vols []Volume) []Snapshot {
 				continue
 			}
 			seen[s.Stamp] = true
-			all = append(all, s)
+			all = append(all, s.Snapshot)
 		}
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Taken.After(all[j].Taken) })

@@ -3,6 +3,7 @@ package apfs
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -16,6 +17,16 @@ import (
 type Detail struct {
 	Name  string
 	Stamp string
+	// UUID identifies this snapshot ON THIS VOLUME, which is what makes deleting
+	// one copy possible.
+	//
+	// `tmutil deletelocalsnapshots <date>` removes that date from every volume
+	// holding it, which is right for retention — the policy's verdict on a date is
+	// the same everywhere — and wrong for a button beside one row. Deleting the
+	// SD card's copy of a date must not take the startup disk's with it.
+	// `diskutil apfs deleteSnapshot <device> -uuid` is the only call that can tell
+	// them apart.
+	UUID string
 	// Purgeable reports that macOS may reclaim this snapshot on its own under
 	// space pressure. Every Time Machine local snapshot normally is, which is
 	// why a retention window is an upper bound rather than a promise.
@@ -47,8 +58,16 @@ func Details(ctx context.Context, r Runner, volume string) (map[string]Detail, e
 func parseDetails(out string) map[string]Detail {
 	details := make(map[string]Detail)
 	var current string
+	// pending holds the UUID seen since the last Name. diskutil writes it on the
+	// block's opening line — "+-- 85095869-…" — which is not a "Key: value" line
+	// and so arrives before there is anything to attach it to.
+	var pending string
 
 	for _, line := range strings.Split(out, "\n") {
+		if uuid, ok := blockUUID(line); ok {
+			pending = uuid
+			continue
+		}
 		key, value, ok := splitField(line)
 		if !ok {
 			continue
@@ -58,10 +77,14 @@ func parseDetails(out string) map[string]Detail {
 			snap, ok := ParseName(value)
 			if !ok {
 				current = ""
+				pending = ""
 				continue
 			}
 			current = snap.Name
-			details[current] = Detail{Name: snap.Name, Stamp: snap.Stamp}
+			// The UUID heads the block, so it was read before the name that keys
+			// this map was known.
+			details[current] = Detail{Name: snap.Name, Stamp: snap.Stamp, UUID: pending}
+			pending = ""
 		case "Purgeable":
 			if d, ok := details[current]; ok {
 				d.Purgeable = strings.EqualFold(value, "Yes")
@@ -77,6 +100,23 @@ func parseDetails(out string) map[string]Detail {
 		}
 	}
 	return details
+}
+
+// uuidPattern matches the identifier diskutil heads each snapshot block with.
+// Anchored and shaped, because it is handed back to diskutil as an argument.
+var uuidPattern = regexp.MustCompile(`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$`)
+
+// blockUUID reads the UUID off a block's opening line, "+-- <uuid>".
+func blockUUID(line string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "+-- ") {
+		return "", false
+	}
+	uuid := strings.TrimSpace(strings.TrimPrefix(trimmed, "+-- "))
+	if !uuidPattern.MatchString(uuid) {
+		return "", false
+	}
+	return uuid, true
 }
 
 // splitField pulls "Key: value" out of a line, ignoring the tree-drawing

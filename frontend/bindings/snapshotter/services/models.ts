@@ -763,7 +763,18 @@ export class MergedListing {
  * Overview is everything the main screen needs in one call.
  */
 export class Overview {
+    /**
+     * Snapshots is the data volume's, which is what the browsing screens work
+     * against. Kept alongside Volumes rather than derived from it, because those
+     * screens are about one volume by nature: they compare a snapshot with the
+     * live disk, and the live disk they mean is this one.
+     */
     "snapshots": SnapshotView[];
+
+    /**
+     * Volumes is every volume's, grouped, for the list.
+     */
+    "volumes": VolumeSnapshots[];
 
     /**
      * TimeMachineWarning is set when Time Machine has a destination, because
@@ -778,6 +789,9 @@ export class Overview {
     constructor($$source: Partial<Overview> = {}) {
         if (!("snapshots" in $$source)) {
             this["snapshots"] = [];
+        }
+        if (!("volumes" in $$source)) {
+            this["volumes"] = [];
         }
         if (!("timeMachineWarning" in $$source)) {
             this["timeMachineWarning"] = "";
@@ -797,9 +811,13 @@ export class Overview {
      */
     static createFrom($$source: any = {}): Overview {
         const $$createField0_0 = $$createType10;
+        const $$createField1_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("snapshots" in $$parsedSource) {
             $$parsedSource["snapshots"] = $$createField0_0($$parsedSource["snapshots"]);
+        }
+        if ("volumes" in $$parsedSource) {
+            $$parsedSource["volumes"] = $$createField1_0($$parsedSource["volumes"]);
         }
         return new Overview($$parsedSource as Partial<Overview>);
     }
@@ -859,7 +877,7 @@ export class PolicyOption {
      * Creates a new PolicyOption instance from a string or object.
      */
     static createFrom($$source: any = {}): PolicyOption {
-        const $$createField3_0 = $$createType12;
+        const $$createField3_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tiers" in $$parsedSource) {
             $$parsedSource["tiers"] = $$createField3_0($$parsedSource["tiers"]);
@@ -1076,8 +1094,8 @@ export class ScheduleView {
      * Creates a new ScheduleView instance from a string or object.
      */
     static createFrom($$source: any = {}): ScheduleView {
-        const $$createField6_0 = $$createType13;
-        const $$createField11_0 = $$createType12;
+        const $$createField6_0 = $$createType15;
+        const $$createField11_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("conflicts" in $$parsedSource) {
             $$parsedSource["conflicts"] = $$createField6_0($$parsedSource["conflicts"]);
@@ -1146,9 +1164,9 @@ export class SearchResult {
      * Creates a new SearchResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SearchResult {
-        const $$createField1_0 = $$createType15;
-        const $$createField2_0 = $$createType13;
-        const $$createField3_0 = $$createType13;
+        const $$createField1_0 = $$createType17;
+        const $$createField2_0 = $$createType15;
+        const $$createField3_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hits" in $$parsedSource) {
             $$parsedSource["hits"] = $$createField1_0($$parsedSource["hits"]);
@@ -1222,7 +1240,7 @@ export class SnapshotComparison {
     static createFrom($$source: any = {}): SnapshotComparison {
         const $$createField0_0 = $$createType9;
         const $$createField1_0 = $$createType9;
-        const $$createField4_0 = $$createType16;
+        const $$createField4_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("older" in $$parsedSource) {
             $$parsedSource["older"] = $$createField0_0($$parsedSource["older"]);
@@ -1246,6 +1264,29 @@ export class SnapshotView {
     "taken": string;
 
     /**
+     * Device and UUID identify this COPY, on this volume.
+     *
+     * The same date exists on every volume mounted when it was taken, because
+     * `tmutil localsnapshot` writes to all of them at once. So a row in a list is
+     * not a date, it is one volume's copy of a date, and deleting it must not take
+     * the others with it. The UUID is the only identifier that can tell them
+     * apart; the stamp cannot.
+     */
+    "device": string;
+    "uuid": string;
+
+    /**
+     * Purgeable reports that macOS may reclaim this copy without being asked.
+     */
+    "purgeable": boolean;
+
+    /**
+     * LimitsContainer marks the copy holding this volume's container at its
+     * current size, which is the one whose deletion actually returns space.
+     */
+    "limitsContainer": boolean;
+
+    /**
      * Mounted and MountPoint describe whether the contents can be read right
      * now. Mounting is the only step that needs authorization.
      */
@@ -1262,6 +1303,18 @@ export class SnapshotView {
         }
         if (!("taken" in $$source)) {
             this["taken"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (!("device" in $$source)) {
+            this["device"] = "";
+        }
+        if (!("uuid" in $$source)) {
+            this["uuid"] = "";
+        }
+        if (!("purgeable" in $$source)) {
+            this["purgeable"] = false;
+        }
+        if (!("limitsContainer" in $$source)) {
+            this["limitsContainer"] = false;
         }
         if (!("mounted" in $$source)) {
             this["mounted"] = false;
@@ -1468,6 +1521,74 @@ export class VolumeHealth {
 }
 
 /**
+ * VolumeSnapshots is one volume's snapshots, under the name of the disk.
+ *
+ * The list is grouped because the snapshots are: `tmutil localsnapshot` takes no
+ * arguments and writes to every mounted APFS volume at once, so an ungrouped list
+ * of one volume's copies was most of a machine's snapshots missing. There was no
+ * way to see the ones on an external disk at all.
+ */
+export class VolumeSnapshots {
+    /**
+     * Name is what the disk is called — "sdcard256gb" — which is the heading a
+     * person recognises. MountPoint and Device are what commands are addressed
+     * with, and are shown beside it because two mount points can name one volume.
+     */
+    "name": string;
+    "mountPoint": string;
+    "device": string;
+
+    /**
+     * IsStartupDisk marks the data volume, which is the only one whose snapshots
+     * can be browsed, compared and restored from here. Everything else can be
+     * listed and deleted, and opening one is on the way.
+     */
+    "isStartupDisk": boolean;
+    "snapshots": SnapshotView[];
+    "freeBytes": number;
+    "totalBytes": number;
+
+    /** Creates a new VolumeSnapshots instance. */
+    constructor($$source: Partial<VolumeSnapshots> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("mountPoint" in $$source)) {
+            this["mountPoint"] = "";
+        }
+        if (!("device" in $$source)) {
+            this["device"] = "";
+        }
+        if (!("isStartupDisk" in $$source)) {
+            this["isStartupDisk"] = false;
+        }
+        if (!("snapshots" in $$source)) {
+            this["snapshots"] = [];
+        }
+        if (!("freeBytes" in $$source)) {
+            this["freeBytes"] = 0;
+        }
+        if (!("totalBytes" in $$source)) {
+            this["totalBytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VolumeSnapshots instance from a string or object.
+     */
+    static createFrom($$source: any = {}): VolumeSnapshots {
+        const $$createField4_0 = $$createType10;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("snapshots" in $$parsedSource) {
+            $$parsedSource["snapshots"] = $$createField4_0($$parsedSource["snapshots"]);
+        }
+        return new VolumeSnapshots($$parsedSource as Partial<VolumeSnapshots>);
+    }
+}
+
+/**
  * Warning is a bulk deletion the tripwire saw, as the window shows it.
  *
  * It comes from a file rather than from memory because the tripwire is a
@@ -1518,8 +1639,8 @@ export class Warning {
      * Creates a new Warning instance from a string or object.
      */
     static createFrom($$source: any = {}): Warning {
-        const $$createField1_0 = $$createType13;
-        const $$createField2_0 = $$createType13;
+        const $$createField1_0 = $$createType15;
+        const $$createField2_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("where" in $$parsedSource) {
             $$parsedSource["where"] = $$createField1_0($$parsedSource["where"]);
@@ -1586,9 +1707,11 @@ const $$createType7 = diffs$0.Change.createFrom;
 const $$createType8 = $Create.Array($$createType7);
 const $$createType9 = SnapshotView.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = TierView.createFrom;
+const $$createType11 = VolumeSnapshots.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $Create.Array($Create.Any);
-const $$createType14 = find$0.Hit.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = diffs$0.Result.createFrom;
+const $$createType13 = TierView.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = $Create.Array($Create.Any);
+const $$createType16 = find$0.Hit.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = diffs$0.Result.createFrom;

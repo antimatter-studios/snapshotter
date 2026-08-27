@@ -12,14 +12,22 @@ import i18n from "./i18n";
 // only step that needs a password. A button that silently does nothing here reads
 // as macOS refusing rather than as the application failing.
 
+// Every row carries the volume it is on and its identifier there. The same date
+// exists on every volume mounted when it was taken, so a row is one copy of a
+// date rather than the date, and deleting it must say which copy it means.
 const snapshots = [
-  { name: "snap-a", stamp: "2026-08-20-120000", taken: "2026-08-20T12:00:00Z", mounted: true, mountPoint: "/tmp/a" },
-  { name: "snap-b", stamp: "2026-08-18-120000", taken: "2026-08-18T12:00:00Z", mounted: false, mountPoint: "" },
+  { name: "snap-a", stamp: "2026-08-20-120000", taken: "2026-08-20T12:00:00Z", mounted: true, mountPoint: "/tmp/a", device: "disk3s1", uuid: "AAAAAAAA-0000-0000-0000-000000000001" },
+  { name: "snap-b", stamp: "2026-08-18-120000", taken: "2026-08-18T12:00:00Z", mounted: false, mountPoint: "", device: "disk3s1", uuid: "AAAAAAAA-0000-0000-0000-000000000002" },
 ];
 
 function overview(over: Record<string, unknown> = {}) {
   return {
     snapshots,
+    // One volume unless a case says otherwise, which is what a Mac with nothing
+    // plugged in looks like: the grouping is then invisible, as it should be.
+    volumes: [
+      { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+    ],
     volumeTotalBytes: 1000,
     volumeFreeBytes: 400,
     timeMachineWarning: "",
@@ -64,14 +72,16 @@ describe("the application shell", () => {
     // By count rather than by the text of a date: the row shows a formatted,
     // localised timestamp, and asserting on its exact wording would make this
     // test fail whenever the format improves rather than when the list breaks.
-    // Exactly the snapshots given, in the list that holds them — found by its
+    // Exactly the snapshots given, in the lists that hold them — found by their
     // own element rather than by role, since the screen has more than one list.
-    const list = await waitFor(() => {
-      const found = document.querySelector("ul.snapshot-list");
-      expect(found).not.toBeNull();
-      return found!;
+    //
+    // The rows are waited for, not the list. The list is rendered before the
+    // overview arrives — empty, and once per volume — so waiting for the element
+    // and counting afterwards is a race that passes or fails on how much work
+    // happens to sit between the two.
+    await waitFor(() => {
+      expect(document.querySelectorAll("ul.snapshot-list li").length).toBe(2);
     });
-    expect(list.querySelectorAll("li").length).toBe(2);
   });
 
   // Opening attaches the snapshot read-only, which macOS requires a password for.
@@ -409,9 +419,13 @@ describe("deleting a snapshot", () => {
     await userEvent.click(row.getByRole("button", { name: /delete/i }));
     await userEvent.click(row.getByRole("button", { name: /for good/i }));
 
-    // By stamp, not by name: that is what the service deletes by, and passing the
-    // wrong one of two nearly identical strings fails at the far end.
-    await waitFor(() => expect(deleted).toHaveBeenCalledWith("2026-08-18-120000"));
+    // The volume and the identifier on it, then the stamp. Deleting by stamp
+    // alone removes the date from every volume holding it, which would take an
+    // external disk's snapshot of the same moment along with this one — silently,
+    // because until now that snapshot was not on screen at all.
+    await waitFor(() =>
+      expect(deleted).toHaveBeenCalledWith("disk3s1", "AAAAAAAA-0000-0000-0000-000000000002", "2026-08-18-120000"),
+    );
   });
 
   it("puts the question away when the answer is no", async () => {
@@ -484,5 +498,124 @@ describe("deleting a snapshot", () => {
     await userEvent.click(row.getByRole("button", { name: /for good/i }));
 
     expect(await screen.findByText(/in use/)).toBeTruthy();
+  });
+});
+
+// Snapshots grouped by the disk they are on.
+//
+// `tmutil localsnapshot` takes no arguments and writes to every mounted APFS
+// volume at once, so a flat list showed one volume's copies and gave no sign the
+// others existed. There was no way to see the snapshots on an external disk at
+// all — including, on the machine that found this, the one holding the source of
+// this application.
+describe("snapshots grouped by volume", () => {
+  const external = [
+    { name: "snap-x", stamp: "2026-08-19-090000", taken: "2026-08-19T09:00:00Z", mounted: false, mountPoint: "", device: "disk8s1", uuid: "BBBBBBBB-0000-0000-0000-000000000001" },
+  ];
+  const twoVolumes = {
+    volumes: [
+      { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+      { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: external, freeBytes: 20, totalBytes: 1000 },
+    ],
+  };
+
+  it("shows every volume's snapshots, not just the startup disk's", async () => {
+    stub(twoVolumes);
+    render(<App />);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll("ul.snapshot-list li").length).toBe(3);
+    });
+    expect(screen.getByText("sdcard256gb")).toBeTruthy();
+    expect(screen.getByText("Macintosh HD")).toBeTruthy();
+  });
+
+  // The heading is the disk's name. Without it the rows are dates with no
+  // indication of which machine part they belong to, which is worse than the flat
+  // list it replaced: it looks like duplicates.
+  it("heads each group with the name of the disk", async () => {
+    stub(twoVolumes);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const heads = [...document.querySelectorAll(".volume-name")].map((n) => n.textContent);
+    expect(heads).toEqual(["Macintosh HD", "sdcard256gb"]);
+  });
+
+  // One disk needs no label saying which disk. Every Mac would otherwise look as
+  // though it had something to disambiguate.
+  it("says nothing about volumes when there is only one", async () => {
+    stub();
+    render(<App />);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll("ul.snapshot-list li").length).toBe(2);
+    });
+    expect(document.querySelectorAll(".volume-head").length).toBe(0);
+  });
+
+  // Opening runs through a privileged helper that accepts one volume by design.
+  // A button that cannot work is worse than no button: it reads as a failure
+  // rather than as a capability that is not there yet.
+  it("offers no Open on a volume that cannot be mounted", async () => {
+    stub(twoVolumes);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const group = document.querySelectorAll(".volume-group")[1];
+    expect(within(group as HTMLElement).queryByRole("button", { name: /^open$/i })).toBeNull();
+    // Deleting one IS possible, and is the whole reason the row is actionable.
+    expect(within(group as HTMLElement).getByRole("button", { name: /delete/i })).toBeTruthy();
+  });
+
+  // The row is one copy of a date, not the date. Deleting it must name the volume
+  // it is on, or tmutil removes that date from every volume holding it — taking
+  // snapshots that were never on screen.
+  it("deletes only the copy on the volume whose row was pressed", async () => {
+    stub(twoVolumes);
+    const deleted = vi.spyOn(Snapshots, "Delete").mockResolvedValue(undefined as never);
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const group = within(document.querySelectorAll(".volume-group")[1] as HTMLElement);
+    await userEvent.click(group.getByRole("button", { name: /delete/i }));
+    await userEvent.click(group.getByRole("button", { name: /for good/i }));
+
+    await waitFor(() =>
+      expect(deleted).toHaveBeenCalledWith("disk8s1", "BBBBBBBB-0000-0000-0000-000000000001", "2026-08-19-090000"),
+    );
+  });
+
+  // Confirming is per copy too. The same date on two volumes is two rows, and
+  // arming one must not arm the other — a second click would then delete a
+  // snapshot the user never looked at.
+  it("arms only the row that was pressed", async () => {
+    const sameDate = [{ ...snapshots[1], device: "disk8s1", uuid: "CCCCCCCC-0000-0000-0000-000000000001" }];
+    stub({
+      volumes: [
+        { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+        { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: sameDate, freeBytes: 20, totalBytes: 1000 },
+      ],
+    });
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const externalGroup = within(document.querySelectorAll(".volume-group")[1] as HTMLElement);
+    await userEvent.click(externalGroup.getByRole("button", { name: /delete/i }));
+
+    // Exactly one row is asking, though both hold the same date.
+    expect(screen.getAllByRole("button", { name: /for good/i }).length).toBe(1);
+  });
+
+  // A service that cannot enumerate the volumes still has the startup disk's
+  // list, and showing that is better than showing nothing.
+  it("falls back to a flat list when no grouping arrives", async () => {
+    stub({ volumes: [] });
+    render(<App />);
+
+    await waitFor(() => {
+      expect(document.querySelectorAll("ul.snapshot-list li").length).toBe(2);
+    });
+    expect(document.querySelectorAll(".volume-head").length).toBe(0);
   });
 });
