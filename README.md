@@ -354,6 +354,16 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.56.0
+
+Snapshots were taken on every APFS volume and pruned on one. `tmutil
+localsnapshot` takes no arguments at all, so it writes to every mounted APFS
+volume at once — and listing, pruning and reporting all ran on the startup disk
+alone, so everything else accumulated snapshots nothing would ever delete. Found
+on an SD card at 98% full holding eight that existed nowhere else. Pruning now
+plans over every volume, and the Health screen reports each one's own free space
+and pinning snapshot.
+
 ### v0.55.1
 
 A mistyped verb opened a window. `snapshotter health` is not a command and it
@@ -423,11 +433,6 @@ a working schedule fills it and a gap means a snapshot that did not happen.
 
 The home screen figures use four columns, or eight on a wide window — the only two
 counts that divide eight evenly.
-
-### v0.49.0
-
-The figures at the foot of the home screen use at most four columns, so eight of
-them read as 4+4 rather than 7+1.
 
 ## Design decisions
 
