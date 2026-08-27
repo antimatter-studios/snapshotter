@@ -7,6 +7,34 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.59.0 — 2026-08-27
+
+**A snapshot on another volume can be looked inside, not only opened.** Mounting
+one already worked; the row was not selectable, so it could be attached and then
+not read, which is most of the way to not working.
+
+The reason was real rather than an oversight. Browsing resolves a snapshot to a
+mountpoint and did that through the data volume's mounts alone, so it would have
+read the wrong mountpoint for another volume's snapshot, or none. It also started
+at a home directory, which another volume does not have.
+
+Browsing, comparing, searching for what is gone, and restoring all name the
+volume now. The name alone does not identify a copy: the same date exists on
+every volume that was mounted when it was taken, and both copies can be attached
+at once — so resolving by name would show someone another disk's files under the
+row they opened.
+
+Where browsing starts moves with the selection: a home directory on the startup
+disk, and the volume's own root anywhere else. Another disk has no home
+directory, and starting at one opens an empty listing that reads as an empty
+snapshot rather than as a wrong path.
+
+Search still looks only through the startup disk's snapshots. Crossing volumes
+needs a volume on the hit type, so a result can say where it came from and be
+restored from there; without one, a hit naming another disk could be restored
+from the wrong copy. That is a separate change, and the code says so at the call
+site rather than leaving the next reader to find out.
+
 ## v0.58.0 — 2026-08-27
 
 **A snapshot on any volume can be opened.** The list has shown every volume's
