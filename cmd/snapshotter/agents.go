@@ -44,7 +44,9 @@ func runScheduledSnapshot(ctx context.Context, runner apfs.Runner) error {
 		// disk and cannot be recreated.
 		log.Print(err)
 	}
-	pruned, err := schedule.PruneByPolicy(ctx, runner, apfs.DataVolume, policy, time.Now())
+	// Every volume that holds snapshots, not the data volume: localsnapshot above
+	// wrote to all of them, and pruning one of them is how the others filled up.
+	pruned, err := schedule.PruneByPolicy(ctx, runner, policy, time.Now())
 	for _, p := range pruned {
 		log.Printf("pruned %s", p.Stamp)
 	}

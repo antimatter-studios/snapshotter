@@ -1728,3 +1728,65 @@ button.destructive:hover:not(:disabled) {
   outline: none;
   border-color: var(--accent);
 }
+
+/* Every APFS volume holding snapshots, with its own numbers.
+
+   A table rather than more cells in the grid above: the grid answers for the
+   startup disk, and these are a list whose length is whatever is plugged in. */
+.volumes {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.volumes h3 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.volumes table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.volumes th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.volumes td {
+  font-size: 12px;
+  color: var(--text);
+  padding: 6px 10px 6px 0;
+  vertical-align: top;
+}
+
+/* The mount point is the name a person knows the disk by; the device is what
+   makes the row unambiguous when two mount points name one volume. */
+.volumes .volume-mount {
+  display: block;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.volumes .volume-device {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Marked at the same threshold the finding warns at, so a row cannot look
+   comfortable beside a warning that says it is not. */
+.volumes td.low {
+  color: var(--error-fg);
+  font-weight: 600;
+}

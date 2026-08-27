@@ -323,6 +323,16 @@
   "status.lowSpace.title": {
     "other": "Solo quedan {{.Free}}: podrían empezar a eliminarse snapshots antiguos"
   },
+  "status.lowSpaceVolume.detail": {
+    "one": "El {{.Percent}} está libre y contiene {{.Count}} snapshot local. Los snapshots se crean a la vez en todos los volúmenes APFS montados —tmutil no permite elegir—, así que este disco se está capturando junto con el de arranque.",
+    "other": "El {{.Percent}} está libre y contiene {{.Count}} snapshots locales. Los snapshots se crean a la vez en todos los volúmenes APFS montados —tmutil no permite elegir—, así que este disco se está capturando junto con el de arranque."
+  },
+  "status.lowSpaceVolume.pinned": {
+    "other": "{{.Stamp}} mantiene el contenedor de este volumen en su tamaño actual, así que borrarlo es lo que devuelve espacio."
+  },
+  "status.lowSpaceVolume.title": {
+    "other": "En {{.Volume}} solo quedan {{.Free}}"
+  },
   "status.noSchedule.detail": {
     "other": "macOS solo programa snapshots locales cuando Time Machine tiene un destino de copia. Sin él, y sin esta programación, el snapshot de hoy es el último."
   },

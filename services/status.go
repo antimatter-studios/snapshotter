@@ -119,6 +119,17 @@ type Health struct {
 	// which is the one worth deleting first when space runs short.
 	PinningStamp string `json:"pinningStamp,omitempty"`
 
+	// Volumes is every mounted APFS volume holding local snapshots, the data
+	// volume among them.
+	//
+	// More than one, always, on a machine with anything plugged in. `tmutil
+	// localsnapshot` takes no arguments and writes to all of them, and this
+	// screen reported the data volume alone — so an external disk could fill with
+	// snapshots this application had taken and nothing here would say so. The one
+	// that found it was at 98% full with its own pinning snapshot, while the
+	// figures above described a boot volume that was fine.
+	Volumes []VolumeHealth `json:"volumes"`
+
 	// TripwireInstalled and TripwireRunning describe the bulk-deletion watcher.
 	// It is reported separately from the schedule because it covers a different
 	// failure: the schedule bounds how much time you can lose, the tripwire
@@ -139,6 +150,30 @@ type Health struct {
 	// Scenario names the simulated machine these readings describe, empty when
 	// they describe this one.
 	Scenario string `json:"scenario,omitempty"`
+}
+
+// VolumeHealth is one APFS volume's own numbers.
+//
+// Its own, because the container is its own: an external disk has its own free
+// space and its own pinning snapshot, and neither is knowable from the boot
+// volume's. Reporting one volume's figures for a machine that snapshots several
+// is not an approximation, it is an answer about a different disk.
+type VolumeHealth struct {
+	// MountPoint is where it is attached, which is the name a person knows it by.
+	MountPoint string `json:"mountPoint"`
+	// Device is the volume identifier, like "disk8s1". Two mount points can name
+	// one volume, so this is what makes a row distinct.
+	Device string `json:"device"`
+	// SnapshotCount is how many local snapshots it holds.
+	SnapshotCount int `json:"snapshotCount"`
+	// PurgeableCount is how many of those macOS may reclaim on its own.
+	PurgeableCount int `json:"purgeableCount"`
+	// PinningStamp names the one holding this container's minimum size up.
+	PinningStamp string `json:"pinningStamp,omitempty"`
+
+	TotalBytes  uint64  `json:"totalBytes"`
+	FreeBytes   uint64  `json:"freeBytes"`
+	FreePercent float64 `json:"freePercent"`
 }
 
 // Finding is one specific thing wrong, with what to do about it.
@@ -194,6 +229,29 @@ func (s *StatusService) Check(ctx context.Context) (Health, error) {
 			if d.LimitsContainer {
 				h.PinningStamp = d.Stamp
 			}
+		}
+	}
+
+	// Every volume holding snapshots, which is more than this one. A failure to
+	// enumerate them costs this section rather than the screen: the figures above
+	// are still true of the data volume, and refusing to report anything because
+	// an external disk could not be interrogated would be the worse trade.
+	if vols, err := apfs.Volumes(ctx, s.Runner); err == nil {
+		for _, v := range vols {
+			row := VolumeHealth{
+				MountPoint:     v.MountPoint,
+				Device:         v.Device,
+				SnapshotCount:  len(v.Snapshots),
+				PurgeableCount: v.Purgeable,
+				PinningStamp:   v.PinningStamp,
+			}
+			if total, free, err := s.space(v.MountPoint); err == nil {
+				row.TotalBytes, row.FreeBytes = total, free
+				if total > 0 {
+					row.FreePercent = float64(free) / float64(total) * 100
+				}
+			}
+			h.Volumes = append(h.Volumes, row)
 		}
 	}
 
@@ -310,6 +368,22 @@ func findings(h Health, hasTMDestination bool, conflicts []string, now time.Time
 		out = append(out, conflictingAgentFinding(agent))
 	}
 
+	// One per volume that is short, named. The check used to run on the data
+	// volume alone, so the disk that actually filled — an external one this
+	// application had been snapshotting all along — produced no warning at all.
+	//
+	// The data volume keeps the unnamed wording, because it is the machine itself
+	// and saying "/System/Volumes/Data is low" to someone who has one disk is
+	// worse than saying the disk is low.
+	for _, v := range h.Volumes {
+		if v.FreePercent <= 0 || v.FreePercent >= lowFreeSpacePercent {
+			continue
+		}
+		if v.MountPoint == apfs.DataVolume {
+			continue // reported below, in the words for the machine's own disk
+		}
+		out = append(out, lowFreeSpaceOnVolumeFinding(v))
+	}
 	if h.FreePercent > 0 && h.FreePercent < lowFreeSpacePercent {
 		out = append(out, lowFreeSpaceFinding(h.FreePercent, h.VolumeFreeBytes))
 	}
@@ -486,6 +560,30 @@ func lowFreeSpaceFinding(freePercent float64, freeBytes uint64) Finding {
 		Kind:  KindSpace,
 		Detail: i18n.T("status.lowSpace.detail",
 			"Percent", fmt.Sprintf("%.0f%%", freePercent)),
+	}
+}
+
+// lowFreeSpaceOnVolumeFinding is the same warning for a volume that is not the
+// machine's own disk, which therefore has to be named.
+//
+// It names the pinning snapshot where there is one, because that is the single
+// most useful thing to know about a full container: it is the one whose deletion
+// actually returns space, and the reason a volume can hold ten purgeable
+// snapshots and still be full.
+func lowFreeSpaceOnVolumeFinding(v VolumeHealth) Finding {
+	// N rather than T: the count is in the sentence, and how a language pluralises
+	// it is not something a format string can express.
+	detail := i18n.N("status.lowSpaceVolume.detail", v.SnapshotCount,
+		"Percent", fmt.Sprintf("%.0f%%", v.FreePercent))
+	if v.PinningStamp != "" {
+		detail += " " + i18n.T("status.lowSpaceVolume.pinned", "Stamp", v.PinningStamp)
+	}
+	return Finding{
+		Level: LevelWarn,
+		Title: i18n.T("status.lowSpaceVolume.title",
+			"Volume", v.MountPoint, "Free", i18n.Bytes(v.FreeBytes)),
+		Kind:   KindSpace,
+		Detail: detail,
 	}
 }
 

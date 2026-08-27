@@ -323,6 +323,16 @@
   "status.lowSpace.title": {
     "other": "Only {{.Free}} left — old snapshots may start being dropped"
   },
+  "status.lowSpaceVolume.detail": {
+    "one": "{{.Percent}} of it is free, and it holds {{.Count}} local snapshot. Snapshots are taken on every mounted APFS volume at once — tmutil offers no way to choose — so this disk is being snapshotted along with the startup disk.",
+    "other": "{{.Percent}} of it is free, and it holds {{.Count}} local snapshots. Snapshots are taken on every mounted APFS volume at once — tmutil offers no way to choose — so this disk is being snapshotted along with the startup disk."
+  },
+  "status.lowSpaceVolume.pinned": {
+    "other": "{{.Stamp}} is holding this volume's container at its current size, so deleting it is what returns space."
+  },
+  "status.lowSpaceVolume.title": {
+    "other": "{{.Volume}} has only {{.Free}} left"
+  },
   "status.noSchedule.detail": {
     "other": "macOS only schedules local snapshots when Time Machine has a backup destination. Without one, and without this schedule, today's snapshot is the last one."
   },

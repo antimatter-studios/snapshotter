@@ -95,7 +95,9 @@ func (r *Runner) Run(_ context.Context, name string, args ...string) (string, er
 	case name == "tmutil" && len(args) == 1 && args[0] == "destinationinfo":
 		return r.destinationInfo(), nil
 	case name == "diskutil" && len(args) == 3 && args[0] == "apfs" && args[1] == "listSnapshots":
-		return r.listDetails(), nil
+		return r.listDetails(args[2]), nil
+	case name == "mount":
+		return r.mounted(), nil
 	case name == "launchctl" && len(args) == 2 && args[0] == "print":
 		return r.print(args[1])
 	case name == "launchctl" && len(args) == 3 && args[0] == "bootstrap":
@@ -109,6 +111,28 @@ func (r *Runner) Run(_ context.Context, name string, args ...string) (string, er
 	// answer would let the scenario stop describing what it claims to and look
 	// like a finding instead of a gap in the fake.
 	return "", fmt.Errorf("scenario: nothing here answers %s %s", name, strings.Join(args, " "))
+}
+
+// mounted answers mount(8) with the volumes a scenario has.
+//
+// The data volume and the sealed system volume, which is what any Mac has and
+// no more: a scenario describes one machine's snapshots, and inventing an
+// external disk here would put a row on the Health screen that no scenario asked
+// for. The system volume earns its line by being the case worth getting right —
+// it is APFS, it is mounted, and it holds only macOS's own sealed snapshot,
+// which must not be counted or pruned as if it were ours.
+func (r *Runner) mounted() string {
+	return "/dev/disk1s3s1 on / (apfs, sealed, local, read-only, journaled)\n" +
+		"/dev/disk1s1 on " + apfs.DataVolume + " (apfs, local, journaled, nobrowse)\n"
+}
+
+// deviceFor names a volume's device the way diskutil would. Stable per mount
+// point, because the enumeration deduplicates on it.
+func deviceFor(volume string) string {
+	if volume == apfs.DataVolume {
+		return "disk1s1"
+	}
+	return "disk1s3s1"
 }
 
 // commandsRun is the audit trail, copied so a caller cannot edit it.
@@ -213,14 +237,20 @@ func (r *Runner) destinationInfo() string {
 // container NOTE appears on one snapshot only. Both are quirks of the real
 // output that the parser has to survive, so faking a tidier format would test
 // the fake instead of the application.
-func (r *Runner) listDetails() string {
+func (r *Runner) listDetails(volume string) string {
+	// Only the data volume has any. A scenario describes one machine's snapshots,
+	// and this fake is asked about every mounted APFS volume now that pruning
+	// covers all of them — so the others have to answer, and answer nothing.
+	if volume != apfs.DataVolume {
+		return fmt.Sprintf("No snapshots for %s\n", deviceFor(volume))
+	}
 	stamps := r.stamps()
 
 	var b strings.Builder
-	// The header names a device rather than a volume, and nothing reads it: the
-	// parser keeps only lines that read as "Key: value". So the device is
-	// arbitrary.
-	fmt.Fprintf(&b, "Snapshots for disk1s1 (%d found)\n", len(stamps))
+	// The header names the device, and it IS read: two mount points can name one
+	// volume, so the enumeration deduplicates on this. An arbitrary constant here
+	// would merge every volume into one.
+	fmt.Fprintf(&b, "Snapshots for %s (%d found)\n", deviceFor(volume), len(stamps))
 
 	for i, stamp := range stamps {
 		snap := r.snapshots[stamp]

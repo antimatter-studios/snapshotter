@@ -244,9 +244,78 @@ export function Health({ onStatus }: { onStatus: (s: string) => void }) {
           <dd>{health.version}</dd>
         </div>
       </dl>
+
+      <Volumes health={health} />
     </div>
   );
 }
+
+/**
+ * Every APFS volume holding local snapshots, with its own numbers.
+ *
+ * The figures above describe the startup disk. They used to be the only ones,
+ * and that was wrong rather than incomplete: `tmutil localsnapshot` takes no
+ * arguments and snapshots every mounted APFS volume at once, so an external disk
+ * fills with snapshots this application took while the screen reported a boot
+ * volume that was fine. The one that found it was at 98% full.
+ *
+ * Free space and the pinning snapshot are per volume because a container is per
+ * volume — neither is knowable from another disk's numbers.
+ *
+ * Absent when there is only the startup disk, which is what the grid above
+ * already says.
+ */
+function Volumes({ health }: { health: HealthState }) {
+  const { t } = useTranslation();
+  const volumes = health.volumes ?? [];
+  if (volumes.length < 2) return null;
+
+  return (
+    <section className="volumes">
+      <h3>{t("health.volumes")}</h3>
+      <p className="explain">{t("health.volumesExplain")}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>{t("health.colVolume")}</th>
+            <th>{t("health.colSnapshots")}</th>
+            <th>{t("health.colFree")}</th>
+            <th>{t("health.colPinning")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {volumes.map((v) => (
+            <tr key={v.device}>
+              <td>
+                <span className="volume-mount">{v.mountPoint}</span>
+                {/* The device, because two mount points can name one volume and
+                    the row has to be identifiable when they do. */}
+                <span className="volume-device">{v.device}</span>
+              </td>
+              <td>
+                {t("health.ofWhichPurgeable", {
+                  count: v.snapshotCount,
+                  purgeable: v.purgeableCount,
+                })}
+              </td>
+              {/* Marked low at the same threshold the finding uses, so the row
+                  and the warning above it cannot disagree. */}
+              <td className={v.freePercent > 0 && v.freePercent < lowFreePercent ? "low" : ""}>
+                {bytes(v.freeBytes)} ({v.freePercent.toFixed(0)}%)
+              </td>
+              <td>{v.pinningStamp || t("health.none")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+/** The threshold services/status.go warns at. Stated twice because Go cannot
+ *  call TypeScript; a row that looked fine beside a warning that said otherwise
+ *  would be worse than either alone. */
+const lowFreePercent = 10;
 
 /** Words a span in the largest unit that stays honest. */
 // The same rule and the same keys as i18n.Span on the Go side. Go cannot call

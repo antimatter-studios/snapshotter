@@ -43,6 +43,7 @@ export {
     TierView,
     TripwireSensitivity,
     TripwireView,
+    VolumeHealth,
     Warning,
     WatchedDirectory
 } from "./models.js";
