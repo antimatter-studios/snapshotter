@@ -7,6 +7,56 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.56.0 — 2026-08-27
+
+**Snapshots were taken on every volume and pruned on one.**
+
+`tmutil localsnapshot` takes no arguments at all — not a volume, not a flag — so
+it snapshots every eligible mounted APFS volume at once. Every neighbouring verb
+takes a mount point (`listlocalsnapshots`, `thinlocalsnapshots`,
+`deletelocalsnapshots`); creation is the one Apple did not make selectable. This
+application then listed, pruned and reported on `/System/Volumes/Data` alone, so
+every other volume accumulated snapshots nothing would ever delete.
+
+Found on a machine with an SD card at 98% full, holding fourteen local snapshots
+against the startup disk's seven. Eight of them existed nowhere else, and one was
+pinning its container's minimum size — while the Health screen reported a boot
+volume that was entirely fine.
+
+The mechanism is that snapshots are purgeable. macOS reclaims them per volume
+under space pressure, so a date it drops from a full data volume before the
+retention window expires survives on every other volume, where nothing was
+looking. Pruning planned over the data volume's list, never asked for that date's
+deletion, and the survivor was permanent.
+
+- Snapshots are now listed and pruned across every mounted APFS volume that holds
+  any, deduplicated by device. Two mount points can name one volume — tmutil
+  answers for the volume group, so `/` and the data volume return an identical
+  list — and the sealed system volume's own `com.apple.os.update-<hash>` snapshot
+  is macOS's, not ours to count or delete.
+- Pruning plans over the union of every volume's snapshots rather than one
+  volume's list. The union is the right unit rather than a loop per volume:
+  `tmutil deletelocalsnapshots <date>` removes that date wherever it lives, so a
+  date is kept or dropped everywhere at once however the decision is reached.
+  What was missing was only ever the seeing.
+- The Health screen carries a row per volume — snapshot count, purgeable count,
+  free space and the snapshot holding its container open — because a container is
+  per volume and none of those is knowable from another disk's numbers. Shown only
+  when there is more than one volume; one is what the figures grid already says.
+- The low-space warning runs per volume and names the one that is short, along
+  with the snapshot whose deletion would actually return space. The disk that
+  filled produced no warning at all, because the check ran on the startup disk.
+
+Mounting stays data-volume-only. `mountmgr` refuses any other source
+deliberately — "the volume to read from" is exactly the argument worth
+controlling in a process that mounts as root — so snapshots of another volume are
+pruned and reported here but recovered with `mount_apfs` by hand.
+
+The README claimed this source tree was not protected by the snapshots it
+manages. It lives on an APFS SD card, so it always was, and both that and the
+whole-volume note are corrected: the latter said `localsnapshot` "takes no volume
+argument" where the point is that it writes to all of them.
+
 ## v0.55.1 — 2026-08-27
 
 **A mistyped verb opened a window.** `snapshotter health` — which is not a command
