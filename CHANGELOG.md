@@ -7,6 +7,31 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.57.1 — 2026-08-27
+
+**The sidebar stopped scrolling and took the footer off screen.** Grouping the
+snapshot list by volume put a wrapper between the sidebar column and the list,
+and the list was the scrolling region — so the element that had to shrink was no
+longer the flex child of the column. Each group sized to its own content, the
+column grew to fit all of them, and the footer, held at the bottom by
+`margin-top: auto`, was pushed past the sidebar's own `overflow: hidden` where it
+could not be reached at all.
+
+The comment on the rule said this would happen. It explained that `min-height: 0`
+is what lets the region shrink, since a flex item otherwise "refuses to go below
+its content and would push the footer out of the column instead of scrolling".
+The wrapper moved without the rule.
+
+The scrolling region is now a container holding every group, so there is one
+element that shrinks however many volumes there are. The lists inside it are
+plain lists again, and the spacing between groups comes from that container's gap
+rather than from a margin that would have added to it.
+
+Three tests assert the structure layout depends on: one scrolling region, every
+group inside it, and the footer and whole-machine buttons outside it and after
+it. jsdom has no layout engine, so pixels cannot be asserted — but the structure
+is what broke, and all three fail against the markup that shipped.
+
 ## v0.57.0 — 2026-08-27
 
 **The snapshot list is grouped by the volume the snapshots are on**, headed by

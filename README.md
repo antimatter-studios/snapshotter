@@ -354,6 +354,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.57.1
+
+Grouping the snapshot list moved a wrapper between the sidebar column and the
+list that was its scrolling region, so nothing scrolled and the footer was pushed
+out of the column and off screen. One scrolling region now holds every group.
+
 ### v0.57.0
 
 The snapshot list is grouped by the volume the snapshots are on, so the ones on an
@@ -432,11 +438,6 @@ are translated rather than shipped as English prose for the window to display.
 
 The menu bar names the schedule under the coverage strip, so the marks can be read
 against what they are measuring.
-
-### v0.51.0
-
-The menu bar strip draws one mark per scheduled snapshot rather than per hour, so
-a working schedule fills it and a gap means a snapshot that did not happen.
 
 ## Design decisions
 
