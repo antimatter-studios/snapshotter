@@ -7,6 +7,49 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.59.1 — 2026-08-27
+
+**"/Volumes/sdcard256gb is not on the data volume, so snapshots do not cover
+it"** — said about the disk on screen, whose snapshots were mounted and readable
+at the time.
+
+`internal/vfs` translated every path as though there were one volume. It turns a
+live path into its position inside a snapshot and back, and it did that against
+`/System/Volumes/Data` and a fixed list of top-level directories. Asked about a
+file on an external disk it answered, correctly, that the data volume does not
+contain it — which says nothing about the volume that does.
+
+A snapshot's contents are rooted wherever its volume is, so translation has to
+know which volume it is about. The zero value is still the data volume, which is
+the one root that is not a plain prefix: it is presented at "/" with a fixed set
+of directories and the system volume's symlinks pointing into it.
+
+`ToLive` was wrong in the same way and worse. It returned the snapshot-relative
+path, so a file at `/Volumes/sdcard256gb/projects` came back as `/projects` — a
+path on the startup disk, and a restore aimed at the wrong volume entirely.
+
+The audit that found it went through every data-volume assumption in the tree
+rather than stopping at the first, and five more followed:
+
+- `Locate` lists and resolves through the data volume. Left as it was and now
+  says so: it has no route in from the window, and half-widening it would be
+  worse than leaving it whole.
+- Search looks only through the startup disk's snapshots. The volume is now
+  stated where it is chosen rather than defaulted, so the limit is visible at the
+  point it is decided.
+- The scheduled task prunes every volume and logged the count from one, a line
+  describing something the run had not done. It reports per volume.
+- The folder-verdict cache was invalidated by watching the home directory alone.
+  A verdict about a folder on another volume stayed cached after that folder
+  changed, and a stale verdict does not look stale — it looks like a comparison
+  that is wrong. Every browsable volume is watched.
+- `TakeNow` returns the startup disk's mountpoint though one call snapshots every
+  volume. Correct for what the window does with it, and now said.
+
+The package-level `Canonical`, `ToSnapshot`, `ToLive` and `Covered` are gone
+rather than kept as data-volume wrappers. A default that silently means one
+volume is exactly how this shipped.
+
 ## v0.59.0 — 2026-08-27
 
 **A snapshot on another volume can be looked inside, not only opened.** Mounting
