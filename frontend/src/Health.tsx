@@ -457,7 +457,7 @@ function BulkDeletionWarnings() {
       {ignored.length > 0 && (
         // Shown, and removable. A list nobody can see or shorten grows until the
         // tripwire watches nothing, and that failure is silent by construction.
-        <div className="ignored">
+        <div className="silenced">
           <h4>{t("health.notWarningAbout")}</h4>
           <ul>
             {ignored.map((fragment) => (

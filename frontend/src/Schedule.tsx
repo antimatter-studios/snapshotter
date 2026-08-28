@@ -64,6 +64,14 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   // whole-volume snapshot.
   const [watched, setWatched] = useState<WatchedDirectory[]>([]);
   const [candidate, setCandidate] = useState("");
+  // The patterns change detection does not look inside. A separate list from the
+  // watcher's above, and separate on purpose: that one decides what counts as a
+  // burst of deletions, this one decides what gets read when a folder is compared
+  // with a snapshot. They usually name the same directories, and sharing them
+  // would mean changing what you are warned about in order to change what is
+  // walked.
+  const [ignored, setIgnored] = useState<string[]>([]);
+  const [pattern, setPattern] = useState("");
   const { busy, error, setError, run } = useAction(onStatus);
 
   // Saved as soon as it is chosen, like the theme and the language: a settings
@@ -104,6 +112,28 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
     });
   };
 
+  // Both take the view the service hands back rather than re-reading, because the
+  // service already returns the settings it just saved and a second read would be
+  // a second chance to disagree with it.
+  const addPattern = async (p: string) => {
+    const wanted = p.trim();
+    if (!wanted) return;
+    await run(async () => {
+      const view = await Config.IgnoreInChangeDetection(wanted);
+      setIgnored(view?.config?.changeDetection?.ignore ?? []);
+      // Cleared only once it was accepted, so a rejected pattern stays in the box
+      // to be corrected rather than having to be typed again.
+      if (view) setPattern("");
+    });
+  };
+
+  const removePattern = async (p: string) => {
+    await run(async () => {
+      const view = await Config.StopIgnoringInChangeDetection(p);
+      setIgnored(view?.config?.changeDetection?.ignore ?? []);
+    });
+  };
+
   const refresh = useCallback(async () => {
     try {
       const status = await ScheduleAPI.Status();
@@ -125,6 +155,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       setSensitivities(offered);
       setSensitivity(current);
       setWatched(await Config.WatchedDirectories());
+      setIgnored((await Config.Get())?.config?.changeDetection?.ignore ?? []);
     } catch (err) {
       setError(message(err));
     }
@@ -414,6 +445,70 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       </section>
 
       <section>
+        <h2>{t("changeDetection.heading")}</h2>
+        <p className="explain">{t("changeDetection.explain")}</p>
+
+        <div className="watched">
+          {ignored.length === 0 ? (
+            // Not a warning. An empty list is the shipped state and the safe one:
+            // nothing is being hidden from you.
+            <p className="explain">{t("changeDetection.nothingIgnored")}</p>
+          ) : (
+            <ul>
+              {ignored.map((p) => (
+                <li key={p}>
+                  <code>{p}</code>
+                  <button
+                    title={t("changeDetection.stopIgnoringTitle", { pattern: p })}
+                    disabled={busy}
+                    onClick={() => void removePattern(p)}
+                  >
+                    {t("changeDetection.stopIgnoring")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Offered rather than shipped as defaults. Skipping .git out of the box
+              would hide a real loss from somebody who wanted it back; offering it
+              costs one click and leaves the choice where it belongs. Already-added
+              ones drop out of the row, so it reads as what is left to add. */}
+          {suggestions.some((p) => !ignored.includes(p)) && (
+            <div className="suggestions">
+              <span className="explain">{t("changeDetection.suggestions")}</span>
+              {suggestions
+                .filter((p) => !ignored.includes(p))
+                .map((p) => (
+                  <button key={p} className="chip" disabled={busy} onClick={() => void addPattern(p)}>
+                    {p}
+                  </button>
+                ))}
+            </div>
+          )}
+
+          <div className="add-directory">
+            <label>
+              {t("changeDetection.addPattern")}
+              <input
+                type="text"
+                value={pattern}
+                placeholder={t("changeDetection.patternPlaceholder")}
+                disabled={busy}
+                onChange={(e) => setPattern(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void addPattern(pattern);
+                }}
+              />
+            </label>
+            <button disabled={busy || pattern.trim() === ""} onClick={() => void addPattern(pattern)}>
+              {t("changeDetection.add")}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section>
         <h2>{t("schedule.log")}</h2>
 
         {/* Two agents write two logs, and the second one had nowhere to be read.
@@ -475,3 +570,14 @@ function reach(days: number): string {
   const years = days / daysPerYear;
   return years < 1.5 ? "a year" : `${years.toFixed(1)} years`;
 }
+
+// The usual suspects, offered as one click each.
+//
+// Not defaults. Every one of these is a directory somebody could reasonably want
+// back — a build output is cheap to rebuild until the toolchain that made it is
+// gone — and shipping them ignored would mean this application quietly not
+// telling somebody about a loss they never agreed to stop hearing about.
+//
+// Literal names rather than translated strings: these are what the directories
+// are called on disk, in every language.
+const suggestions = ["node_modules", ".git", ".venv", "__pycache__", "target", "dist"];

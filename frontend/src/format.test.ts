@@ -117,3 +117,50 @@ describe("statusLabel", () => {
     expect(statusLabel.onlyInSnapshot).toContain("deleted");
   });
 });
+
+describe("breadcrumbs on a volume that is not the startup disk", () => {
+  // The bug: the trail always started at "/", so a snapshot of an SD card read
+  // "/ › Volumes › sdcard256gb › projects" and the first two were clickable —
+  // leading straight to an error saying that volume's snapshots do not cover
+  // them. A control that cannot work should not be drawn.
+  it("starts at the volume, not at the startup disk's root", () => {
+    const crumbs = breadcrumbs("/Volumes/sdcard256gb/projects/app", "/Volumes/sdcard256gb");
+    expect(crumbs.map((c) => c.path)).toEqual([
+      "/Volumes/sdcard256gb",
+      "/Volumes/sdcard256gb/projects",
+      "/Volumes/sdcard256gb/projects/app",
+    ]);
+    // Named after the disk rather than shown as a bare slash, because "/" on a
+    // row about an SD card reads as the startup disk.
+    expect(crumbs[0].label).toBe("sdcard256gb");
+  });
+
+  it("offers nothing above the volume when sitting at its root", () => {
+    const crumbs = breadcrumbs("/Volumes/sdcard256gb", "/Volumes/sdcard256gb");
+    expect(crumbs).toEqual([{ label: "sdcard256gb", path: "/Volumes/sdcard256gb" }]);
+  });
+
+  // The startup disk's snapshots cover the whole running system, so its trail is
+  // the ordinary one and reaches the root.
+  it("still goes all the way up on the startup disk", () => {
+    expect(breadcrumbs("/Users/someone/projects").map((c) => c.path)).toEqual([
+      "/",
+      "/Users",
+      "/Users/someone",
+      "/Users/someone/projects",
+    ]);
+  });
+
+  // A path that is not on the volume at all leaves nothing to walk into, rather
+  // than silently building a trail through somewhere else.
+  it("offers only the volume when the path is somewhere else entirely", () => {
+    const crumbs = breadcrumbs("/Users/someone", "/Volumes/sdcard256gb");
+    expect(crumbs).toEqual([{ label: "sdcard256gb", path: "/Volumes/sdcard256gb" }]);
+  });
+
+  // One disk must not swallow another whose name it is a prefix of.
+  it("does not treat a longer disk name as being inside a shorter one", () => {
+    const crumbs = breadcrumbs("/Volumes/sdcard256gb/projects", "/Volumes/sd");
+    expect(crumbs).toEqual([{ label: "sd", path: "/Volumes/sd" }]);
+  });
+});

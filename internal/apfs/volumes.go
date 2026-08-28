@@ -50,6 +50,40 @@ type Volume struct {
 	// this bug had its own pinning snapshot, on its own container, and the only
 	// one ever reported was the boot volume's.
 	PinningStamp string
+	// Protocol is how the disk is attached, as diskutil words it: "Secure
+	// Digital", "Apple Fabric", "USB". Empty when it would not say.
+	//
+	// Kept because it is the only honest way to decide how many folders to check
+	// at once. See Lanes.
+	Protocol string
+}
+
+// Lanes is how many folder checks this volume can usefully answer at once.
+//
+// Reading is the whole cost of a folder verdict, so the right number is a
+// property of the disk rather than of the Mac. An SD card has one slow channel:
+// asking it for twelve directories at once does not make it read faster, it makes
+// every one of the twelve arrive late, which is exactly the "nothing is
+// happening" the window was accused of. Internal storage is the opposite — the
+// queue depth is what keeps it busy, and three was leaving most of it idle.
+//
+// The numbers are deliberately coarse. There is no measurement here that would
+// survive a different Mac, and a wrong-but-conservative number costs time while a
+// wrong-but-greedy one costs responsiveness.
+func (v Volume) Lanes() int {
+	switch {
+	case strings.Contains(v.Protocol, "Secure Digital"):
+		return 4
+	case strings.Contains(v.Protocol, "Apple Fabric"), strings.Contains(v.Protocol, "PCI"):
+		return 12
+	case strings.Contains(v.Protocol, "USB"), strings.Contains(v.Protocol, "Thunderbolt"):
+		return 6
+	default:
+		// Including the empty string, which is what a disk diskutil would not
+		// describe leaves behind. Four is the cautious end: too few is slow, too
+		// many is a window that stops answering.
+		return 4
+	}
 }
 
 // VolumeSnapshot is one snapshot as it exists on one volume.
@@ -124,7 +158,7 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 		// volume and it is wanted only for the ones that appear on screen — asking
 		// for all twelve mount points a Mac has, most of which hold nothing, was
 		// most of the cost of this function.
-		vol.Name = volumeName(ctx, r, mount)
+		vol.Name, vol.Protocol = volumeInfo(ctx, r, mount)
 		// parseDetails hands back a map, so the order it arrives in is not one.
 		sort.Slice(vol.Snapshots, func(i, j int) bool {
 			return vol.Snapshots[i].Taken.After(vol.Snapshots[j].Taken)
@@ -138,24 +172,35 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 	return vols, nil
 }
 
-// volumeName asks diskutil what the volume is called, falling back to the last
-// component of its mount point.
+// volumeInfo asks diskutil what the volume is called and how it is attached,
+// falling back to the last component of its mount point for the name.
 //
 // A fallback rather than an error: the name is a heading, and a listing that
 // refuses to appear because one disk would not say its name is a worse answer
 // than a heading reading "sdcard256gb" because that is where it is mounted.
-func volumeName(ctx context.Context, r Runner, mount string) string {
-	fallback := filepath.Base(mount)
+func volumeInfo(ctx context.Context, r Runner, mount string) (name, protocol string) {
+	name = filepath.Base(mount)
 	out, err := r.Run(ctx, "diskutil", "info", mount)
 	if err != nil {
-		return fallback
+		return name, ""
 	}
 	for _, line := range strings.Split(out, "\n") {
-		if key, value, ok := splitField(line); ok && key == "Volume Name" && value != "" {
-			return value
+		key, value, ok := splitField(line)
+		if !ok || value == "" {
+			continue
+		}
+		switch key {
+		case "Volume Name":
+			name = value
+		case "Protocol":
+			// Taken from the call already being made. How the disk is attached
+			// decides how many folders are worth checking at once, and asking a
+			// second time for something already on screen would be a subprocess per
+			// volume for a string this output is holding.
+			protocol = value
 		}
 	}
-	return fallback
+	return name, protocol
 }
 
 // DeleteOn removes one snapshot from one volume, leaving every other volume's

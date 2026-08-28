@@ -1276,14 +1276,19 @@ pre.log {
 
 
 /* What has been silenced, shown and undoable. A list nobody can see grows until
-   the tripwire watches nothing, and that failure is silent by construction. */
-.ignored {
+   the tripwire watches nothing, and that failure is silent by construction.
+
+   Named for what it holds rather than for the word "ignored", which is also a
+   folder's verdict: while these rules were called .ignored they landed on every
+   row of the browser reporting that status, putting a border across the row and
+   a box around the folder's name. */
+.silenced {
   margin-top: 14px;
   padding-top: 10px;
   border-top: 1px solid var(--line-soft);
 }
 
-.ignored h4 {
+.silenced h4 {
   margin: 0 0 6px;
   font-size: 11px;
   font-weight: 600;
@@ -1292,13 +1297,13 @@ pre.log {
   letter-spacing: 0.04em;
 }
 
-.ignored ul {
+.silenced ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.ignored li {
+.silenced li {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1308,7 +1313,7 @@ pre.log {
 
 /* Shown whole, for the same reason as the paths above: there is nothing to open
    to read the rest of it. */
-.ignored code {
+.silenced code {
   font-size: 11px;
   color: var(--muted);
   word-break: break-word;
@@ -1318,7 +1323,7 @@ pre.log {
 
 /* Undoing has to be as findable as doing. A list of silenced folders whose
    removal is a faint link is a list that only ever grows. */
-.ignored button {
+.silenced button {
   font-size: 11px;
   padding: 3px 9px;
   color: var(--text);
@@ -1328,7 +1333,7 @@ pre.log {
   flex: 0 0 auto;
 }
 
-.ignored button:hover:not(:disabled) {
+.silenced button:hover:not(:disabled) {
   background: var(--hover);
   border-color: var(--accent);
   color: var(--accent);
@@ -1338,7 +1343,8 @@ pre.log {
    the set: it is a statement that the answer is coming, not a finding, and it
    must not read as a third kind of change. */
 .badge.detecting,
-.badge.notExamined {
+.badge.notExamined,
+.badge.ignored {
   color: var(--muted);
   background: var(--panel-2);
 }
@@ -1362,6 +1368,13 @@ pre.log {
 
 .badge.notExamined .badge-mark {
   color: var(--error-fg);
+}
+
+/* Not an error and not a finding: a setting doing what it was told. It takes the
+   muted colour of the word beside it rather than a colour of its own, so a row
+   full of not-checked folders does not compete with the ones that changed. */
+.badge.ignored .badge-mark {
+  color: var(--muted);
 }
 
 .spinner {
@@ -1728,6 +1741,21 @@ button.destructive:hover:not(:disabled) {
 /* The box that adds one. On the same line as its button, because typing a path
    and then hunting for the control that accepts it is how a list ends up with a
    directory in the box and none in the list. */
+/* The one-click suggestions above the box. A row of chips rather than a list,
+   because they are things to pick rather than settings that are in force — the
+   list of what IS in force sits above them and looks different. */
+.suggestions {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.suggestions .chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 .add-directory {
   display: flex;
   align-items: flex-end;

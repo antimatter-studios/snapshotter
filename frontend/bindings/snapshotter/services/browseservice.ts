@@ -14,6 +14,22 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+/**
+ * AbandonFolderChecks gives up on every folder verdict still being computed.
+ *
+ * Called by the window when it starts a new listing. Without it, navigating out
+ * of a large folder left three walks running to the end for rows nobody would see
+ * again, and the new folder's answers queued behind them — measured at five to
+ * ten seconds on an SD card, which reads as the application having locked up.
+ *
+ * It does not wait. The walks notice within about a millisecond of reading and
+ * unwind on their own, and there is nothing for the caller to do with the news
+ * that they have.
+ */
+export function AbandonFolderChecks(): $CancellablePromise<void> {
+    return $Call.ByID(910814300);
+}
+
 export function DirectoryStatus(device: string, snapshotName: string, livePath: string): $CancellablePromise<$models.FolderVerdict> {
     return $Call.ByID(638270053, device, snapshotName, livePath).then(($result: any) => {
         return $$createType0($result);
@@ -40,6 +56,51 @@ export function DirectoryStatus(device: string, snapshotName: string, livePath: 
  */
 export function Home(device: string): $CancellablePromise<string> {
     return $Call.ByID(63276391, device);
+}
+
+/**
+ * KnownDirectoryStatus answers a folder from what is already recorded, and never
+ * reads a tree.
+ *
+ * The window asks this of every folder before it asks anything else, because the
+ * three sources of an answer cost wildly different amounts and this is the only
+ * free one:
+ *
+ *  1. What is already recorded. A verdict reached a moment ago, or a difference
+ *     recorded under this folder that a single stat can confirm. Nothing is
+ *     scanned — the answer is looked up.
+ *  2. The event log, which has to be replayed and every path it names verified.
+ *     Cheap against a walk, not against a lookup.
+ *  3. Reading the tree, which is the thing all of this exists to avoid.
+ *
+ * Running them in that order matters. The event-log pass used to go first, so a
+ * listing whose folders were all already known still waited on a replay before it
+ * could say so.
+ *
+ * A folder nothing is known about comes back NotExamined, which here means "not
+ * yet" rather than "could not" — the window asks again properly afterwards.
+ */
+export function KnownDirectoryStatus(device: string, snapshotName: string, livePath: string): $CancellablePromise<$models.FolderVerdict> {
+    return $Call.ByID(379866624, device, snapshotName, livePath).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
+ * Lanes is how many folders the window should check at once on one volume.
+ *
+ * Asked of the service rather than decided in the window, because the answer is a
+ * property of the disk — how it is attached — and the window has no way to know
+ * that. Three was hardcoded, which was too many for an SD card and far too few
+ * for internal storage.
+ *
+ * An unknown device answers with the cautious number rather than an error. This
+ * decides a queue width, and a listing that refused to appear because a disk
+ * would not say how it was attached would be a much worse failure than a queue
+ * that is narrower than it could be.
+ */
+export function Lanes(device: string): $CancellablePromise<number> {
+    return $Call.ByID(1763228163, device);
 }
 
 /**
@@ -96,9 +157,31 @@ export function RevealInFinder(device: string, snapshotName: string, livePath: s
     return $Call.ByID(1913126866, device, snapshotName, livePath);
 }
 
+/**
+ * ScanEventLog harvests what macOS already remembers about a volume, so that
+ * browsing has somewhere cheap to look before it starts reading trees.
+ *
+ * The order of cost, worst to best: walking a folder to prove it unchanged reads
+ * everything under it; re-checking one recorded difference is a stat; and this is
+ * how recorded differences get there without anybody having walked anything.
+ * Measured on the volume this was written for, one pass took 145ms and named 43
+ * paths — against 178,570 and a timeout for the same call anchored at the start
+ * of history, which is why it is anchored at where we last looked instead.
+ *
+ * Nothing here can conclude that anything is unchanged. Every path the log offers
+ * is compared against the snapshot before it is believed, and a log that says
+ * nothing leaves every folder exactly as unknown as it was.
+ */
+export function ScanEventLog(device: string, snapshotName: string): $CancellablePromise<$models.EventLogScan> {
+    return $Call.ByID(602222179, device, snapshotName).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.FolderVerdict.createFrom;
 const $$createType1 = $models.Listing.createFrom;
 const $$createType2 = $models.Presence.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $models.MergedListing.createFrom;
+const $$createType5 = $models.EventLogScan.createFrom;

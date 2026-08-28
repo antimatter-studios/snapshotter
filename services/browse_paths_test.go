@@ -20,13 +20,33 @@ import (
 // browseFixture builds a service over a fake mount holding a known tree.
 func browseFixture(t *testing.T) (*BrowseService, string) {
 	t.Helper()
+	return browseFixtureWith(t, nil)
+}
+
+// browseFixtureWith is browseFixture with more files in the seed.
+//
+// They have to go in before the mount, because the fake copies the seed at that
+// moment: anything written afterwards exists on the live side alone, which is a
+// difference, and a test that wanted two identical trees gets a walk that answers
+// "changed" at the first entry.
+func browseFixtureWith(t *testing.T, extra map[string]string) (*BrowseService, string) {
+	t.Helper()
+
+	// A settings directory of its own. Folder verdicts read the change-detection
+	// ignore list, and without this every one of these tests would be answering
+	// against whatever the developer running them happens to ignore.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	seed := t.TempDir()
-	for rel, body := range map[string]string{
+	files := map[string]string{
 		"Documents/notes.md":       "notes\n",
 		"Documents/deeper/one.txt": "one\n",
 		"Pictures/photo.jpg":       "jpeg\n",
-	} {
+	}
+	for rel, body := range extra {
+		files[rel] = body
+	}
+	for rel, body := range files {
 		p := filepath.Join(seed, rel)
 		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 			t.Fatal(err)

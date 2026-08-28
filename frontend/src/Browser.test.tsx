@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Browser } from "./Browser";
@@ -44,6 +44,27 @@ function mount(rows: ReturnType<typeof row>[]) {
   vi.spyOn(Browse, "Merged").mockResolvedValue({ rows, note: "" } as never);
 }
 
+// Every listing calls this before it resolves a single folder, to give up on the
+// checks still running for the listing being left. Stubbed for the whole file
+// rather than per test: unstubbed, the real binding rejects, load() gives up
+// before it renders, and the failure lands on whatever the test was actually
+// about.
+beforeEach(() => {
+  vi.spyOn(Browse, "AbandonFolderChecks").mockResolvedValue(undefined as never);
+  // How many folders to check at once now comes from the disk, so it has to be
+  // stubbed for the same reason: unstubbed, the real binding rejects and no
+  // listing gets as far as checking anything.
+  vi.spyOn(Browse, "Lanes").mockResolvedValue(3 as never);
+  // The cheap pass that runs before any walking. Stubbed for the same reason as
+  // the two above: unstubbed, the real binding rejects and nothing lists.
+  vi.spyOn(Browse, "ScanEventLog").mockResolvedValue({ offered: 0, found: 0, usable: false } as never);
+  // The lookup pass that runs before everything. Stubbed to "nothing known" so
+  // the tests below exercise the walk they are about — and stubbed at all because
+  // unstubbed it rejects, which the loop treats as nothing known and would have
+  // hidden the fact that the pass was never really running.
+  vi.spyOn(Browse, "KnownDirectoryStatus").mockResolvedValue({ status: "notExamined", why: "" } as never);
+});
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("browsing a folder", () => {
@@ -65,8 +86,12 @@ describe("browsing a folder", () => {
   });
 
   // The reason this exists: every folder's walk fired at once took the machine to
-  // 642% CPU. Three at a time is the fix, and nothing pinned it.
-  it("resolves at most three folders at a time", async () => {
+  // 642% CPU. A bounded queue is the fix, and nothing pinned it.
+  //
+  // The bound is now the disk's, not a constant — an SD card has one slow channel
+  // and internal storage wants a deep queue — so what is asserted is that the
+  // window uses the number the service gives it. Stubbed to three above.
+  it("resolves no more at a time than the disk says", async () => {
     mount([1, 2, 3, 4, 5, 6].map((n) => row("folder" + n, true)));
 
     let inFlight = 0;
@@ -321,8 +346,10 @@ describe("reporting how far the folder checks have got", () => {
 
     // Two folders and a file: the file is not walked, so it is not counted.
     await waitFor(() => expect(seen.some((p) => p?.total === 2)).toBe(true));
-    // It starts at nothing done, so the bar does not appear already part-full.
-    expect(seen[0]).toEqual({ done: 0, total: 2 });
+    // The counted phase starts at nothing done, so the bar does not appear
+    // already part-full. It is not the first report any more — the event-log pass
+    // runs first and has nothing to count.
+    expect(seen.find((p) => p?.total === 2)).toEqual({ done: 0, total: 2 });
     // And it reaches the end.
     await waitFor(() => expect(seen.some((p) => p?.done === 2 && p.total === 2)).toBe(true));
   });
@@ -369,5 +396,279 @@ describe("reporting how far the folder checks have got", () => {
     );
 
     await waitFor(() => expect(seen.some((p) => p?.done === 2 && p.total === 2)).toBe(true));
+  });
+});
+
+// Navigating away has to stop the work, not just discard its results. Proving a
+// folder unchanged means reading everything under it, so a listing that keeps
+// asking after somebody has clicked elsewhere keeps a slow disk busy answering
+// about rows nobody will see again — and the folder they DID click on waits
+// behind it.
+describe("giving up on a listing that has been left", () => {
+  it("stops asking about folders once the listing is superseded", async () => {
+    const folders = Array.from({ length: 30 }, (_, i) =>
+      row(`folder-${i}`, true, "modified"),
+    );
+    mount(folders);
+
+    let asked = 0;
+    const release: Array<() => void> = [];
+    vi.spyOn(Browse, "DirectoryStatus").mockImplementation((() => {
+      asked++;
+      return new Promise((resolve) => release.push(() => resolve({ status: "same", why: "" })));
+    }) as never);
+
+    const view = render(
+      <Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />,
+    );
+
+    // Three in flight, which is the queue width.
+    await waitFor(() => expect(release.length).toBe(3));
+
+    // The listing goes away. Whatever was in flight resolves afterwards, the way
+    // a real call would.
+    view.unmount();
+    release.forEach((r) => r());
+
+    // No further folders are asked about: the workers stop where they are rather
+    // than working through all thirty for a listing nobody is looking at.
+    const askedWhenLeft = asked;
+    await waitFor(() => expect(asked).toBe(askedWhenLeft));
+    expect(asked).toBeLessThan(folders.length);
+  });
+
+  // And the service is told, because the walks already running cannot be stopped
+  // from the window: they are inside a read that has to be interrupted where it
+  // is happening.
+  it("tells the service to give up on the walks already running", async () => {
+    mount([row("projects", true, "modified")]);
+    vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+
+    const view = render(
+      <Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />,
+    );
+
+    // Once when the listing starts.
+    await waitFor(() => expect(Browse.AbandonFolderChecks).toHaveBeenCalled());
+    const onStart = vi.mocked(Browse.AbandonFolderChecks).mock.calls.length;
+
+    // And again when it is left.
+    view.unmount();
+    await waitFor(() =>
+      expect(vi.mocked(Browse.AbandonFolderChecks).mock.calls.length).toBeGreaterThan(onStart),
+    );
+  });
+});
+
+// The queue width is a property of the disk, so a volume that can take more must
+// actually get more. Hardcoding three left internal storage mostly idle.
+describe("how many folders are checked at once", () => {
+  it("opens as many lanes as the volume says it can take", async () => {
+    vi.mocked(Browse.Lanes).mockResolvedValue(8 as never);
+    mount(Array.from({ length: 20 }, (_, i) => row(`folder-${i}`, true)));
+
+    let inFlight = 0;
+    let mostAtOnce = 0;
+    const release: Array<() => void> = [];
+    vi.spyOn(Browse, "DirectoryStatus").mockImplementation((() => {
+      inFlight++;
+      mostAtOnce = Math.max(mostAtOnce, inFlight);
+      return new Promise((resolve) => {
+        release.push(() => {
+          inFlight--;
+          resolve({ status: "same", why: "" });
+        });
+      });
+    }) as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    await waitFor(() => expect(release.length).toBe(8));
+    expect(mostAtOnce).toBe(8);
+  });
+
+  // A disk that will not say how it is attached still has to be browsable, and a
+  // rejected call must not stop the listing being checked at all.
+  it("still checks folders when the disk will not say", async () => {
+    vi.mocked(Browse.Lanes).mockRejectedValue(new Error("no such volume") as never);
+    mount([row("projects", true)]);
+    const asked = vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    await waitFor(() => expect(asked).toHaveBeenCalled());
+  });
+});
+
+// Two stages, and the window says which one it is in. They cost wildly different
+// amounts — the log pass reads no trees at all, and the disk pass reads
+// everything under every folder it cannot answer any other way — so a bar that
+// called them both "checking folders" was hiding the only distinction that
+// explains why one is instant and the other is not.
+describe("saying which way the folders are being checked", () => {
+  it("says the event log first, then the disk", async () => {
+    mount([row("projects", true)]);
+    vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+    const labels: string[] = [];
+
+    render(
+      <Browser
+        snapshot={snapshot}
+        path="/Users/someone"
+        onPathChange={() => {}}
+        onMount={() => {}}
+        onDiff={() => {}}
+        onStatus={() => {}}
+        onProgress={(p) => p && labels.push(p.label)}
+      />,
+    );
+
+    await waitFor(() => expect(labels.some((l) => /by disk/i.test(l))).toBe(true));
+    expect(labels[0]).toMatch(/event log/i);
+    // In that order: the cheap pass is what makes the expensive one shorter, so
+    // running it second would be pointless.
+    expect(labels.findIndex((l) => /event log/i.test(l)))
+      .toBeLessThan(labels.findIndex((l) => /by disk/i.test(l)));
+  });
+
+  // The log is a hint and nothing more. A volume that keeps none, or one whose
+  // log this process cannot read, must still be browsable.
+  it("still checks the disk when the event log tells it nothing", async () => {
+    vi.mocked(Browse.ScanEventLog).mockRejectedValue(new Error("no log here") as never);
+    mount([row("projects", true)]);
+    const asked = vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    await waitFor(() => expect(asked).toHaveBeenCalled());
+  });
+});
+
+// Three sources of an answer, costing wildly different amounts: a lookup, then
+// the event log, then reading the tree. They have to run in that order, and each
+// one must remove work from the next.
+describe("answering from what is already known", () => {
+  it("asks the lookup before the event log or the disk", async () => {
+    mount([row("projects", true)]);
+    const order: string[] = [];
+    vi.mocked(Browse.KnownDirectoryStatus).mockImplementation((async () => {
+      order.push("known");
+      return { status: "notExamined", why: "" };
+    }) as never);
+    vi.mocked(Browse.ScanEventLog).mockImplementation((async () => {
+      order.push("log");
+      return { offered: 0, found: 0, usable: false };
+    }) as never);
+    vi.spyOn(Browse, "DirectoryStatus").mockImplementation((async () => {
+      order.push("disk");
+      return { status: "same", why: "" };
+    }) as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    await waitFor(() => expect(order).toContain("disk"));
+    expect(order).toEqual(["known", "log", "disk"]);
+  });
+
+  // A folder the lookup settles is not walked, which is the entire point: reading
+  // a tree to reach a conclusion already recorded is the work being avoided.
+  it("does not walk a folder the lookup already answered", async () => {
+    mount([row("projects", true), row("archive", true)]);
+    vi.mocked(Browse.KnownDirectoryStatus).mockImplementation((async (_d: string, _n: string, path: string) =>
+      path.endsWith("archive") ? { status: "modified", why: "" } : { status: "notExamined", why: "" }) as never);
+    const walked = vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    await waitFor(() => expect(walked).toHaveBeenCalled());
+    for (const call of walked.mock.calls) {
+      expect(call[2]).not.toMatch(/archive$/);
+    }
+    // And its answer is on screen without anything having been read for it.
+    expect(await screen.findByText(/changed/i)).toBeTruthy();
+  });
+
+  // With every folder already known there is nothing for the other two passes to
+  // find, so neither should run at all.
+  it("reads nothing when the lookup answers everything", async () => {
+    mount([row("projects", true)]);
+    vi.mocked(Browse.KnownDirectoryStatus).mockResolvedValue({ status: "same", why: "" } as never);
+    const scanned = vi.mocked(Browse.ScanEventLog);
+    const walked = vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    await waitFor(() => expect(screen.getByText("projects/")).toBeTruthy());
+    await waitFor(() => expect(vi.mocked(Browse.KnownDirectoryStatus)).toHaveBeenCalled());
+    expect(scanned).not.toHaveBeenCalled();
+    expect(walked).not.toHaveBeenCalled();
+  });
+});
+
+// Reacting to the click is the first job; filling the window is the second.
+//
+// This used to react only when the new listing arrived — eight to ten seconds on
+// a slow disk, with the folder you had just left still on screen the whole time.
+// Nothing said the click had landed, so it read as hung rather than as busy.
+describe("reacting to a click before anything is read", () => {
+  it("clears the folder you left before the new one has been read", async () => {
+    mount([row("projects", true), row("notes.md", false, "modified")]);
+    vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+
+    const { rerender } = render(
+      <Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />,
+    );
+    expect(await screen.findByText("notes.md")).toBeTruthy();
+
+    // The next folder's listing never arrives, which is the slow disk this is
+    // about. The rows from the old one must go anyway.
+    vi.spyOn(Browse, "Merged").mockReturnValue(new Promise(() => {}) as never);
+    rerender(
+      <Browser snapshot={snapshot} path="/Users/someone/projects" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />,
+    );
+
+    await waitFor(() => expect(screen.queryByText("notes.md")).toBeNull());
+  });
+
+  // And the walks for the folder being left are stopped BEFORE the new listing is
+  // asked for. This was the other half of those eight seconds, and it was not
+  // perception: a dozen walks were still running and the two directory reads for
+  // the new folder queued behind them at the disk.
+  it("gives up on the old folder's walks before asking for the new listing", async () => {
+    const order: string[] = [];
+    vi.mocked(Browse.AbandonFolderChecks).mockImplementation((async () => {
+      order.push("abandon");
+    }) as never);
+    vi.spyOn(Browse, "Merged").mockImplementation((async () => {
+      order.push("merged");
+      return { rows: [], note: "" };
+    }) as never);
+
+    render(<Browser snapshot={snapshot} path="/Users/someone" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />);
+
+    await waitFor(() => expect(order).toContain("merged"));
+    expect(order).toEqual(["abandon", "merged"]);
+  });
+
+  // A listing that arrives after the reader has moved on again is discarded. It
+  // describes a folder nobody is looking at, and drawing it would put the wrong
+  // rows under the right breadcrumbs.
+  it("throws away a listing that arrives after the reader has moved on", async () => {
+    let settle: (v: unknown) => void = () => {};
+    vi.spyOn(Browse, "Merged").mockReturnValue(new Promise((resolve) => { settle = resolve; }) as never);
+
+    const { rerender } = render(
+      <Browser snapshot={snapshot} path="/Users/someone/slow" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />,
+    );
+
+    // Moved on before the first listing lands.
+    vi.mocked(Browse.Merged).mockResolvedValue({ rows: [row("elsewhere", true)], note: "" } as never);
+    rerender(
+      <Browser snapshot={snapshot} path="/Users/someone/elsewhere" onPathChange={() => {}} onMount={() => {}} onDiff={() => {}} onStatus={() => {}} />,
+    );
+    settle({ rows: [row("stale", true)], note: "" });
+
+    await waitFor(() => expect(screen.getByText("elsewhere/")).toBeTruthy());
+    expect(screen.queryByText("stale/")).toBeNull();
   });
 });

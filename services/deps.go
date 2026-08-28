@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/changedb"
+	"snapshotter/internal/config"
+	"snapshotter/internal/diffs"
 	"snapshotter/internal/schedule"
 	"snapshotter/internal/verdict"
 	"snapshotter/internal/vfs"
@@ -93,6 +96,13 @@ type Deps struct {
 	// simply means every answer is computed afresh, which is what the command
 	// line does.
 	Verdicts *verdict.Cache
+	// Changes is the change_detection table, kept between runs.
+	//
+	// Only differences live in it, and none of them is ever believed without
+	// being re-checked — which is what makes keeping them safe across a restart
+	// when keeping an unchanged verdict would not be. Nil means everything is
+	// forgotten when the process exits.
+	Changes *changedb.Store
 }
 
 // mountsFor resolves a volume identifier to the mounts that belong to it.
@@ -201,4 +211,26 @@ func (d Deps) volumeFor(ctx context.Context, device string) vfs.Volume {
 		}
 	}
 	return vfs.Volume{}
+}
+
+// changeIgnore is the configured list of paths change detection does not look
+// inside.
+//
+// Read from the settings file each time rather than held on Deps, because the
+// list is also editable from the command line and from a text editor, and a copy
+// taken at startup would make `snapshotter config set` appear to do nothing until
+// the window was restarted. The read is a few kilobytes of YAML against a walk
+// that can be a hundred thousand directory entries, so paying it per folder buys
+// correctness for nothing.
+//
+// A settings file that will not load leaves change detection reading everything.
+// That is the safe direction: the failure mode of ignoring nothing is slowness,
+// and the failure mode of ignoring everything is telling somebody their work is
+// safe without having looked at it.
+func (d Deps) changeIgnore() diffs.Ignore {
+	cfg, err := config.Load()
+	if err != nil {
+		return diffs.Ignore{}
+	}
+	return diffs.NewIgnore(cfg.ChangeDetection.Ignore)
 }

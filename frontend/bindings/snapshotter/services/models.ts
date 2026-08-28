@@ -192,6 +192,59 @@ export class ConfigView {
 }
 
 /**
+ * EventLogScan is what one pass over a volume's event log found.
+ */
+export class EventLogScan {
+    /**
+     * Offered is how many candidate paths the log named.
+     */
+    "offered": number;
+
+    /**
+     * Found is how many of them turned out to differ from the snapshot and were
+     * recorded. Always the smaller number, usually by a lot: the log records that
+     * something was written, not that the result differs from what a snapshot
+     * holds.
+     */
+    "found": number;
+
+    /**
+     * Usable is false when the log said nothing this pass can rely on — no
+     * history yet, a log that was wiped, or one that admitted to dropping events.
+     * It is never a reason to conclude anything is unchanged.
+     */
+    "usable": boolean;
+
+    /**
+     * Why says what happened, for the window and for the log.
+     */
+    "why"?: string;
+
+    /** Creates a new EventLogScan instance. */
+    constructor($$source: Partial<EventLogScan> = {}) {
+        if (!("offered" in $$source)) {
+            this["offered"] = 0;
+        }
+        if (!("found" in $$source)) {
+            this["found"] = 0;
+        }
+        if (!("usable" in $$source)) {
+            this["usable"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EventLogScan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EventLogScan {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EventLogScan($$parsedSource as Partial<EventLogScan>);
+    }
+}
+
+/**
  * FileVersions is one file as two chosen versions hold it, ready to be shown
  * side by side.
  *
@@ -687,6 +740,17 @@ export class Listing {
      */
     "livePath": string;
     "parent": string;
+
+    /**
+     * Root is the highest folder this volume's snapshots say anything about: "/"
+     * for the startup disk, and the mount point for any other.
+     *
+     * Sent so the window can stop offering folders above it. The trail across the
+     * top used to read "/ › Volumes › sdcard256gb › projects" for a snapshot of an
+     * SD card, with the first two clickable and leading straight to an error
+     * saying that volume's snapshots do not cover them.
+     */
+    "root": string;
     "entries": vfs$0.Entry[];
 
     /**
@@ -704,6 +768,9 @@ export class Listing {
         if (!("parent" in $$source)) {
             this["parent"] = "";
         }
+        if (!("root" in $$source)) {
+            this["root"] = "";
+        }
         if (!("entries" in $$source)) {
             this["entries"] = [];
         }
@@ -718,10 +785,10 @@ export class Listing {
      * Creates a new Listing instance from a string or object.
      */
     static createFrom($$source: any = {}): Listing {
-        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
-            $$parsedSource["entries"] = $$createField2_0($$parsedSource["entries"]);
+            $$parsedSource["entries"] = $$createField3_0($$parsedSource["entries"]);
         }
         return new Listing($$parsedSource as Partial<Listing>);
     }
@@ -734,6 +801,17 @@ export class Listing {
 export class MergedListing {
     "livePath": string;
     "parent": string;
+
+    /**
+     * Root is the highest folder this volume's snapshots say anything about: "/"
+     * for the startup disk, and the mount point for any other.
+     *
+     * Sent so the window can stop offering folders above it. The trail across the
+     * top used to read "/ › Volumes › sdcard256gb › projects" for a snapshot of an
+     * SD card, with the first two clickable and leading straight to an error
+     * saying that volume's snapshots do not cover them.
+     */
+    "root": string;
     "rows": diffs$0.Change[];
 
     /**
@@ -753,6 +831,9 @@ export class MergedListing {
         if (!("parent" in $$source)) {
             this["parent"] = "";
         }
+        if (!("root" in $$source)) {
+            this["root"] = "";
+        }
         if (!("rows" in $$source)) {
             this["rows"] = [];
         }
@@ -770,10 +851,10 @@ export class MergedListing {
      * Creates a new MergedListing instance from a string or object.
      */
     static createFrom($$source: any = {}): MergedListing {
-        const $$createField2_0 = $$createType8;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
-            $$parsedSource["rows"] = $$createField2_0($$parsedSource["rows"]);
+            $$parsedSource["rows"] = $$createField3_0($$parsedSource["rows"]);
         }
         return new MergedListing($$parsedSource as Partial<MergedListing>);
     }

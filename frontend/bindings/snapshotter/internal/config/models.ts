@@ -50,6 +50,60 @@ export class Appearance {
 }
 
 /**
+ * ChangeDetection tunes what comparing a snapshot with the live disk reads.
+ */
+export class ChangeDetection {
+    /**
+     * Ignore lists paths not to look inside when deciding whether a folder has
+     * changed.
+     *
+     * It is the only setting that helps the expensive direction. A folder that
+     * differs is answered at the first difference; one that does not has to be
+     * read in full to prove it — and most of what that reads is not anybody's
+     * work. On the machine this was written for, 17,239 of a project's 19,788
+     * entries were node modules: nine seconds of an SD card's reading, per
+     * project, to confirm something nobody would restore.
+     *
+     * A bare name matches a path component at any depth, so "node_modules" means
+     * all of them. Wildcards are filepath.Match, so "*.tmp" and "build-*" work. A
+     * pattern containing a separator is matched against the whole path, so
+     * "* /projects/* /dist" picks out one place rather than every dist on the disk.
+     *
+     * Deliberately not the bulk-deletion watcher's ignore list, which answers a
+     * different question: that one is "deletions here do not count as a burst",
+     * this one is "do not read this when comparing". They would usually hold the
+     * same paths, which is why they are kept apart — sharing them would mean
+     * changing what you are warned about in order to change what gets walked.
+     *
+     * Empty by default. A folder skipped is a folder this application will not
+     * tell you about, and only the person using the machine knows which of those
+     * they could not reproduce.
+     */
+    "ignore": string[];
+
+    /** Creates a new ChangeDetection instance. */
+    constructor($$source: Partial<ChangeDetection> = {}) {
+        if (!("ignore" in $$source)) {
+            this["ignore"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChangeDetection instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChangeDetection {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ignore" in $$parsedSource) {
+            $$parsedSource["ignore"] = $$createField0_0($$parsedSource["ignore"]);
+        }
+        return new ChangeDetection($$parsedSource as Partial<ChangeDetection>);
+    }
+}
+
+/**
  * Config is the whole of it. Kept flat and small on purpose: every field here has
  * to be something a person would recognise as a choice they made.
  */
@@ -61,6 +115,11 @@ export class Config {
     "window": Window;
     "refresh": Refresh;
     "paths": Paths;
+
+    /**
+     * ChangeDetection is what comparing a snapshot with the live disk looks at.
+     */
+    "changeDetection": ChangeDetection;
 
     /** Creates a new Config instance. */
     constructor($$source: Partial<Config> = {}) {
@@ -85,6 +144,9 @@ export class Config {
         if (!("paths" in $$source)) {
             this["paths"] = (new Paths());
         }
+        if (!("changeDetection" in $$source)) {
+            this["changeDetection"] = (new ChangeDetection());
+        }
 
         Object.assign(this, $$source);
     }
@@ -93,13 +155,14 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField0_0 = $$createType0;
-        const $$createField1_0 = $$createType1;
-        const $$createField2_0 = $$createType2;
-        const $$createField3_0 = $$createType3;
-        const $$createField4_0 = $$createType4;
-        const $$createField5_0 = $$createType5;
-        const $$createField6_0 = $$createType6;
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType2;
+        const $$createField2_0 = $$createType3;
+        const $$createField3_0 = $$createType4;
+        const $$createField4_0 = $$createType5;
+        const $$createField5_0 = $$createType6;
+        const $$createField6_0 = $$createType7;
+        const $$createField7_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("schedule" in $$parsedSource) {
             $$parsedSource["schedule"] = $$createField0_0($$parsedSource["schedule"]);
@@ -121,6 +184,9 @@ export class Config {
         }
         if ("paths" in $$parsedSource) {
             $$parsedSource["paths"] = $$createField6_0($$parsedSource["paths"]);
+        }
+        if ("changeDetection" in $$parsedSource) {
+            $$parsedSource["changeDetection"] = $$createField7_0($$parsedSource["changeDetection"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }
@@ -352,8 +418,8 @@ export class Tripwire {
      * Creates a new Tripwire instance from a string or object.
      */
     static createFrom($$source: any = {}): Tripwire {
-        const $$createField1_0 = $$createType7;
-        const $$createField2_0 = $$createType7;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("watch" in $$parsedSource) {
             $$parsedSource["watch"] = $$createField1_0($$parsedSource["watch"]);
@@ -394,11 +460,12 @@ export class Window {
 }
 
 // Private type creation functions
-const $$createType0 = Schedule.createFrom;
-const $$createType1 = Tripwire.createFrom;
-const $$createType2 = Appearance.createFrom;
-const $$createType3 = Logging.createFrom;
-const $$createType4 = Window.createFrom;
-const $$createType5 = Refresh.createFrom;
-const $$createType6 = Paths.createFrom;
-const $$createType7 = $Create.Array($Create.Any);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Schedule.createFrom;
+const $$createType2 = Tripwire.createFrom;
+const $$createType3 = Appearance.createFrom;
+const $$createType4 = Logging.createFrom;
+const $$createType5 = Window.createFrom;
+const $$createType6 = Refresh.createFrom;
+const $$createType7 = Paths.createFrom;
+const $$createType8 = ChangeDetection.createFrom;

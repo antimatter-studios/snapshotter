@@ -3,6 +3,7 @@
 
 export {
     Appearance,
+    ChangeDetection,
     Config,
     Logging,
     Paths,

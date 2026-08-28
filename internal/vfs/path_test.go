@@ -225,3 +225,65 @@ func TestNamingTheDataVolumeGivesItsOwnLayout(t *testing.T) {
 		}
 	}
 }
+
+// The interface must not offer a folder it would then have to refuse. Browsing a
+// snapshot of an SD card, the trail across the top read "/ › Volumes ›
+// sdcard256gb › projects" and the first two were clickable — leading straight to
+// "that volume's snapshots do not cover it".
+
+func TestAVolumeKnowsHowHighItGoes(t *testing.T) {
+	if got := (Volume{}).Top(); got != "/" {
+		t.Errorf("the data volume tops out at %q, want /", got)
+	}
+	if got := At("/Volumes/sdcard256gb").Top(); got != "/Volumes/sdcard256gb" {
+		t.Errorf("an external volume tops out at %q", got)
+	}
+}
+
+func TestGoingUpStopsAtTheVolume(t *testing.T) {
+	v := At("/Volumes/sdcard256gb")
+	for _, c := range []struct{ from, want string }{
+		{"/Volumes/sdcard256gb/projects/app", "/Volumes/sdcard256gb/projects"},
+		{"/Volumes/sdcard256gb/projects", "/Volumes/sdcard256gb"},
+		// At the top already. Not an error: pressing "up" there is a reasonable
+		// thing to do, and the answer is that you are already there.
+		{"/Volumes/sdcard256gb", "/Volumes/sdcard256gb"},
+		// Somewhere this volume says nothing about. /Volumes is on the startup
+		// disk, and an SD card's snapshots have never seen it.
+		{"/Volumes", "/Volumes/sdcard256gb"},
+		{"/", "/Volumes/sdcard256gb"},
+		{"/Users/someone", "/Volumes/sdcard256gb"},
+	} {
+		if got := v.Parent(c.from); got != c.want {
+			t.Errorf("up from %s went to %s, want %s", c.from, got, c.want)
+		}
+	}
+}
+
+// The data volume's snapshots cover the whole running system, so going up from
+// anywhere on it is ordinary navigation and stops only at the root.
+func TestTheDataVolumeGoesUpToTheRoot(t *testing.T) {
+	var v Volume
+	for _, c := range []struct{ from, want string }{
+		{"/Users/someone/projects", "/Users/someone"},
+		{"/Users/someone", "/Users"},
+		{"/Users", "/"},
+		{"/", "/"},
+	} {
+		if got := v.Parent(c.from); got != c.want {
+			t.Errorf("up from %s went to %s, want %s", c.from, got, c.want)
+		}
+	}
+}
+
+// A volume whose name is a prefix of another's must not swallow it. "/Volumes/sd"
+// and "/Volumes/sdcard256gb" are different disks.
+func TestOneVolumeDoesNotClaimAnotherWithALongerName(t *testing.T) {
+	v := At("/Volumes/sd")
+	if got := v.Parent("/Volumes/sdcard256gb/projects"); got != "/Volumes/sd" {
+		t.Errorf("up from another disk went to %s, want the volume's own top", got)
+	}
+	if v.Covered("/Volumes/sdcard256gb/projects") {
+		t.Error("/Volumes/sd claims to cover /Volumes/sdcard256gb")
+	}
+}
