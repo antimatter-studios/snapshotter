@@ -115,7 +115,12 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     // the folder being left still had a dozen walks running, and the two directory
     // reads for the new one queued behind them at the disk. Giving up first is
     // what makes the new folder's listing the next thing the disk does.
-    await Browse.AbandonFolderChecks();
+    // Caught, because this sits before the try below and a rejection here would
+    // escape load() altogether — and load() is called from an effect, where
+    // nothing is waiting to catch it. Giving up on the old walks is also not
+    // something worth stopping for: the worst case is that they run on a little
+    // longer, which is what happened before this call existed.
+    await Browse.AbandonFolderChecks().catch(() => {});
     if (token !== resolveToken.current) return;
 
     try {
@@ -278,12 +283,17 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
   }, [snapshot, path, showIdentical, onProgress, t]);
 
   useEffect(() => {
-    void load();
+    // Nothing awaits an effect, so anything load() lets escape becomes an
+    // unhandled rejection. It reports its own failures on screen; this is the
+    // backstop for the ones it cannot.
+    void load().catch(() => {});
     // Leaving the browser entirely is the same as navigating within it: whatever
     // is still being walked is for a listing nobody is looking at.
     return () => {
       resolveToken.current++;
-      void Browse.AbandonFolderChecks();
+      // void does not catch. An unmount is the one moment nothing is left to
+      // handle a rejection, so this says so explicitly.
+      void Browse.AbandonFolderChecks().catch(() => {});
     };
   }, [load]);
 
@@ -316,7 +326,9 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
         replace,
       });
       onStatus(`Restored to ${result.destination}${result.backedUp ? ` (previous file kept at ${result.backedUp})` : ""}`);
-      void load();
+      // Fire and forget, so it needs its own catch: the try around this only
+      // covers what is awaited.
+      void load().catch(() => {});
     } catch (err) {
       setError(message(err));
     }
