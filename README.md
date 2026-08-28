@@ -354,6 +354,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.62.2
+
+Every disk that was not the startup disk carried a note above its snapshots saying
+that browsing what is inside them was the startup disk's alone. That stopped being
+true when snapshots on any volume became browsable, and the note stayed —
+contradicting what the application had just done. It is gone.
+
 ### v0.62.1
 
 The status bar's two halves say different things: the left says what is happening,
@@ -436,12 +443,6 @@ a caller may name a volume but not add one. Each volume mounts into its own
 directory, because two volumes' snapshots of the same moment share a date. The
 home screen also gained one spacing rule where it had several, and the volumes
 table moved into the part of it that scrolls.
-
-### v0.57.1
-
-Grouping the snapshot list moved a wrapper between the sidebar column and the
-list that was its scrolling region, so nothing scrolled and the footer was pushed
-out of the column and off screen. One scrolling region now holds every group.
 
 ## Design decisions
 
