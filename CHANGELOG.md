@@ -7,6 +7,24 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.62.2 — 2026-08-29
+
+**A notice that was no longer true.**
+
+Every volume that was not the startup disk carried a note above its snapshots:
+"Snapshotted and pruned here, and can be opened. Browsing what is inside is the
+startup disk's alone — open one and it says where it is mounted."
+
+That was true when it was written and stopped being true when snapshots on any
+volume became browsable. It sat there afterwards contradicting what the
+application had just done, which is worse than clutter: somebody reading it would
+believe the thing they had done was impossible. Nothing was holding it to the
+truth — no test mentioned it, so it went stale silently.
+
+The half of it that is still true is said elsewhere already: the volume heading
+carries its mount point and device, and an opened snapshot reports where it is
+mounted.
+
 ## v0.62.1 — 2026-08-28
 
 **A progress bar that runs for the whole wait, not just the countable part.**
