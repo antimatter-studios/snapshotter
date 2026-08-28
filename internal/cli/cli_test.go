@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"snapshotter/internal/config"
 	"snapshotter/internal/i18n"
+	"snapshotter/internal/manual"
 	"strings"
 	"testing"
 	"time"
@@ -561,5 +562,83 @@ func TestConfigRejectsBadUsage(t *testing.T) {
 		if errOut.Len() == 0 {
 			t.Errorf("%v failed without saying why", args)
 		}
+	}
+}
+
+// The built-in manual, which exists because the documentation was written and
+// none of it reached anybody: the documents are in the repository, and somebody
+// who installed a disk image has the binary and nothing else.
+
+func TestTheHelpListsTheTopics(t *testing.T) {
+	e, out, _ := newEnv(&fakeRunner{})
+	if code := Run(context.Background(), e, []string{"help"}); code != 0 {
+		t.Fatalf("help exited %d", code)
+	}
+	// A manual nothing points at is a manual nobody opens, and this listing is
+	// the only place a reader looks.
+	for _, topic := range manual.All() {
+		if !strings.Contains(out.String(), "help "+topic.Name) {
+			t.Errorf("the help does not offer %q:\n%s", topic.Name, out.String())
+		}
+	}
+}
+
+func TestATopicPrintsItsPage(t *testing.T) {
+	e, out, _ := newEnv(&fakeRunner{})
+	if code := Run(context.Background(), e, []string{"help", "snapshots"}); code != 0 {
+		t.Fatalf("help snapshots exited %d", code)
+	}
+	if !strings.HasPrefix(out.String(), "# Snapshots") {
+		t.Errorf("the page did not print:\n%.120s", out.String())
+	}
+	// The page, and nothing else. Printing the command list underneath would
+	// bury what was asked for.
+	if strings.Contains(out.String(), "Usage:") {
+		t.Error("the page came with the command help attached")
+	}
+}
+
+// The name is a phrase a reader half-remembers, so the spellings of one question
+// are one question.
+func TestTopicNamesAreForgiving(t *testing.T) {
+	for _, name := range []string{"tripwire", "TRIPWIRE", "bulk_deletion", "bulk-deletion", "watcher"} {
+		e, out, _ := newEnv(&fakeRunner{})
+		if code := Run(context.Background(), e, []string{"help", name}); code != 0 {
+			t.Errorf("help %s exited %d", name, code)
+			continue
+		}
+		if !strings.Contains(out.String(), "bulk-deletion watcher") {
+			t.Errorf("help %s printed something else:\n%.80s", name, out.String())
+		}
+	}
+}
+
+// A near miss is answered with the page rather than with a menu, and to stderr
+// so that piping the command still yields only pages.
+func TestANearMissNamesTheTopicRatherThanListingEverything(t *testing.T) {
+	e, out, errBuf := newEnv(&fakeRunner{})
+	if code := Run(context.Background(), e, []string{"help", "restor"}); code != 2 {
+		t.Errorf("a near miss exited %d, want 2", code)
+	}
+	if !strings.Contains(errBuf.String(), "help restoring") {
+		t.Errorf("it did not suggest the page:\n%s", errBuf.String())
+	}
+	if strings.Contains(errBuf.String(), "help mounting") {
+		t.Errorf("it listed unrelated pages as well:\n%s", errBuf.String())
+	}
+	if out.String() != "" {
+		t.Errorf("a refusal was written to stdout: %q", out.String())
+	}
+}
+
+// Something resembling nothing falls back to the full help, so the reader is not
+// left with a refusal and no way forward.
+func TestATopicLikeNothingFallsBackToTheHelp(t *testing.T) {
+	e, _, errBuf := newEnv(&fakeRunner{})
+	if code := Run(context.Background(), e, []string{"help", "zzzzz"}); code != 2 {
+		t.Errorf("exited %d, want 2", code)
+	}
+	if !strings.Contains(errBuf.String(), "Usage:") {
+		t.Errorf("no help was offered:\n%s", errBuf.String())
 	}
 }

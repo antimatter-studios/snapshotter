@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"snapshotter/internal/i18n"
+	"snapshotter/internal/manual"
 	"sort"
 	"strconv"
 	"strings"
@@ -104,6 +105,10 @@ func commands() map[string]command {
 // Run dispatches one command and returns the process exit code.
 func Run(ctx context.Context, e Env, args []string) int {
 	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		// `help <topic>` reads the manual; bare `help` lists what there is.
+		if len(args) > 1 {
+			return writeTopic(e, args[1])
+		}
 		writeHelp(e.Out)
 		return 0
 	}
@@ -138,8 +143,48 @@ func writeHelp(w io.Writer) {
 	}
 	tw.Flush()
 
+	// The topics, under the commands. A manual nothing points at is a manual
+	// nobody opens, and this listing is the only place a reader looks.
+	topics := manual.All()
+	if len(topics) > 0 {
+		fmt.Fprintln(w, "\n"+i18n.T("cli.topicsHeading"))
+		tw = tabwriter.NewWriter(w, 0, 8, 2, ' ', 0)
+		for _, t := range topics {
+			fmt.Fprintf(tw, "  snapshotter help %s\t%s\n", t.Name, t.Summary)
+		}
+		tw.Flush()
+	}
+
 	fmt.Fprintln(w, "\n"+i18n.T("cli.agentsNote"))
 	fmt.Fprintln(w)
+}
+
+// writeTopic prints one manual page.
+//
+// The markdown is printed as it is written rather than rendered down to plain
+// text. It reads perfectly well in a terminal, it survives being piped into
+// something that does render it, and a renderer of our own would be a second
+// markdown implementation to keep correct for no gain a reader would notice.
+func writeTopic(e Env, name string) int {
+	topic, ok := manual.Lookup(name)
+	if !ok {
+		fmt.Fprintf(e.Err, "snapshotter: %s\n", i18n.T("cli.noSuchTopic", "Name", strconv.Quote(name)))
+		// A near miss is answered with the page rather than with a list of
+		// everything: somebody who typed "mount" wants "mounting", not a menu.
+		if near := manual.Suggest(name); len(near) > 0 {
+			fmt.Fprintf(e.Err, "\n%s\n", i18n.T("cli.didYouMean"))
+			for _, n := range near {
+				fmt.Fprintf(e.Err, "  snapshotter help %s\n", n)
+			}
+			fmt.Fprintln(e.Err)
+			return 2
+		}
+		fmt.Fprintln(e.Err)
+		writeHelp(e.Err)
+		return 2
+	}
+	fmt.Fprintln(e.Out, topic.Body)
+	return 0
 }
 
 func runList(ctx context.Context, e Env, _ []string) error {
