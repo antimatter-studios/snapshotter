@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Browser } from "./Browser";
 import { Browse, Restore } from "./api";
@@ -65,7 +65,23 @@ beforeEach(() => {
   vi.spyOn(Browse, "KnownDirectoryStatus").mockResolvedValue({ status: "notExamined", why: "" } as never);
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  // Unmounted BEFORE the stubs are taken away, not after.
+  //
+  // vitest runs afterEach hooks in stack order, so this file's teardown runs
+  // ahead of the cleanup registered in test-setup — which meant every component
+  // was unmounted with its bindings already restored to the real ones. Anything
+  // still in flight then landed on a real call during teardown, and when that
+  // went wrong the unmount went with it: the next test started with the previous
+  // test's screen still in the document, and a query that should find one button
+  // found a page that no longer had it.
+  //
+  // That is what made one Health test fail three runs in five with nothing wrong
+  // in its own file. Cleaning up first costs nothing and removes the ordering
+  // from the picture entirely.
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("browsing a folder", () => {
   it("shows a folder as detecting until its verdict arrives", async () => {
