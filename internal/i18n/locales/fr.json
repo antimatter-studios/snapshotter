@@ -63,6 +63,9 @@
   "cli.desc.version": {
     "other": "afficher la version de cette compilation"
   },
+  "cli.didYouMean": {
+    "other": "Vouliez-vous dire :"
+  },
   "cli.fixFileFirst": {
     "other": "corrigez le fichier avant de définir quoi que ce soit"
   },
@@ -95,6 +98,9 @@
   "cli.noSuchCommand": {
     "other": "commande inconnue {{.Name}}"
   },
+  "cli.noSuchTopic": {
+    "other": "sujet inconnu {{.Name}}"
+  },
   "cli.notAConfigCommand": {
     "other": "{{.Name}} n'est pas une commande config (essayez : keys, get, set)"
   },
@@ -119,6 +125,9 @@
   },
   "cli.tagline": {
     "other": "Parcourir, comparer et planifier des snapshots locaux APFS."
+  },
+  "cli.topicsHeading": {
+    "other": "Sujets :"
   },
   "cli.usageHeading": {
     "other": "Utilisation :"

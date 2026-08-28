@@ -63,6 +63,9 @@
   "cli.desc.version": {
     "other": "die Version dieses Builds ausgeben"
   },
+  "cli.didYouMean": {
+    "other": "Meinten Sie:"
+  },
   "cli.fixFileFirst": {
     "other": "beheben Sie die Datei, bevor Sie etwas setzen"
   },
@@ -95,6 +98,9 @@
   "cli.noSuchCommand": {
     "other": "unbekannter Befehl {{.Name}}"
   },
+  "cli.noSuchTopic": {
+    "other": "unbekanntes Thema {{.Name}}"
+  },
   "cli.notAConfigCommand": {
     "other": "{{.Name}} ist kein config-Befehl (versuchen Sie: keys, get, set)"
   },
@@ -119,6 +125,9 @@
   },
   "cli.tagline": {
     "other": "APFS-Snapshots durchsehen, vergleichen und planen."
+  },
+  "cli.topicsHeading": {
+    "other": "Themen:"
   },
   "cli.usageHeading": {
     "other": "Verwendung:"
