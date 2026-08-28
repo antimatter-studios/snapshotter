@@ -47,7 +47,11 @@ type Listing struct {
 // Another volume has no home directory, and the whole of it is what someone
 // plugged in to look at. Starting at a home path that does not exist there would
 // open an empty listing and look like an empty snapshot.
-func (b *BrowseService) Home(device string) string {
+//
+// A volume that cannot be identified is an error rather than a third place to
+// start. The window can say so; it cannot recover from being quietly put
+// somewhere that was never right.
+func (b *BrowseService) Home(device string) (string, error) {
 	return b.rootFor(context.Background(), device)
 }
 

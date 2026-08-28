@@ -779,3 +779,42 @@ describe("browsing a snapshot on another volume", () => {
     await waitFor(() => expect(document.querySelectorAll("li.selected").length).toBe(1));
   });
 });
+
+// Where browsing starts is answered by the service or not at all.
+//
+// It used to fall back to "/Users" here when the call failed. That is the startup
+// disk's shape of answer given to a question about some other volume, and it
+// fails silently: the browser opens somewhere that does not exist inside that
+// snapshot and shows an empty listing, which reads as an empty snapshot.
+describe("where browsing starts", () => {
+  it("says so when the volume cannot be identified", async () => {
+    stub();
+    vi.spyOn(Browse, "Home").mockRejectedValue(new Error("disk99s9 is not a volume holding snapshots"));
+
+    render(<App />);
+
+    expect(await screen.findByText(/not a volume holding snapshots/i)).toBeTruthy();
+  });
+
+  // Asked again for the volume that was selected, because the answer differs per
+  // volume and the browser would otherwise stay rooted where the last one was.
+  it("asks again when the selected volume changes", async () => {
+    const external = [
+      { name: "snap-x", stamp: "2026-08-19-090000", taken: "2026-08-19T09:00:00Z", mounted: true, mountPoint: "/tmp/x", device: "disk8s1", uuid: "BBBBBBBB-0000-0000-0000-000000000001" },
+    ];
+    stub({
+      volumes: [
+        { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+        { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: external, freeBytes: 20, totalBytes: 1000 },
+      ],
+    });
+    const home = vi.spyOn(Browse, "Home").mockResolvedValue("/Volumes/sdcard256gb" as never);
+
+    render(<App />);
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    const group = within(document.querySelectorAll(".volume-group")[1] as HTMLElement);
+    await userEvent.click(group.getByText(/2026|Aug/));
+
+    await waitFor(() => expect(home).toHaveBeenCalledWith("disk8s1"));
+  });
+});

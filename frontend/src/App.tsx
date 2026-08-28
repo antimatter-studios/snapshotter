@@ -143,11 +143,15 @@ export default function App() {
     let live = true;
     Browse.Home(selectedDevice)
       .then((home) => live && setPath(home))
-      .catch(() => live && setPath("/Users"));
+      // Said, not swallowed. The service answers the startup disk's home folder
+      // or the volume's own root, and nothing else — so an error here means the
+      // volume could not be identified, and quietly leaving the browser where it
+      // was would show one disk's files under another disk's heading.
+      .catch((err) => live && setError(message(err)));
     return () => {
       live = false;
     };
-  }, [selectedDevice]);
+  }, [selectedDevice, setError]);
   // Across every group, not the startup disk's list: a snapshot on another volume
   // is selectable too, and looking it up in one volume's list would find nothing
   // and leave the browser showing the last thing that was open.
