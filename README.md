@@ -354,6 +354,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.60.2
+
+The Health screen said "Checking…" and never finished. Working out which volume a
+path is on costs twenty-odd subprocesses, and it was being done once per
+directory entry — thousands of them for a single folder. Names are now looked up
+only for volumes that reach the screen, the answer is cached for a few seconds,
+and the lookup happens once per listing rather than once per file.
+
 ### v0.60.1
 
 Opening a snapshot is the slowest thing in the window and it said nothing until
@@ -431,16 +439,6 @@ describes a different problem — saying anything at all. Anything on the comman
 line now goes to the command line, which already refused an unknown verb by name.
 `snapshotter --help` is fixed by the same change: it printed Go's usage for the two
 flags the launchd agents are installed with, and never mentioned a command.
-
-### v0.55.0
-
-The bulk-deletion watcher watches directories you name, and nothing else. It
-watched the whole home directory with an ignore list to quiet the rest, which is
-the wrong way round — `~/Library` deletes in bulk as a matter of routine, so most
-of what it caught was housekeeping and every catch pinned another whole-volume
-snapshot on the disk. It is now off with an empty list until a directory is named,
-each directory is counted on its own, and the cooldown stays shared because a
-snapshot is of the whole volume anyway.
 
 ## Design decisions
 
