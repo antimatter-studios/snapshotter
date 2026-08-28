@@ -1046,6 +1046,30 @@ describe("the status bar", () => {
     expect(bar.getAttribute("role")).toBe("status");
   });
 
+  // Two different things, left and right: what is happening, and how far it has
+  // got. The stages of one wait — reading a folder, asking the event log, walking
+  // the disk — are not all countable, and the bar used to appear only for the
+  // countable one, which made the first two look like nothing happening.
+  it("shows a bar for work that has no number, without inventing a count", async () => {
+    stub();
+    vi.spyOn(Browse, "Merged").mockReturnValue(new Promise(() => {}) as never);
+
+    render(<App />);
+    await userEvent.click(within(await snapshotRow(0)).getByText(/2026|Aug/));
+
+    const bar = await waitFor(() => {
+      const found = document.querySelector(".status-bar-track");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // Moving rather than filling: a percentage here would be a claim about
+    // progress nobody is measuring.
+    expect(bar.querySelector(".status-bar-fill.unmeasured")).not.toBeNull();
+    expect(document.querySelector(".status-bar-count")).toBeNull();
+    // And the left still says which part of the wait this is.
+    expect(document.querySelector(".status-bar-label")!.textContent).toMatch(/reading/i);
+  });
+
   // On screen even when nothing is happening.
   //
   // It used to appear only while there was something to count, which meant it

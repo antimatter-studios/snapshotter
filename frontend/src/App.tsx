@@ -592,23 +592,40 @@ export default function App() {
             <span className="status-bar-label">
               {slowWork?.label || status || t("app.ready")}
             </span>
-            {/* The bar and the count only when there is something countable.
-                Some of the work has no number — reading a directory is one
-                operation, however long it takes — and a bar that cannot fill is
-                worse than no bar. */}
-            {slowWork && slowWork.total > 0 && (
+            {/* The bar runs for the whole of the work, not just the part that
+                can be counted.
+
+                Two different things, left and right: the label says what is
+                happening now, and this says how far it has got. They change
+                independently — reading a folder, then asking the event log, then
+                walking the disk are three stages of one wait, and a bar that
+                appeared only for the third made the first two look like nothing
+                happening.
+
+                Where there is no number the bar says so by moving rather than by
+                filling: reading a directory is one operation however long it
+                takes, and a bar sitting at a made-up percentage would be a lie
+                about progress nobody can measure. */}
+            {slowWork && (
               <>
                 <span className="status-bar-track" aria-hidden="true">
                   <span
-                    className="status-bar-fill"
-                    style={{ width: `${Math.round((slowWork.done / slowWork.total) * 100)}%` }}
+                    className={slowWork.total > 0 ? "status-bar-fill" : "status-bar-fill unmeasured"}
+                    style={
+                      slowWork.total > 0
+                        ? { width: `${Math.round((slowWork.done / slowWork.total) * 100)}%` }
+                        : undefined
+                    }
                   />
                 </span>
                 {/* Centred over the bar, because the number is the thing being
-                    read and a count off to one side is read second. */}
-                <span className="status-bar-count">
-                  {t("app.progressOf", { done: slowWork.done, total: slowWork.total })}
-                </span>
+                    read and a count off to one side is read second. Only when
+                    there is one to show. */}
+                {slowWork.total > 0 && (
+                  <span className="status-bar-count">
+                    {t("app.progressOf", { done: slowWork.done, total: slowWork.total })}
+                  </span>
+                )}
               </>
             )}
           </div>
