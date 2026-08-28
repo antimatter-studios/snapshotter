@@ -8,7 +8,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"snapshotter/internal/apfs"
@@ -121,37 +120,35 @@ func (d Deps) mountsFor(ctx context.Context, device string) (Mounter, error) {
 
 // rootFor is where browsing a volume's snapshot starts.
 //
-// Every volume starts at its own root. The startup disk is the exception, and a
-// deliberate one: it starts at the home directory, because that is where a
-// person's work is and starting at "/" would put four system directories in
-// front of it. Any other volume has no home directory, and the whole of it is
-// what someone plugged in to look at.
+// Two answers, and the volume decides which: the startup disk starts at the home
+// directory, because that is where a person's work is and starting at "/" would
+// put four system directories in front of it; every other volume starts at its
+// own root, having no home directory and being, in whole, the thing someone
+// plugged in to look at.
 //
-// A device that cannot be resolved gets the home directory too, which is right
-// only because it is the startup disk's answer and a volume nobody can identify
-// is not one anything else can be said about. It is not a good answer for an
-// external disk — a home path does not exist inside that snapshot, so the listing
-// would come back empty and read as an empty snapshot — so the reason it could
-// not be resolved is worth knowing, and is logged rather than swallowed.
-func (d Deps) rootFor(ctx context.Context, device string) string {
+// There is no third answer. A device that cannot be resolved is not a volume to
+// start somewhere sensible in — it is a question that could not be answered, and
+// saying "the home directory" to it would be a guess wearing the startup disk's
+// clothes. On an external disk that guess is silently wrong: a home path does not
+// exist inside that snapshot, so the listing comes back empty and reads as an
+// empty snapshot rather than as a path that was never right.
+func (d Deps) rootFor(ctx context.Context, device string) (string, error) {
 	if device == "" {
-		return d.homeDir()
+		return d.homeDir(), nil
 	}
 	vols, err := apfs.Volumes(ctx, d.Runner)
 	if err != nil {
-		log.Printf("browse: cannot tell which volume %s is, starting in the home folder: %v", device, err)
-		return d.homeDir()
+		return "", fmt.Errorf("services: cannot tell which volume %s is: %w", device, err)
 	}
 	for _, v := range vols {
 		if v.Device == device {
 			if v.MountPoint == d.Volume {
-				return d.homeDir()
+				return d.homeDir(), nil
 			}
-			return v.MountPoint
+			return v.MountPoint, nil
 		}
 	}
-	log.Printf("browse: %s holds no snapshots this build can see, starting in the home folder", device)
-	return d.homeDir()
+	return "", fmt.Errorf("services: %s is not a volume holding snapshots", device)
 }
 
 func (d Deps) homeDir() string {

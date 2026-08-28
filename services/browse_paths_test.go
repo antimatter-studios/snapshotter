@@ -68,7 +68,7 @@ func (browseRunner) Run(_ context.Context, name string, args ...string) (string,
 func TestBrowsingStartsSomewhereUseful(t *testing.T) {
 	svc, seed := browseFixture(t)
 
-	if got := svc.Home(""); got != seed {
+	if got, _ := svc.Home(""); got != seed {
 		t.Errorf("faking: want the seed %q, got %q", seed, got)
 	}
 
@@ -77,7 +77,7 @@ func TestBrowsingStartsSomewhereUseful(t *testing.T) {
 	if err != nil {
 		t.Skip("no home directory")
 	}
-	if got := real.Home(""); got != home {
+	if got, _ := real.Home(""); got != home {
 		t.Errorf("not faking: want the home directory %q, got %q", home, got)
 	}
 }
@@ -305,7 +305,7 @@ func TestBrowsingStartsAtTheHomeFolderOnTheStartupDisk(t *testing.T) {
 	if err != nil {
 		t.Skip("no home directory")
 	}
-	if got := svc.Home(""); got != home {
+	if got, _ := svc.Home(""); got != home {
 		t.Errorf("the startup disk starts at %q, want the home folder %q", got, home)
 	}
 }
@@ -313,7 +313,7 @@ func TestBrowsingStartsAtTheHomeFolderOnTheStartupDisk(t *testing.T) {
 func TestBrowsingStartsAtTheVolumeRootAnywhereElse(t *testing.T) {
 	svc := &BrowseService{Deps: Deps{Runner: &volumeRunner{}, Volume: apfs.DataVolume}}
 
-	if got := svc.Home("disk8s1"); got != "/Volumes/sdcard256gb" {
+	if got, _ := svc.Home("disk8s1"); got != "/Volumes/sdcard256gb" {
 		t.Errorf("an external volume starts at %q, want its own root", got)
 	}
 	// And the data volume answers as the home folder even when named by device,
@@ -322,7 +322,7 @@ func TestBrowsingStartsAtTheVolumeRootAnywhereElse(t *testing.T) {
 	if err != nil {
 		t.Skip("no home directory")
 	}
-	if got := svc.Home("disk3s1"); got != home {
+	if got, _ := svc.Home("disk3s1"); got != home {
 		t.Errorf("the data volume named by device starts at %q, want the home folder", got)
 	}
 }
@@ -350,4 +350,51 @@ func (volumeRunner) Run(_ context.Context, name string, args ...string) (string,
 		}
 	}
 	return "", errors.New("unexpected command")
+}
+
+// A volume that cannot be identified is not a third place to start.
+//
+// It used to answer the home directory, which is the startup disk's answer
+// wearing a guess's clothes. On an external disk that guess is silently wrong: a
+// home path does not exist inside that snapshot, so the listing comes back empty
+// and reads as an empty snapshot rather than as a path that was never right.
+func TestAVolumeThatCannotBeIdentifiedIsAnError(t *testing.T) {
+	svc := &BrowseService{Deps: Deps{Runner: &volumeRunner{}, Volume: apfs.DataVolume}}
+
+	got, err := svc.Home("disk99s9")
+	if err == nil {
+		t.Fatalf("an unknown volume was answered with %q", got)
+	}
+	if got != "" {
+		t.Errorf("it refused and still named a place to start: %q", got)
+	}
+	// Named, because the whole use of the message is saying which disk could not
+	// be found.
+	if !strings.Contains(err.Error(), "disk99s9") {
+		t.Errorf("the refusal does not name the volume: %v", err)
+	}
+}
+
+// And a machine that cannot be interrogated is the same: not knowing is not the
+// same as knowing it is the startup disk.
+func TestAnUnreadableMachineDoesNotGuessAStartingPlace(t *testing.T) {
+	svc := &BrowseService{Deps: Deps{Runner: muteRunner{}, Volume: apfs.DataVolume}}
+
+	if got, err := svc.Home("disk8s1"); err == nil {
+		t.Errorf("it guessed %q rather than saying the volume could not be resolved", got)
+	}
+	// The startup disk still answers, because it needs nothing looked up.
+	home, herr := os.UserHomeDir()
+	if herr != nil {
+		t.Skip("no home directory")
+	}
+	if got, err := svc.Home(""); err != nil || got != home {
+		t.Errorf("the startup disk answered %q (%v), want the home folder", got, err)
+	}
+}
+
+type muteRunner struct{}
+
+func (muteRunner) Run(context.Context, string, ...string) (string, error) {
+	return "", errors.New("nothing here answers")
 }

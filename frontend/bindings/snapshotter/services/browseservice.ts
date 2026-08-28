@@ -33,6 +33,10 @@ export function DirectoryStatus(device: string, snapshotName: string, livePath: 
  * Another volume has no home directory, and the whole of it is what someone
  * plugged in to look at. Starting at a home path that does not exist there would
  * open an empty listing and look like an empty snapshot.
+ *
+ * A volume that cannot be identified is an error rather than a third place to
+ * start. The window can say so; it cannot recover from being quietly put
+ * somewhere that was never right.
  */
 export function Home(device: string): $CancellablePromise<string> {
     return $Call.ByID(63276391, device);
