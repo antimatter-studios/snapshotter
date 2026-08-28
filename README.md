@@ -354,6 +354,16 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.62.1
+
+The status bar's two halves say different things: the left says what is happening,
+the right says how far it has got. They change independently, because reading a
+folder, asking the event log and walking the disk are three stages of one wait and
+only the last of them has a number — and the bar appeared for that one alone,
+which left the first two looking like nothing happening. Where there is no number
+it moves rather than fills, because a bar at an invented percentage would be a
+claim about progress nobody is measuring.
+
 ### v0.62.0
 
 Browsing a snapshot stopped re-reading whole trees to answer questions it had
@@ -432,15 +442,6 @@ table moved into the part of it that scrolls.
 Grouping the snapshot list moved a wrapper between the sidebar column and the
 list that was its scrolling region, so nothing scrolled and the footer was pushed
 out of the column and off screen. One scrolling region now holds every group.
-
-### v0.57.0
-
-The snapshot list is grouped by the volume the snapshots are on, so the ones on an
-external disk are visible at all — there was no way to see them before. Deleting
-is now per copy: it deleted by date, and a date exists on every volume mounted
-when it was taken, so one press quietly took an external disk's snapshot of the
-same moment too. `diskutil apfs deleteSnapshot -uuid` is the only call that tells
-two copies apart.
 
 ## Design decisions
 
