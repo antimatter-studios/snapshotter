@@ -1008,3 +1008,28 @@ describe("the status bar", () => {
     expect(document.querySelector(".status-bar")).toBeNull();
   });
 });
+
+// The bar belongs to the panel whose work it counts.
+//
+// Fixed to the viewport it spanned the whole window and covered the snapshot
+// list, which is not what is being counted. main is already positioned for the
+// file-diff panel, and for the same reason.
+it("keeps the status bar inside the main panel, not over the sidebar", async () => {
+  stub();
+  vi.spyOn(Browse, "Merged").mockResolvedValue({
+    rows: [{ relPath: "a", absLive: "/Users/someone/a", isDir: true, status: "modified", snapSize: 0, liveSize: 0 }],
+    note: "",
+  } as never);
+  vi.spyOn(Browse, "DirectoryStatus").mockReturnValue(new Promise(() => {}) as never);
+
+  render(<App />);
+  await userEvent.click(within(await snapshotRow(0)).getByText(/2026|Aug/));
+
+  const bar = await waitFor(() => {
+    const found = document.querySelector(".status-bar");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  expect(bar.closest("main")).not.toBeNull();
+  expect(bar.closest("aside")).toBeNull();
+});
