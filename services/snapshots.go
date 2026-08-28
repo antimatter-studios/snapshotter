@@ -152,7 +152,7 @@ func (s *SnapshotService) Overview(ctx context.Context) (Overview, error) {
 // list is still correct, and refusing to show anything because an external disk
 // could not be interrogated is the worse trade.
 func (s *SnapshotService) grouped(ctx context.Context, dataViews []SnapshotView) []VolumeSnapshots {
-	vols, err := apfs.Volumes(ctx, s.Runner)
+	vols, err := s.volumes(ctx)
 	if err != nil {
 		return nil
 	}
@@ -286,7 +286,7 @@ func (s *SnapshotService) Delete(ctx context.Context, device, uuid, stamp string
 // treated as "yes": the check then runs, and the worst case is refusing to delete
 // something that could have been deleted, which the user can undo by closing it.
 func (s *SnapshotService) onStartupDisk(ctx context.Context, device string) bool {
-	vols, err := apfs.Volumes(ctx, s.Runner)
+	vols, err := s.volumes(ctx)
 	if err != nil {
 		return true
 	}
@@ -309,6 +309,10 @@ func (s *SnapshotService) Mount(ctx context.Context, device string, names []stri
 	if err != nil {
 		return err
 	}
+	// Mounting adds an APFS filesystem, which is exactly what the volume list is
+	// a list of. Forgetting it here means the next question is answered by the
+	// machine rather than by a memory taken before the mount existed.
+	defer s.VolumeCache.Forget()
 	return describeAuth(m.Mount(ctx, names))
 }
 
@@ -318,6 +322,7 @@ func (s *SnapshotService) Unmount(ctx context.Context, device string, names []st
 	if err != nil {
 		return err
 	}
+	defer s.VolumeCache.Forget()
 	return describeAuth(m.Unmount(ctx, names))
 }
 
@@ -329,7 +334,7 @@ func (s *SnapshotService) Unmount(ctx context.Context, device string, names []st
 // mountpoints would outlive the window that made them with nothing left offering
 // to close them.
 func (s *SnapshotService) UnmountAll(ctx context.Context) error {
-	vols, err := apfs.Volumes(ctx, s.Runner)
+	vols, err := s.volumes(ctx)
 	if err != nil {
 		return err
 	}

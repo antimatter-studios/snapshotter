@@ -2,9 +2,11 @@ package apfs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Enumerating the volumes local snapshots actually reach.
@@ -257,4 +259,157 @@ func TestTheDeviceIsReadFromEitherWordingDiskutilUses(t *testing.T) {
 	if _, ok := snapshotListDevice("something else entirely"); ok {
 		t.Error("a line naming no device reported one")
 	}
+}
+
+// Enumerating volumes is expensive, and what it cost was not visible until it
+// was on a hot path.
+//
+// One `mount`, a `diskutil apfs listSnapshots` per mounted APFS filesystem —
+// which includes every snapshot the application has opened — and a `diskutil
+// info` for each volume that holds any. Twenty-odd subprocesses, seconds of
+// wall clock. Fine once; catastrophic per call, and per call is what it became:
+// translating a path needs the volume, and translating happens once per
+// directory entry, so a listing of two hundred files asked the machine to
+// enumerate its disks two hundred times and the window stopped answering.
+
+// countingRunner reports how many commands an operation costs.
+type countingRunner struct {
+	inner Runner
+	runs  int
+}
+
+func (c *countingRunner) Run(ctx context.Context, name string, args ...string) (string, error) {
+	c.runs++
+	return c.inner.Run(ctx, name, args...)
+}
+
+// A volume holding no snapshots is never asked its name, which is one subprocess
+// each and wanted only for the volumes that reach the screen. Most of a Mac's
+// mount points hold nothing.
+func TestOnlyVolumesWithSnapshotsAreNamed(t *testing.T) {
+	r := &countingRunner{inner: &volumeRunner{
+		mount: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk3s6 on /System/Volumes/VM (apfs, local, journaled)\n" +
+			"/dev/disk3s4 on /System/Volumes/Preboot (apfs, local, journaled)\n" +
+			"/dev/disk3s5 on /System/Volumes/Update (apfs, local, journaled)\n",
+		byPath: map[string]string{
+			"/System/Volumes/Data":    snapshotBlocks("disk3s1", "com.apple.TimeMachine.2026-08-27-130450.local"),
+			"/System/Volumes/VM":      "No snapshots for disk3s6\n",
+			"/System/Volumes/Preboot": "No snapshots for disk3s4\n",
+			"/System/Volumes/Update":  "No snapshots for disk3s5\n",
+		},
+	}}
+
+	vols, err := Volumes(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vols) != 1 {
+		t.Fatalf("got %d volumes, want 1", len(vols))
+	}
+	// mount, four listSnapshots, and one info for the one volume that has any.
+	if r.runs > 6 {
+		t.Errorf("%d commands for four mount points, which is a name looked up for volumes that hold nothing", r.runs)
+	}
+}
+
+// The cache is what keeps the cost off the hot path. Without it every path
+// translation pays for a full enumeration.
+func TestTheCacheEnumeratesOnceWithinItsWindow(t *testing.T) {
+	inner := &volumeRunner{
+		mount:  "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n",
+		byPath: map[string]string{"/System/Volumes/Data": snapshotBlocks("disk3s1", "com.apple.TimeMachine.2026-08-27-130450.local")},
+	}
+	r := &countingRunner{inner: inner}
+	c := NewCache(10 * time.Second)
+	at := time.Date(2026, 8, 28, 9, 0, 0, 0, time.UTC)
+
+	if _, err := c.Volumes(context.Background(), r, at); err != nil {
+		t.Fatal(err)
+	}
+	first := r.runs
+	if first == 0 {
+		t.Fatal("the first call ran nothing, so this test is checking nothing")
+	}
+
+	// Two hundred translations, which is one ordinary directory listing.
+	for i := 0; i < 200; i++ {
+		if _, err := c.Volumes(context.Background(), r, at.Add(time.Duration(i)*time.Millisecond)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if r.runs != first {
+		t.Errorf("a listing's worth of lookups cost %d commands beyond the first enumeration", r.runs-first)
+	}
+
+	// Past the window it asks again, or a disk plugged in would never appear.
+	if _, err := c.Volumes(context.Background(), r, at.Add(11*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if r.runs == first {
+		t.Error("the cache never expires, so a volume that appears is never seen")
+	}
+}
+
+// Opening a snapshot adds an APFS filesystem, so the list is stale the moment it
+// happens rather than ten seconds later.
+func TestForgettingMakesTheNextQuestionReachTheMachine(t *testing.T) {
+	r := &countingRunner{inner: &volumeRunner{
+		mount:  "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n",
+		byPath: map[string]string{"/System/Volumes/Data": snapshotBlocks("disk3s1", "com.apple.TimeMachine.2026-08-27-130450.local")},
+	}}
+	c := NewCache(time.Hour)
+	at := time.Date(2026, 8, 28, 9, 0, 0, 0, time.UTC)
+
+	c.Volumes(context.Background(), r, at)
+	first := r.runs
+	c.Forget()
+	c.Volumes(context.Background(), r, at)
+
+	if r.runs == first {
+		t.Error("forgetting did not send the next question to the machine")
+	}
+}
+
+// A momentary failure to run diskutil is not evidence that the disks have gone.
+// Answering "no volumes" would empty the sidebar and refuse every translation.
+func TestAFailedRefreshKeepsTheAnswerItHad(t *testing.T) {
+	inner := &volumeRunner{
+		mount:  "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n",
+		byPath: map[string]string{"/System/Volumes/Data": snapshotBlocks("disk3s1", "com.apple.TimeMachine.2026-08-27-130450.local")},
+	}
+	c := NewCache(time.Second)
+	at := time.Date(2026, 8, 28, 9, 0, 0, 0, time.UTC)
+
+	got, err := c.Volumes(context.Background(), &countingRunner{inner: inner}, at)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("first enumeration: %d volumes, %v", len(got), err)
+	}
+
+	// The machine stops answering, and the window still knows what it knew.
+	got, err = c.Volumes(context.Background(), mute{}, at.Add(2*time.Second))
+	if err != nil {
+		t.Errorf("a failed refresh returned an error rather than the answer it had: %v", err)
+	}
+	if len(got) != 1 {
+		t.Errorf("a failed refresh emptied the list: %v", got)
+	}
+}
+
+// A caller with no cache still works, so nothing has to check for one.
+func TestNoCacheStillAnswers(t *testing.T) {
+	var c *Cache
+	got, err := c.Volumes(context.Background(), &volumeRunner{
+		mount:  "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n",
+		byPath: map[string]string{"/System/Volumes/Data": snapshotBlocks("disk3s1", "com.apple.TimeMachine.2026-08-27-130450.local")},
+	}, time.Now())
+	if err != nil || len(got) != 1 {
+		t.Errorf("a nil cache answered %d volumes, %v", len(got), err)
+	}
+}
+
+type mute struct{}
+
+func (mute) Run(context.Context, string, ...string) (string, error) {
+	return "", errors.New("nothing here answers")
 }

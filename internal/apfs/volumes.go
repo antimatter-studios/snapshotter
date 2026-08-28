@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 // Volume is a mounted APFS volume that holds Time Machine local snapshots.
@@ -96,7 +98,7 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 		}
 		seen[device] = true
 
-		vol := Volume{MountPoint: mount, Device: device, Name: volumeName(ctx, r, mount)}
+		vol := Volume{MountPoint: mount, Device: device}
 		// diskutil's listing, not tmutil's: the same call answers what is there and
 		// what macOS thinks of each one, so the flags cost no second command.
 		for _, d := range parseDetails(listing) {
@@ -118,6 +120,11 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 		if len(vol.Snapshots) == 0 {
 			continue
 		}
+		// After the filter, never before. The name is one more subprocess per
+		// volume and it is wanted only for the ones that appear on screen — asking
+		// for all twelve mount points a Mac has, most of which hold nothing, was
+		// most of the cost of this function.
+		vol.Name = volumeName(ctx, r, mount)
 		// parseDetails hands back a map, so the order it arrives in is not one.
 		sort.Slice(vol.Snapshots, func(i, j int) bool {
 			return vol.Snapshots[i].Taken.After(vol.Snapshots[j].Taken)
@@ -252,4 +259,81 @@ func EverySnapshot(vols []Volume) []Snapshot {
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Taken.After(all[j].Taken) })
 	return all
+}
+
+// Cache holds the volume list for a short while.
+//
+// Enumerating is not cheap: one `mount`, a `diskutil apfs listSnapshots` per
+// mounted APFS filesystem — which includes every snapshot this application has
+// opened — and a `diskutil info` for each volume that holds any. Twenty-odd
+// subprocesses, several seconds.
+//
+// That is fine once and catastrophic per call, and per call is what it became:
+// translating a path needs to know the volume, and translating happens once per
+// directory entry. A listing of two hundred files asked the machine to enumerate
+// its disks two hundred times, and the window stopped answering.
+//
+// The window is the caller that needs this. The command line builds no cache and
+// pays the full cost once, which is the right trade for a process that exits.
+type Cache struct {
+	mu     sync.Mutex
+	ttl    time.Duration
+	at     time.Time
+	vols   []Volume
+	cached bool
+}
+
+// NewCache builds a cache. A zero or negative ttl gets DefaultVolumeTTL.
+//
+// Short, because the answer changes when a disk is plugged in or a snapshot is
+// opened, and a stale list would offer a volume that has gone or hide one that
+// has arrived. Long enough that a single listing enumerates once.
+func NewCache(ttl time.Duration) *Cache {
+	if ttl <= 0 {
+		ttl = DefaultVolumeTTL
+	}
+	return &Cache{ttl: ttl}
+}
+
+// DefaultVolumeTTL is how long a volume list is reused.
+const DefaultVolumeTTL = 10 * time.Second
+
+// Volumes returns the cached list, enumerating if it is missing or stale.
+//
+// A nil Cache enumerates every time, so a caller that has not been given one
+// still works rather than having to check.
+func (c *Cache) Volumes(ctx context.Context, r Runner, now time.Time) ([]Volume, error) {
+	if c == nil {
+		return Volumes(ctx, r)
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cached && now.Sub(c.at) < c.ttl {
+		return c.vols, nil
+	}
+	vols, err := Volumes(ctx, r)
+	if err != nil {
+		// The previous answer is kept rather than cleared. A momentary failure to
+		// run diskutil is not evidence that the disks have gone, and answering
+		// "no volumes" would empty the sidebar and refuse every path translation.
+		if c.cached {
+			return c.vols, nil
+		}
+		return nil, err
+	}
+	c.vols, c.at, c.cached = vols, now, true
+	return vols, nil
+}
+
+// Forget drops the cached list, for the moments something is known to have
+// changed — a snapshot opened or closed, a disk mounted — so the next question
+// is answered by the machine rather than by a memory of it.
+func (c *Cache) Forget() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cached = false
 }

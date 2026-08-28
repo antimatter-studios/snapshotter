@@ -324,10 +324,15 @@ func buildDeps(s setup, runner apfs.Runner) services.Deps {
 			LogPath:  p.tripwireLogPath,
 			UID:      os.Getuid(),
 		},
-		Volume:   apfs.DataVolume,
-		Faking:   faking,
-		FakeSeed: fakeSeed,
-		Scenario: s.scenario,
+		Volume: apfs.DataVolume,
+		// The window asks which volumes exist constantly — every path it
+		// translates needs to know — and enumerating them is twenty-odd
+		// subprocesses. One cache for its lifetime, short enough that a disk
+		// plugged in appears without a relaunch.
+		VolumeCache: apfs.NewCache(0),
+		Faking:      faking,
+		FakeSeed:    fakeSeed,
+		Scenario:    s.scenario,
 		// One cache for the window's lifetime, kept honest by the watch started
 		// in runWindow. Nothing is written to disk: a cache that outlived the
 		// process would have to be right about everything that happened while it
