@@ -108,6 +108,11 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     setListing(null);
     setBusy(true);
     setError("");
+    // Said before anything is read, because this is the stretch that used to look
+    // like nothing happening: the rows are gone, the new ones have not arrived,
+    // and on a slow disk that is seconds. No number, because reading a directory
+    // is one operation however long it takes.
+    onProgress?.({ label: t("app.readingFolder"), done: 0, total: 0 });
 
     // Before the listing is asked for, not after.
     //
@@ -171,6 +176,7 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
         onProgress?.(null);
         return;
       }
+
 
       // Second: what macOS already remembers about this volume.
       //
@@ -277,6 +283,9 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
     } catch (err) {
       setError(message(err));
       setListing(null);
+      // The bar is always on screen, so a failed listing must not leave it
+      // saying "Reading folder" for ever. The error itself is shown above it.
+      if (token === resolveToken.current) onProgress?.(null);
     } finally {
       setBusy(false);
     }

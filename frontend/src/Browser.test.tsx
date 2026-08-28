@@ -524,9 +524,11 @@ describe("saying which way the folders are being checked", () => {
     );
 
     await waitFor(() => expect(labels.some((l) => /by disk/i.test(l))).toBe(true));
-    expect(labels[0]).toMatch(/event log/i);
-    // In that order: the cheap pass is what makes the expensive one shorter, so
-    // running it second would be pointless.
+    // The first thing said is that the folder is being read, which is the stretch
+    // that used to look like nothing happening at all.
+    expect(labels[0]).toMatch(/reading/i);
+    // Then the event log, then the disk. In that order: the cheap pass is what
+    // makes the expensive one shorter, so running it second would be pointless.
     expect(labels.findIndex((l) => /event log/i.test(l)))
       .toBeLessThan(labels.findIndex((l) => /by disk/i.test(l)));
   });
@@ -671,4 +673,50 @@ describe("reacting to a click before anything is read", () => {
     await waitFor(() => expect(screen.getByText("elsewhere/")).toBeTruthy());
     expect(screen.queryByText("stale/")).toBeNull();
   });
+});
+
+// The window sitting still with no rows is the moment the bar is most wanted, and
+// it used to say nothing at all — it only appeared once there was something to
+// count, which is after the listing has already arrived.
+it("says it is reading the folder before the listing arrives", async () => {
+  mount([row("projects", true)]);
+  vi.spyOn(Browse, "Merged").mockReturnValue(new Promise(() => {}) as never);
+  const labels: string[] = [];
+
+  render(
+    <Browser
+      snapshot={snapshot}
+      path="/Users/someone"
+      onPathChange={() => {}}
+      onMount={() => {}}
+      onDiff={() => {}}
+      onStatus={() => {}}
+      onProgress={(p) => p && labels.push(p.label)}
+    />,
+  );
+
+  await waitFor(() => expect(labels.length).toBeGreaterThan(0));
+  expect(labels[0]).toMatch(/reading/i);
+});
+
+// A listing that fails must not leave the bar saying it is still reading. The
+// error is shown above it; the bar has to stop claiming work is in progress.
+it("stops saying it is reading when the listing fails", async () => {
+  mount([]);
+  vi.spyOn(Browse, "Merged").mockRejectedValue(new Error("no such folder") as never);
+  const reports: ({ label: string } | null)[] = [];
+
+  render(
+    <Browser
+      snapshot={snapshot}
+      path="/Users/someone"
+      onPathChange={() => {}}
+      onMount={() => {}}
+      onDiff={() => {}}
+      onStatus={() => {}}
+      onProgress={(p) => reports.push(p)}
+    />,
+  );
+
+  await waitFor(() => expect(reports[reports.length - 1]).toBeNull());
 });

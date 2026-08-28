@@ -573,26 +573,45 @@ export default function App() {
           )}
           </>
           )}
-          {slowWork && slowWork.total > 0 && (
-            // Inside main, so it spans the panel the work belongs to and stops at
-            // the sidebar. main is already positioned for the file-diff panel,
-            // and for the same reason: absolute inside it stays inside it, where
-            // fixed would escape to the viewport and cover the snapshot list too.
-            <div className="status-bar" role="status" aria-live="polite">
-              <span className="status-bar-label">{slowWork.label}</span>
-              <span className="status-bar-track" aria-hidden="true">
-                <span
-                  className="status-bar-fill"
-                  style={{ width: `${Math.round((slowWork.done / slowWork.total) * 100)}%` }}
-                />
-              </span>
-              {/* Centred over the bar, because the number is the thing being read
-                  and a count off to one side is read second. */}
-              <span className="status-bar-count">
-                {t("app.progressOf", { done: slowWork.done, total: slowWork.total })}
-              </span>
-            </div>
-          )}
+          {/* Always, whether anything is happening or not.
+
+              It used to appear only while there was something to count, which
+              meant it was missing at exactly the moment it was most wanted: the
+              window sitting still, apparently doing nothing, with no way to tell
+              waiting from finished. A bar that comes and goes is also a bar that
+              moves the content under it.
+
+              Inside main, so it spans the panel the work belongs to and stops at
+              the sidebar. main is already positioned for the file-diff panel,
+              and for the same reason: absolute inside it stays inside it, where
+              fixed would escape to the viewport and cover the snapshot list too. */}
+          <div className="status-bar" role="status" aria-live="polite">
+            {/* What is happening now beats what happened last: a message about a
+                finished restore is not what somebody staring at a still window
+                wants to read. */}
+            <span className="status-bar-label">
+              {slowWork?.label || status || t("app.ready")}
+            </span>
+            {/* The bar and the count only when there is something countable.
+                Some of the work has no number — reading a directory is one
+                operation, however long it takes — and a bar that cannot fill is
+                worse than no bar. */}
+            {slowWork && slowWork.total > 0 && (
+              <>
+                <span className="status-bar-track" aria-hidden="true">
+                  <span
+                    className="status-bar-fill"
+                    style={{ width: `${Math.round((slowWork.done / slowWork.total) * 100)}%` }}
+                  />
+                </span>
+                {/* Centred over the bar, because the number is the thing being
+                    read and a count off to one side is read second. */}
+                <span className="status-bar-count">
+                  {t("app.progressOf", { done: slowWork.done, total: slowWork.total })}
+                </span>
+              </>
+            )}
+          </div>
         </main>
       </div>
     </div>

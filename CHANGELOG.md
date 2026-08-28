@@ -56,6 +56,12 @@ Also in this release:
 - A snapshot of an external disk no longer offers folders above that disk. The
   trail across the top started at `/` whatever was being browsed, so `/Volumes`
   was clickable and led straight to "that volume's snapshots do not cover it".
+- The status bar along the bottom of the right-hand panel is always there now.
+  It used to appear only while there was something to count, so it was missing at
+  exactly the moment it was most wanted: the window sitting still, with no way to
+  tell waiting from finished. It says what is being done — reading a folder,
+  asking the event log, walking the disk — and grows a bar and a count only for
+  the part that has a number.
 - A folder's verdict row took its class name from the status word, and `ignored`
   was already the name of the bulk-deletion watcher's panel — which put a border
   across the row and a box around the folder's name.
