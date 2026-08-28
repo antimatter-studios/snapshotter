@@ -35,6 +35,8 @@
   "app.options": "Optionen",
   "app.otherVolumeNote": "Hier gesichert, aufgeräumt und zu öffnen. Der Inhalt lässt sich nur beim Startvolume durchsuchen — geöffnet wird angezeigt, wo es eingehängt ist.",
   "app.progressOf": "{{done}}/{{total}}",
+  "app.readingFolder": "Ordner wird gelesen",
+  "app.ready": "Bereit",
   "app.scenario": "Szenario",
   "app.simulatedLead": "Simulierte Maschine.",
   "app.snapshotTaken": "Snapshot erstellt",

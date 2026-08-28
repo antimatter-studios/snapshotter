@@ -35,6 +35,8 @@
   "app.options": "Opciones",
   "app.otherVolumeNote": "Capturados, depurados y se pueden abrir aquí. Explorar el contenido es solo para el disco de arranque: al abrir uno se indica dónde queda montado.",
   "app.progressOf": "{{done}}/{{total}}",
+  "app.readingFolder": "Leyendo la carpeta",
+  "app.ready": "Listo",
   "app.scenario": "Escenario",
   "app.simulatedLead": "Máquina simulada.",
   "app.snapshotTaken": "Snapshot creado",

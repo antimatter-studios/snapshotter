@@ -155,7 +155,16 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       setSensitivities(offered);
       setSensitivity(current);
       setWatched(await Config.WatchedDirectories());
-      setIgnored((await Config.Get())?.config?.changeDetection?.ignore ?? []);
+      // On its own, because it is the least important thing on this screen and
+      // was taking the rest of it down with it. Everything above answers "is the
+      // schedule running and what is it doing"; this is one list of patterns, and
+      // a settings file that will not load should leave that list empty rather
+      // than replacing the whole panel with an error.
+      try {
+        setIgnored((await Config.Get())?.config?.changeDetection?.ignore ?? []);
+      } catch {
+        setIgnored([]);
+      }
     } catch (err) {
       setError(message(err));
     }

@@ -366,7 +366,8 @@ anything has already read every folder below it, and now says so. What macOS
 already remembers is harvested first, and `change_detection.ignore` names the
 paths not worth reading at all. Clicking a folder blanks the window immediately
 rather than eight seconds later, and the trail across the top no longer offers
-folders outside the volume being browsed.
+folders outside the volume being browsed. The status bar along the bottom is now
+always there, saying what the window is doing even when there is nothing to count.
 
 ### v0.61.0
 

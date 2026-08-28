@@ -56,6 +56,11 @@ function stub(over: Record<string, unknown> = {}) {
   // running for the one being left. Same reasoning as Home above: unstubbed, the
   // real binding rejects and nothing lists at all.
   vi.spyOn(Browse, "AbandonFolderChecks").mockResolvedValue(undefined as never);
+  // The rest of what a listing asks for before it walks anything. Stubbed for the
+  // same reason as Home above: unstubbed, the real bindings reject under jsdom.
+  vi.spyOn(Browse, "Lanes").mockResolvedValue(3 as never);
+  vi.spyOn(Browse, "ScanEventLog").mockResolvedValue({ offered: 0, found: 0, usable: false } as never);
+  vi.spyOn(Browse, "KnownDirectoryStatus").mockResolvedValue({ status: "notExamined", why: "" } as never);
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -991,9 +996,11 @@ describe("the status bar", () => {
     render(<App />);
     await userEvent.click(within(await snapshotRow(0)).getByText(/2026|Aug/));
 
+    // Waiting for the COUNT, not for the bar. The bar is always on screen now,
+    // so finding it says nothing about whether the countable work has started.
     const bar = await waitFor(() => {
       const found = document.querySelector(".status-bar");
-      expect(found).not.toBeNull();
+      expect(found?.querySelector(".status-bar-count")).not.toBeNull();
       return found!;
     });
     // The count reads as a count, not a percentage: "how many of how many" is
@@ -1004,12 +1011,25 @@ describe("the status bar", () => {
     expect(bar.getAttribute("role")).toBe("status");
   });
 
-  it("is absent when nothing slow is happening", async () => {
+  // On screen even when nothing is happening.
+  //
+  // It used to appear only while there was something to count, which meant it
+  // was missing at exactly the moment it was most wanted: the window sitting
+  // still, with no way to tell waiting from finished. A bar that comes and goes
+  // also moves the content under it every time it does.
+  it("is still there when nothing slow is happening, with no bar to fill", async () => {
     stub();
     render(<App />);
 
     await screen.findByText("You are covered");
-    expect(document.querySelector(".status-bar")).toBeNull();
+    const bar = document.querySelector(".status-bar");
+    expect(bar).not.toBeNull();
+    // Something to read...
+    expect(bar!.querySelector(".status-bar-label")!.textContent).toBeTruthy();
+    // ...and no progress bar, because there is no number. A bar that cannot fill
+    // is worse than no bar.
+    expect(bar!.querySelector(".status-bar-track")).toBeNull();
+    expect(bar!.querySelector(".status-bar-count")).toBeNull();
   });
 });
 
