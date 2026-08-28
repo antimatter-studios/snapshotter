@@ -43,6 +43,10 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
 
   const load = useCallback(async () => {
     if (!snapshot?.mounted) return;
+    // An empty path means the volume's starting folder has not been resolved
+    // yet. Listing against it would pair a snapshot with a path belonging to
+    // whichever volume was selected before, which is a question about neither.
+    if (!path) return;
     setBusy(true);
     setError("");
     try {

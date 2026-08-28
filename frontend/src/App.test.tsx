@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { Snapshots, Status, Config, Browse, Schedule, Diff } from "./api";
@@ -47,6 +47,11 @@ function stub(over: Record<string, unknown> = {}) {
   vi.spyOn(Status, "RecentWarnings").mockResolvedValue([] as never);
   vi.spyOn(Config, "Get").mockResolvedValue({ config: { appearance: { theme: "system", language: "en" }, tripwire: { ignore: [] } } } as never);
   vi.spyOn(Browse, "Merged").mockResolvedValue({ rows: [], note: "" } as never);
+  // Where browsing starts. The screen asks the service for it per volume, and
+  // without this the real binding is called — which rejects under jsdom, so the
+  // browser has no folder to list and every test about the listing fails for a
+  // reason that has nothing to do with what it is testing.
+  vi.spyOn(Browse, "Home").mockResolvedValue("/Users/someone" as never);
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -816,5 +821,151 @@ describe("where browsing starts", () => {
     await userEvent.click(group.getByText(/2026|Aug/));
 
     await waitFor(() => expect(home).toHaveBeenCalledWith("disk8s1"));
+  });
+});
+
+// Waiting, success and failure, all visible.
+//
+// Opening a snapshot raises an authorization prompt and then attaches a
+// filesystem, so it is the slowest thing here by a wide margin — and it reported
+// nothing at all until it was over, when a grey dot quietly turned green. Silence
+// during the slow part reads as a click that did not register, which is how
+// somebody comes to press it twice and answer two password prompts for one
+// intention.
+describe("feedback while a snapshot is opening", () => {
+  // A mount that never settles, so the waiting state can be observed rather than
+  // raced against.
+  const pending = () => {
+    let settle!: (v?: unknown) => void;
+    const promise = new Promise((resolve) => (settle = resolve));
+    vi.spyOn(Snapshots, "Mount").mockReturnValue(promise as never);
+    return settle;
+  };
+
+  it("spins on the row that is opening", async () => {
+    stub();
+    pending();
+    render(<App />);
+
+    const row = await snapshotRow(1);
+    await userEvent.click(within(row).getByRole("button", { name: /^open$/i }));
+
+    await waitFor(() => expect(row.querySelector(".dot-spinner")).not.toBeNull());
+    // And the dot is gone rather than sitting beside it, or the row says two
+    // things at once.
+    expect(row.querySelector(".dot")).toBeNull();
+  });
+
+  it("says over the window that it is opening, and why it may pause", async () => {
+    stub();
+    pending();
+    render(<App />);
+
+    await userEvent.click(within(await snapshotRow(1)).getByRole("button", { name: /^open$/i }));
+
+    await waitFor(() => expect(document.querySelector(".working-overlay")).not.toBeNull());
+    const overlay = document.querySelector(".working-overlay")!;
+    // The password prompt is named: the wait is mostly macOS asking, and somebody
+    // who does not know that is watching a spinner for no stated reason.
+    expect(overlay.textContent).toMatch(/password/i);
+    // Announced, so it is not only a visual change.
+    expect(overlay.getAttribute("role")).toBe("status");
+  });
+
+  it("marks the row when it worked", async () => {
+    stub();
+    const settle = pending();
+    render(<App />);
+
+    const row = await snapshotRow(1);
+    await userEvent.click(within(row).getByRole("button", { name: /^open$/i }));
+    await waitFor(() => expect(row.querySelector(".dot-spinner")).not.toBeNull());
+
+    settle();
+    await waitFor(() => expect(row.querySelector(".mark.ok")).not.toBeNull());
+    expect(row.querySelector(".mark.failed")).toBeNull();
+    // And the overlay goes with it.
+    await waitFor(() => expect(document.querySelector(".working-overlay")).toBeNull());
+  });
+
+  it("marks the row when it did not", async () => {
+    stub();
+    vi.spyOn(Snapshots, "Mount").mockRejectedValue(new Error("authorization was cancelled"));
+    render(<App />);
+
+    const row = await snapshotRow(1);
+    await userEvent.click(within(row).getByRole("button", { name: /^open$/i }));
+
+    // On the row, so the failure is where the click was — and in the banner, so
+    // it says what went wrong.
+    await waitFor(() => expect(row.querySelector(".mark.failed")).not.toBeNull());
+    expect(await screen.findByText(/authorization was cancelled/i)).toBeTruthy();
+  });
+
+  // Held long enough to be read, then gone: the row goes back to reporting what
+  // is true rather than what just happened.
+  it("puts the mark away and returns to the dot", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      stub();
+      vi.spyOn(Snapshots, "Mount").mockResolvedValue(undefined as never);
+      render(<App />);
+
+      const row = await snapshotRow(1);
+      await userEvent.click(within(row).getByRole("button", { name: /^open$/i }));
+      await waitFor(() => expect(row.querySelector(".mark.ok")).not.toBeNull());
+
+      await act(async () => {
+        vi.advanceTimersByTime(5100);
+      });
+      await waitFor(() => expect(row.querySelector(".mark.ok")).toBeNull());
+      expect(row.querySelector(".dot")).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// The browser must never be asked about a path belonging to another volume.
+//
+// It was, for one render. Selecting a snapshot on another volume set the device
+// immediately while the path still pointed at the last volume's home folder, so
+// the browser asked for a home directory inside an SD card's snapshot and was
+// told — correctly — that it is not on that volume. The listing arrived a moment
+// later and the error stayed on screen, describing a question nobody had asked.
+describe("the folder the browser is asked about", () => {
+  const external = [
+    { name: "snap-x", stamp: "2026-08-19-090000", taken: "2026-08-19T09:00:00Z", mounted: true, mountPoint: "/tmp/x", device: "disk8s1", uuid: "BBBBBBBB-0000-0000-0000-000000000001" },
+  ];
+  const twoVolumes = {
+    volumes: [
+      { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
+      { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: external, freeBytes: 20, totalBytes: 1000 },
+    ],
+  };
+
+  it("never pairs a snapshot with another volume's path", async () => {
+    stub(twoVolumes);
+    // Slow on purpose: the gap between selecting the volume and learning where to
+    // start is exactly where the wrong pairing used to be sent.
+    vi.spyOn(Browse, "Home").mockImplementation(((device: string) =>
+      device === "disk8s1"
+        ? new Promise((r) => setTimeout(() => r("/Volumes/sdcard256gb"), 40))
+        : Promise.resolve("/Users/someone")) as never);
+    const merged = vi.spyOn(Browse, "Merged").mockResolvedValue({ rows: [], note: "" } as never);
+
+    render(<App />);
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    merged.mockClear();
+
+    const group = within(document.querySelectorAll(".volume-group")[1] as HTMLElement);
+    await userEvent.click(group.getByText(/2026|Aug/));
+
+    await waitFor(() => expect(merged).toHaveBeenCalled());
+    for (const [device, , path] of merged.mock.calls) {
+      if (device === "disk8s1") {
+        expect(path).not.toBe("/Users/someone");
+      }
+    }
   });
 });
