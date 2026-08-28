@@ -1877,15 +1877,6 @@ button.destructive:hover:not(:disabled) {
   overflow-wrap: anywhere;
 }
 
-/* Said once per group. Every row under it is the same, and repeating it per row
-   would bury the dates it sits beside. */
-.volume-note {
-  margin: 4px 0 2px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--muted);
-}
-
 /* A row that cannot be opened is not a row that failed to open. It takes no
    selection and no hover lift, so the pointer says so before the click does. */
 .snapshot-list li.read-only {

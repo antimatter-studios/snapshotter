@@ -33,7 +33,6 @@
   "app.opening": "Snapshot wird geöffnet",
   "app.openingExplain": "Zum Einhängen eines Snapshots ist ein Administratorkennwort nötig — macOS fragt möglicherweise danach, bevor dies abgeschlossen ist.",
   "app.options": "Optionen",
-  "app.otherVolumeNote": "Hier gesichert, aufgeräumt und zu öffnen. Der Inhalt lässt sich nur beim Startvolume durchsuchen — geöffnet wird angezeigt, wo es eingehängt ist.",
   "app.progressOf": "{{done}}/{{total}}",
   "app.readingFolder": "Ordner wird gelesen",
   "app.ready": "Bereit",
