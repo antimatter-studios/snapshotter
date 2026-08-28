@@ -288,3 +288,86 @@ describe("when the folder cannot be listed", () => {
     expect(note.className).not.toContain("error");
   });
 });
+
+// Slow work, counted.
+//
+// A folder's verdict can be a walk of everything beneath it, so a listing of
+// source trees sits on a column of "detecting…" that does not change. Until it
+// said how far along it was, the only evidence it was working was that nothing
+// had happened yet — which reads as frozen.
+describe("reporting how far the folder checks have got", () => {
+  const folders = [
+    { relPath: "projects", absLive: "/Users/someone/projects", isDir: true, status: "modified", snapSize: 0, liveSize: 0 },
+    { relPath: "archive", absLive: "/Users/someone/archive", isDir: true, status: "modified", snapSize: 0, liveSize: 0 },
+    { relPath: "notes.md", absLive: "/Users/someone/notes.md", isDir: false, status: "modified", snapSize: 1, liveSize: 2 },
+  ];
+
+  it("counts the folders, and only the folders", async () => {
+    vi.spyOn(Browse, "Merged").mockResolvedValue({ rows: folders, note: "" } as never);
+    vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+    const seen: Array<{ done: number; total: number } | null> = [];
+
+    render(
+      <Browser
+        snapshot={snapshot}
+        path="/Users/someone"
+        onPathChange={() => {}}
+        onMount={() => {}}
+        onDiff={() => {}}
+        onStatus={() => {}}
+        onProgress={(p) => seen.push(p && { done: p.done, total: p.total })}
+      />,
+    );
+
+    // Two folders and a file: the file is not walked, so it is not counted.
+    await waitFor(() => expect(seen.some((p) => p?.total === 2)).toBe(true));
+    // It starts at nothing done, so the bar does not appear already part-full.
+    expect(seen[0]).toEqual({ done: 0, total: 2 });
+    // And it reaches the end.
+    await waitFor(() => expect(seen.some((p) => p?.done === 2 && p.total === 2)).toBe(true));
+  });
+
+  // Cleared when there is nothing in flight, or the bar sits at 100% for ever
+  // and stops meaning anything.
+  it("says when there is nothing left to do", async () => {
+    vi.spyOn(Browse, "Merged").mockResolvedValue({ rows: folders, note: "" } as never);
+    vi.spyOn(Browse, "DirectoryStatus").mockResolvedValue({ status: "same", why: "" } as never);
+    const seen: Array<unknown> = [];
+
+    render(
+      <Browser
+        snapshot={snapshot}
+        path="/Users/someone"
+        onPathChange={() => {}}
+        onMount={() => {}}
+        onDiff={() => {}}
+        onStatus={() => {}}
+        onProgress={(p) => seen.push(p)}
+      />,
+    );
+
+    await waitFor(() => expect(seen[seen.length - 1]).toBeNull());
+  });
+
+  // A folder that cannot be checked still moves the count, or the bar stops short
+  // of the end and looks stuck at the very moment it has finished.
+  it("counts a folder that could not be checked", async () => {
+    vi.spyOn(Browse, "Merged").mockResolvedValue({ rows: folders, note: "" } as never);
+    vi.spyOn(Browse, "DirectoryStatus").mockRejectedValue(new Error("cannot walk it"));
+    const seen: Array<{ done: number; total: number } | null> = [];
+
+    render(
+      <Browser
+        snapshot={snapshot}
+        path="/Users/someone"
+        onPathChange={() => {}}
+        onMount={() => {}}
+        onDiff={() => {}}
+        onStatus={() => {}}
+        onProgress={(p) => seen.push(p && { done: p.done, total: p.total })}
+      />,
+    );
+
+    await waitFor(() => expect(seen.some((p) => p?.done === 2 && p.total === 2)).toBe(true));
+  });
+});

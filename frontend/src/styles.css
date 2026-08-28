@@ -1967,3 +1967,66 @@ button.destructive:hover:not(:disabled) {
   .snapshot-list .mark,
   .working-overlay { animation: none; }
 }
+
+/* Slow work, counted, along the bottom of the window.
+
+   Always in the same place, so a reader learns where to look rather than hunting
+   for it. A bar rather than a spinner, because the count is knowable: a spinner
+   says something is happening, this says how much is left. */
+.status-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  /* The count sits in the middle column, over the bar, because the number is the
+     thing being read — one off to the side is read second. */
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.status-bar-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-bar-track {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.status-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  /* Eased, so a burst of answers reads as movement rather than a jump. Short
+     enough that the bar never lags behind the number beside it. */
+  transition: width 0.18s ease-out;
+}
+
+.status-bar-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* The bar covers the last row of whatever is scrolling behind it. */
+.browser, .aside { padding-bottom: 28px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .status-bar-fill { transition: none; }
+}

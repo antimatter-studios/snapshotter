@@ -969,3 +969,42 @@ describe("the folder the browser is asked about", () => {
     }
   });
 });
+
+// The status bar, which is the window's answer to "is it locked up".
+describe("the status bar", () => {
+  it("shows the count over a bar while slow work runs", async () => {
+    stub();
+    vi.spyOn(Browse, "Merged").mockResolvedValue({
+      rows: [
+        { relPath: "a", absLive: "/Users/someone/a", isDir: true, status: "modified", snapSize: 0, liveSize: 0 },
+        { relPath: "b", absLive: "/Users/someone/b", isDir: true, status: "modified", snapSize: 0, liveSize: 0 },
+      ],
+      note: "",
+    } as never);
+    // Never settles, so the bar can be seen part-way rather than raced against.
+    vi.spyOn(Browse, "DirectoryStatus").mockReturnValue(new Promise(() => {}) as never);
+
+    render(<App />);
+    await userEvent.click(within(await snapshotRow(0)).getByText(/2026|Aug/));
+
+    const bar = await waitFor(() => {
+      const found = document.querySelector(".status-bar");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // The count reads as a count, not a percentage: "how many of how many" is
+    // what somebody wanting to know if it is moving actually reads.
+    expect(bar.querySelector(".status-bar-count")!.textContent).toBe("0/2");
+    expect(bar.querySelector(".status-bar-fill")).not.toBeNull();
+    // Announced, so it is not only a visual change.
+    expect(bar.getAttribute("role")).toBe("status");
+  });
+
+  it("is absent when nothing slow is happening", async () => {
+    stub();
+    render(<App />);
+
+    await screen.findByText("You are covered");
+    expect(document.querySelector(".status-bar")).toBeNull();
+  });
+});

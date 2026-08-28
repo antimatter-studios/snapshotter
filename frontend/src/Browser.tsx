@@ -14,6 +14,9 @@ interface Props {
   /** Opens the line-by-line view of one file. */
   onDiff: (livePath: string) => void;
   onStatus: (text: string) => void;
+  /** Reports how far the folder checks have got, or null when there is nothing
+   *  in flight. The window shows it; this only counts. */
+  onProgress?: (p: { label: string; done: number; total: number } | null) => void;
 }
 
 /**
@@ -22,7 +25,7 @@ interface Props {
  * Every row carries its own verdict, which is the answer to the question that
  * brings someone here: what is in this folder that is no longer on disk.
  */
-export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatus }: Props) {
+export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatus, onProgress }: Props) {
   const { t } = useTranslation();
   const [listing, setListing] = useState<MergedListing | null>(null);
   const [showIdentical, setShowIdentical] = useState(true);
@@ -65,6 +68,12 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
       const folders = (merged.rows ?? []).filter((row) => row.isDir);
       const token = ++resolveToken.current;
       let next = 0;
+      // Counted so the window can say how far along this is. A folder's verdict
+      // can be a full walk of everything beneath it, so a listing of source trees
+      // takes a while — and until it said so, the only evidence it was working
+      // was a column of "detecting…" that never changed, which reads as frozen.
+      let done = 0;
+      onProgress?.({ label: t("browser.checkingFolders"), done, total: folders.length });
       const worker = async () => {
         while (next < folders.length) {
           const row = folders[next++];
@@ -80,17 +89,25 @@ export function Browser({ snapshot, path, onPathChange, onMount, onDiff, onStatu
             }
           } catch {
             // Left as detecting rather than guessed at.
+          } finally {
+            done++;
+            if (token === resolveToken.current) {
+              onProgress?.({ label: t("browser.checkingFolders"), done, total: folders.length });
+            }
           }
         }
       };
       await Promise.all(Array.from({ length: Math.min(3, folders.length) }, worker));
+      // Cleared only by the listing that owns it, so a slow one finishing after a
+      // newer one started does not wipe the newer one's meter.
+      if (token === resolveToken.current) onProgress?.(null);
     } catch (err) {
       setError(message(err));
       setListing(null);
     } finally {
       setBusy(false);
     }
-  }, [snapshot, path, showIdentical]);
+  }, [snapshot, path, showIdentical, onProgress, t]);
 
   useEffect(() => {
     void load();
