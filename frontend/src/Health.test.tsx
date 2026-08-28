@@ -1,9 +1,29 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Health } from "./Health";
 import { Status, Config, Schedule, Snapshots } from "./api";
 import "./i18n";
+
+// Config.Get for every test in this file, stubbed whether the test cares or not.
+//
+// The screens here refresh themselves on a timer, and the interval is a setting —
+// so useLiveRefresh reads it with a binding call on mount and on every tick.
+// Unstubbed, that is a real HTTP request: the bindings post to a relative URL and
+// jsdom resolves it against its own origin, so the test's behaviour depends on
+// what happens to be listening on port 80 of whichever machine is running it.
+// Docker answers 503 here in seven milliseconds and nothing answers on the build
+// machine, which is how one test in this suite failed three runs in five locally
+// and how another pair failed continuous integration alone.
+//
+// Tests that care about the settings still stub it themselves; this only means
+// none of them can reach the network by forgetting to.
+beforeEach(() => {
+  vi.spyOn(Config, "Get").mockResolvedValue({
+    config: { appearance: { theme: "system", language: "en" }, tripwire: { ignore: [] } },
+  } as never);
+});
+
 
 // Whether this Mac is actually protected, and what to do if not.
 //
@@ -41,7 +61,23 @@ function check(over: Record<string, unknown> = {}) {
   vi.spyOn(Config, "Get").mockResolvedValue({ config: { tripwire: { ignore: [] } } } as never);
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  // Unmounted BEFORE the stubs are taken away, not after.
+  //
+  // vitest runs afterEach hooks in stack order, so this file's teardown runs
+  // ahead of the cleanup registered in test-setup — which meant every component
+  // was unmounted with its bindings already restored to the real ones. Anything
+  // still in flight then landed on a real call during teardown, and when that
+  // went wrong the unmount went with it: the next test started with the previous
+  // test's screen still in the document, and a query that should find one button
+  // found a page that no longer had it.
+  //
+  // That is what made one Health test fail three runs in five with nothing wrong
+  // in its own file. Cleaning up first costs nothing and removes the ordering
+  // from the picture entirely.
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("the health screen", () => {
   it("leads with the verdict", async () => {

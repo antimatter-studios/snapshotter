@@ -85,3 +85,21 @@ afterAll(() => {
   for (const id of startedIntervals) clearInterval(id);
   startedIntervals.clear();
 });
+
+// Testing Library gives an async query one second, whatever vitest's own timeout
+// is set to.
+//
+// One second is a long time for a render and nowhere near long enough for one
+// waiting behind eight worker processes on a busy machine. A Health test spent an
+// afternoon failing roughly one run in five — always the same test, always
+// passing when its file was run alone, and with nothing wrong in the DOM it
+// printed except a list that had not filled in yet. The component was correct;
+// the query simply gave up first.
+//
+// Matched to vitest's five seconds, so a genuinely stuck test still fails in the
+// same time it always did, and a merely slow one is allowed to finish. A test
+// that needs a real deadline should set its own rather than relying on this being
+// tight.
+import { configure } from "@testing-library/react";
+
+configure({ asyncUtilTimeout: 5000 });
