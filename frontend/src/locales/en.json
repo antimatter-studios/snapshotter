@@ -33,7 +33,6 @@
   "app.opening": "Opening the snapshot",
   "app.openingExplain": "Attaching a snapshot needs an administrator password, so macOS may ask before this finishes.",
   "app.options": "Options",
-  "app.otherVolumeNote": "Snapshotted and pruned here, and can be opened. Browsing what is inside is the startup disk's alone — open one and it says where it is mounted.",
   "app.progressOf": "{{done}}/{{total}}",
   "app.readingFolder": "Reading folder",
   "app.ready": "Ready",

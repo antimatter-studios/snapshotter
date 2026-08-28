@@ -33,7 +33,6 @@
   "app.opening": "Ouverture du snapshot",
   "app.openingExplain": "Monter un snapshot nécessite un mot de passe administrateur ; macOS peut le demander avant la fin de l'opération.",
   "app.options": "Options",
-  "app.otherVolumeNote": "Capturés, purgés et ouvrables ici. Parcourir le contenu est réservé au disque de démarrage — à l'ouverture, l'emplacement de montage est indiqué.",
   "app.progressOf": "{{done}}/{{total}}",
   "app.readingFolder": "Lecture du dossier",
   "app.ready": "Prêt",

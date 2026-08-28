@@ -409,11 +409,6 @@ export default function App() {
                   <span className="count">{group.snapshots.length}</span>
                 </div>
               )}
-              {/* Said once per group rather than per row: every row in it is the
-                  same, and repeating it would bury the dates it sits beside. */}
-              {!group.isStartupDisk && groups.length > 1 && (
-                <p className="volume-note">{t("app.otherVolumeNote")}</p>
-              )}
 
           <ul className="snapshot-list">
             {group.snapshots.map((snapshot) => (
