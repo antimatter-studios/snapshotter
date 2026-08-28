@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Snapshots, Browse, Status, message, type SnapshotView, type Overview } from "./api";
 import { age, bytes, stamp } from "./format";
 import { Browser } from "./Browser";
@@ -9,6 +9,7 @@ import { Search } from "./Search";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguagePicker } from "./LanguagePicker";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useLiveRefresh } from "./live";
 import { useAction } from "./useAction";
 // The same file the application icon and the favicon are built from, reached out
@@ -53,7 +54,18 @@ export default function App() {
   // name does not identify a copy: the same date exists on every volume mounted
   // when it was taken, and both can be open at once.
   const [selectedDevice, setSelectedDevice] = useState<string>("");
-  const [path, setPath] = useState<string>("");
+  // Where the browser is, and the volume that path belongs to, held together.
+  //
+  // They were two states and could disagree for one render. Selecting a snapshot
+  // on another volume set the device immediately while the path still pointed at
+  // the last volume's home folder, so the browser asked for a home directory
+  // inside an SD card's snapshot and was told — correctly — that it is not on
+  // that volume. The listing then arrived a moment later and the error stayed on
+  // screen, describing a question nobody had asked.
+  //
+  // An empty path means "not resolved yet", which is a state the browser can
+  // show rather than a pairing it can get wrong.
+  const [at, setAt] = useState<{ device: string; path: string }>({ device: "", path: "" });
   const [tab, setTab] = useState<Tab>("browse");
   // Opening on home rather than on a snapshot: the first question is whether this
   // machine has usable restore points at all, not what is inside one of them.
@@ -135,6 +147,68 @@ export default function App() {
   // row for that date at once.
   const copyID = (device: string, name: string) => `${device}/${name}`;
 
+  // What each row is doing, so waiting, success and failure are all visible.
+  //
+  // Mounting raises an authorization prompt and then attaches a filesystem, so it
+  // is the slowest thing here by a wide margin — and it reported nothing at all
+  // until it was over, when a grey dot quietly turned green. Silence during the
+  // slow part reads as a click that did not register, which is how somebody comes
+  // to press it twice and answer two password prompts for one intention.
+  const [progress, setProgress] = useState<Record<string, "working" | "ok" | "failed">>({});
+  // The timers that clear a finished mark. Held so a row asked about twice does
+  // not keep an older timer that would wipe the newer mark early, and so nothing
+  // fires into a component that has gone.
+  const clearTimers = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const timers = clearTimers.current;
+    return () => {
+      for (const id of Object.values(timers)) window.clearTimeout(id);
+    };
+  }, []);
+
+  // Long enough to be read, short enough that the row goes back to saying what is
+  // true rather than what just happened.
+  const markFor = 5000;
+
+  const settle = (id: string, outcome: "ok" | "failed") => {
+    setProgress((p) => ({ ...p, [id]: outcome }));
+    window.clearTimeout(clearTimers.current[id]);
+    clearTimers.current[id] = window.setTimeout(() => {
+      setProgress((p) => {
+        const next = { ...p };
+        delete next[id];
+        return next;
+      });
+      delete clearTimers.current[id];
+    }, markFor);
+  };
+
+  // Wraps one row's action so the row says what is happening to it. The outcome
+  // is marked before anything is rethrown, so a failure shows on the row as well
+  // as in the banner.
+  const watched = async (ids: string[], fn: () => Promise<unknown>) => {
+    setProgress((p) => {
+      const next = { ...p };
+      for (const id of ids) {
+        window.clearTimeout(clearTimers.current[id]);
+        delete clearTimers.current[id];
+        next[id] = "working";
+      }
+      return next;
+    });
+    try {
+      const out = await fn();
+      for (const id of ids) settle(id, "ok");
+      return out;
+    } catch (err) {
+      for (const id of ids) settle(id, "failed");
+      throw err;
+    }
+  };
+
+  const working = Object.values(progress).some((s) => s === "working");
+
   // Selecting a snapshot on another volume means browsing that volume, so where
   // browsing starts moves with it: a home directory on the startup disk, and the
   // volume's own root anywhere else, since another disk has no home directory and
@@ -142,7 +216,7 @@ export default function App() {
   useEffect(() => {
     let live = true;
     Browse.Home(selectedDevice)
-      .then((home) => live && setPath(home))
+      .then((home) => live && setAt({ device: selectedDevice, path: home }))
       // Said, not swallowed. The service answers the startup disk's home folder
       // or the volume's own root, and nothing else — so an error here means the
       // volume could not be identified, and quietly leaving the browser where it
@@ -167,7 +241,10 @@ export default function App() {
   // mounted when a snapshot was taken has one of that date, and each is a
   // separate thing to attach.
   const mount = (snapshot: SnapshotView) =>
-    act(() => Snapshots.Mount(snapshot.device, [snapshot.name]), `Opened the snapshot from ${stamp(snapshot.taken)}`);
+    act(
+      () => watched([copyID(snapshot.device, snapshot.name)], () => Snapshots.Mount(snapshot.device, [snapshot.name])),
+      t("app.opened", { when: stamp(snapshot.taken) }),
+    );
 
   // Which snapshot has been asked about but not yet confirmed. One at a time, so
   // pressing Delete on a second row puts the first question away rather than
@@ -198,13 +275,30 @@ export default function App() {
   const mountAll = () =>
     act(async () => {
       for (const group of groups) {
-        const closed = group.snapshots.filter((s) => !s.mounted).map((s) => s.name);
-        if (closed.length) await Snapshots.Mount(group.device, closed);
+        const closed = group.snapshots.filter((s) => !s.mounted);
+        if (!closed.length) continue;
+        await watched(
+          closed.map((s) => copyID(s.device, s.name)),
+          () => Snapshots.Mount(group.device, closed.map((s) => s.name)),
+        );
       }
     }, t("app.openedEvery"));
 
   return (
     <div className="app">
+      {working && (
+        // Over the window rather than in the sidebar, because the sidebar row is
+        // small and this is the moment the application looks frozen. It names the
+        // password prompt: the wait is mostly macOS asking, and somebody who does
+        // not know that is watching a spinner for no stated reason.
+        <div className="working-overlay" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <div>
+            <strong>{t("app.opening")}</strong>
+            <span>{t("app.openingExplain")}</span>
+          </div>
+        </div>
+      )}
       <header>
         <div className="brand">
           {/* Decorative: the heading beside it already says the name, so
@@ -316,7 +410,11 @@ export default function App() {
                 onClick={() => (setSelected(snapshot.name), setSelectedDevice(snapshot.device), setView("snapshots"))}
               >
                 <div className="when">
-                  <span className="dot" title={snapshot.mounted ? t("app.isOpen") : t("app.notOpen")} />
+                  <RowState
+                    state={progress[copyID(snapshot.device, snapshot.name)]}
+                    mounted={snapshot.mounted}
+                    t={t}
+                  />
                   <span>{stamp(snapshot.taken)}</span>
                 </div>
                 <div className="age">{age(snapshot.taken, t)}</div>
@@ -346,7 +444,7 @@ export default function App() {
                           alone — the browser is rooted at a home directory — so
                           another volume's snapshot opens and says where. */}
                       {(snapshot.mounted ? (
-                          <button onClick={(e) => (e.stopPropagation(), act(() => Snapshots.Unmount(snapshot.device, [snapshot.name]), t("app.closed")))}>
+                          <button onClick={(e) => (e.stopPropagation(), act(() => watched([copyID(snapshot.device, snapshot.name)], () => Snapshots.Unmount(snapshot.device, [snapshot.name])), t("app.closed")))}>
                             {t("app.close")}
                           </button>
                         ) : (
@@ -436,8 +534,8 @@ export default function App() {
           {tab === "browse" && (
             <Browser
               snapshot={current}
-              path={path}
-              onPathChange={setPath}
+              path={at.device === selectedDevice ? at.path : ""}
+              onPathChange={(next) => setAt({ device: selectedDevice, path: next })}
               onMount={() => current && mount(current)}
               onDiff={(livePath) => setDiffFile(livePath)}
               onStatus={setStatus}
@@ -457,7 +555,7 @@ export default function App() {
             />
           )}
           {tab === "search" && (
-            <Search onStatus={setStatus} snapshot={current} path={path} />
+            <Search onStatus={setStatus} snapshot={current} path={at.device === selectedDevice ? at.path : ""} />
           )}
           </>
           )}
@@ -517,4 +615,41 @@ function darkNow(): boolean {
   const chosen = document.documentElement.getAttribute("data-theme");
   if (chosen) return chosen === "dark";
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
+}
+
+/**
+ * What one row is doing: waiting, just succeeded, just failed, or simply open.
+ *
+ * The dot alone could only say open or not, so the slow part said nothing and the
+ * failed part said nothing either — a mount that was refused looked exactly like
+ * one nobody had clicked. Waiting is a spinner, and an outcome is held long
+ * enough to be read before the row goes back to reporting what is true.
+ */
+function RowState({
+  state,
+  mounted,
+  t,
+}: {
+  state?: "working" | "ok" | "failed";
+  mounted: boolean;
+  t: TFunction;
+}) {
+  if (state === "working") {
+    return <span className="dot-spinner" role="status" aria-label={t("app.working")} />;
+  }
+  if (state === "ok") {
+    return (
+      <span className="mark ok" role="status" aria-label={t("app.succeeded")} title={t("app.succeeded")}>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>
+      </span>
+    );
+  }
+  if (state === "failed") {
+    return (
+      <span className="mark failed" role="status" aria-label={t("app.failed")} title={t("app.failed")}>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+      </span>
+    );
+  }
+  return <span className="dot" title={mounted ? t("app.isOpen") : t("app.notOpen")} />;
 }
