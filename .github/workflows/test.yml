@@ -59,6 +59,17 @@ jobs:
             exit 1
           fi
 
+      # Checked rather than done. `go mod tidy` used to run as part of the build,
+      # concurrently with npm install — so it walked frontend/node_modules while
+      # that was being populated and died on the platform packages npm lists for
+      # Linux and Windows and never installs on a Mac. It failed two releases.
+      #
+      # A build that rewrites go.mod is also not building what was reviewed, so it
+      # is verified here instead: a module that needs tidying fails honestly, with
+      # the diff, rather than being quietly corrected halfway through a release.
+      - name: Dependencies are tidy
+        run: go mod tidy -diff
+
       - name: Vet
         run: go vet ./...
 
