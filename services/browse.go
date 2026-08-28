@@ -84,7 +84,8 @@ func (b *BrowseService) ListSnapshot(device, snapshotName, livePath string) (Lis
 	if err != nil {
 		return out, err
 	}
-	snapPath, err := b.volumeFor(context.Background(), device).ToSnapshot(mountPoint, livePath)
+	volume := b.volumeFor(context.Background(), device)
+	snapPath, err := volume.ToSnapshot(mountPoint, livePath)
 	if err != nil {
 		out.Covered = false
 		out.Note = err.Error()
@@ -101,7 +102,7 @@ func (b *BrowseService) ListSnapshot(device, snapshotName, livePath string) (Lis
 
 	// Report paths in live terms so the two panes line up.
 	for i := range entries {
-		if live, err := b.volumeFor(context.Background(), device).ToLive(mountPoint, entries[i].Path); err == nil {
+		if live, err := volume.ToLive(mountPoint, entries[i].Path); err == nil {
 			entries[i].Path = live
 		}
 	}

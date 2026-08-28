@@ -236,7 +236,7 @@ func (s *StatusService) Check(ctx context.Context) (Health, error) {
 	// enumerate them costs this section rather than the screen: the figures above
 	// are still true of the data volume, and refusing to report anything because
 	// an external disk could not be interrogated would be the worse trade.
-	if vols, err := apfs.Volumes(ctx, s.Runner); err == nil {
+	if vols, err := s.volumes(ctx); err == nil {
 		for _, v := range vols {
 			row := VolumeHealth{
 				MountPoint:     v.MountPoint,

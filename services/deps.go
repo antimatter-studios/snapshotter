@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/schedule"
@@ -79,6 +80,14 @@ type Deps struct {
 	// guaranteed" is exactly the finding worth being able to look at without
 	// filling a real disk to see it.
 	Space func(volume string) (total, free uint64, err error)
+	// VolumeCache holds the list of volumes holding snapshots for a few seconds.
+	//
+	// Enumerating them is twenty-odd subprocesses, which is fine once and
+	// catastrophic per call — and per call is what it became, because translating
+	// a path needs the volume and translating happens once per directory entry.
+	// Nil means enumerate every time, which is right for the command line: it
+	// asks once and exits.
+	VolumeCache *apfs.Cache
 	// Verdicts remembers whether a folder differs from a snapshot, so browsing
 	// does not walk the same tree every time somebody navigates back to it. Nil
 	// simply means every answer is computed afresh, which is what the command
@@ -99,7 +108,7 @@ func (d Deps) mountsFor(ctx context.Context, device string) (Mounter, error) {
 	if device == "" {
 		return d.Mounts, nil
 	}
-	vols, err := apfs.Volumes(ctx, d.Runner)
+	vols, err := d.volumes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +145,7 @@ func (d Deps) rootFor(ctx context.Context, device string) (string, error) {
 	if device == "" {
 		return d.homeDir(), nil
 	}
-	vols, err := apfs.Volumes(ctx, d.Runner)
+	vols, err := d.volumes(ctx)
 	if err != nil {
 		return "", fmt.Errorf("services: cannot tell which volume %s is: %w", device, err)
 	}
@@ -149,6 +158,12 @@ func (d Deps) rootFor(ctx context.Context, device string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("services: %s is not a volume holding snapshots", device)
+}
+
+// volumes is every volume holding snapshots, through the cache where there is
+// one. One place, so no caller can accidentally take the uncached path.
+func (d Deps) volumes(ctx context.Context) ([]apfs.Volume, error) {
+	return d.VolumeCache.Volumes(ctx, d.Runner, time.Now())
 }
 
 func (d Deps) homeDir() string {
@@ -176,7 +191,7 @@ func (d Deps) volumeFor(ctx context.Context, device string) vfs.Volume {
 	if device == "" {
 		return vfs.Volume{}
 	}
-	vols, err := apfs.Volumes(ctx, d.Runner)
+	vols, err := d.volumes(ctx)
 	if err != nil {
 		return vfs.Volume{}
 	}
