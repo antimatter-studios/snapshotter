@@ -7,6 +7,32 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.62.1 — 2026-08-28
+
+**A progress bar that runs for the whole wait, not just the countable part.**
+
+The status bar's two halves now say different things: the left says what is
+happening, the right says how far it has got.
+
+They change independently, because reading a folder, asking the event log and
+walking the disk are three stages of one wait and only the last of them has a
+number. The bar appeared for that one alone, which left the first two looking
+like nothing happening — the very thing the bar exists to answer.
+
+Where there is no number it moves rather than fills. A bar sitting at an invented
+percentage would be a claim about progress nobody is measuring, which is the same
+fault as a folder reporting itself identical without having looked. Somebody who
+has asked for less movement gets a still bar rather than none: its presence is
+what says work is in progress.
+
+Also in this release, and visible to nobody: the test suite no longer depends on
+what is listening on port 80 of the machine running it. Two screens refresh
+themselves on a timer and read the interval with a binding call, so any test
+rendering one made a real HTTP request unless it happened to stub that call —
+which is how the same suite passed on one machine and failed on another twice in
+one afternoon, and how one test failed roughly one run in four for no reason
+visible anywhere in its own file.
+
 ## v0.62.0 — 2026-08-28
 
 **Browsing stopped re-reading whole trees to answer questions it had already
