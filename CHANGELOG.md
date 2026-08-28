@@ -7,6 +7,35 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.61.0 — 2026-08-28
+
+**A status bar along the bottom of the window, counting the slow work.**
+
+    Checking folders     245/567
+
+The application had one honest way to say it was busy — a disabled button — and
+several kinds of work that take long enough to look like a freeze. A folder's
+verdict can be a walk of everything beneath it, so a listing of source trees sat
+on a column of "detecting…" that never changed, and there was no way to tell that
+from stuck.
+
+A bar rather than a spinner, because the count is knowable: a spinner says
+something is happening, this says how much is left. It sits in the same place
+every time, so a reader learns where to look rather than hunting for it, and the
+count is centred over the bar because the number is the thing being read.
+
+The bar is fed by a callback rather than reaching into the browser, so anything
+else slow can report into the same place without the bar knowing what the work
+was.
+
+Three details decide whether the meter can be trusted. Only folders are counted,
+because a file is not walked and counting it would make the total larger than the
+work. A folder that could not be checked still advances the count, or the bar
+stops short of the end at the exact moment it has finished — the reading it
+exists to prevent. And the meter is cleared only by the listing that owns it, so
+a slow listing finishing after a newer one started does not wipe the newer one's
+progress.
+
 ## v0.60.2 — 2026-08-28
 
 **The Health screen said "Checking…" and never finished.** Browsing hung with it.

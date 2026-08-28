@@ -354,6 +354,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.61.0
+
+A status bar along the bottom of the window counts the slow work — "Checking
+folders 245/567" — so work that takes a while reads as progress rather than as a
+freeze. A bar rather than a spinner, because the count is knowable.
+
 ### v0.60.2
 
 The Health screen said "Checking…" and never finished. Working out which volume a
@@ -430,15 +436,6 @@ alone, so everything else accumulated snapshots nothing would ever delete. Found
 on an SD card at 98% full holding eight that existed nowhere else. Pruning now
 plans over every volume, and the Health screen reports each one's own free space
 and pinning snapshot.
-
-### v0.55.1
-
-A mistyped verb opened a window. `snapshotter health` is not a command and it
-silently launched the application, with only the one-window guard — which
-describes a different problem — saying anything at all. Anything on the command
-line now goes to the command line, which already refused an unknown verb by name.
-`snapshotter --help` is fixed by the same change: it printed Go's usage for the two
-flags the launchd agents are installed with, and never mentioned a command.
 
 ## Design decisions
 
