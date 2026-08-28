@@ -7,6 +7,38 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.60.1 — 2026-08-28
+
+**Opening a snapshot said nothing until it was over.** It raises an authorization
+prompt and then attaches a filesystem, so it is the slowest thing in this window
+by a wide margin — and it reported nothing at all until a grey dot quietly turned
+green. Silence during the slow part reads as a click that did not register, which
+is how somebody comes to press it twice and answer two password prompts for one
+intention. A refusal looked exactly like a click that never happened.
+
+Three states are visible now where there was one. Waiting is a spinner in the
+row's dot position, so nothing shifts as one replaces the other. The outcome is a
+tick or a cross, held for five seconds — long enough to be read, then gone, so
+the row goes back to reporting what is true rather than what just happened. And
+an overlay over the window says which is happening and names the password prompt,
+because the wait is mostly macOS asking and somebody who does not know that is
+watching a spinner for no stated reason.
+
+Reduced motion slows the spinner rather than stopping it: the motion is the only
+thing saying "still going".
+
+**Selecting a snapshot on another volume reported that the home directory is not
+on that volume, and then opened anyway.** Both halves were true and the pairing
+was not. The device was set immediately while the path still pointed at the
+previous volume's home folder, so for one render the browser asked for a home
+directory inside an external disk's snapshot — and was told, correctly, that it
+is not there. The listing arrived a moment later and the error stayed on screen,
+describing a question nobody had asked.
+
+The path and the volume it belongs to are one value now, so they cannot disagree,
+and an unresolved path is a state the browser waits through rather than a pairing
+it can get wrong.
+
 ## v0.60.0 — 2026-08-28
 
 **A built-in manual, so the documentation reaches the machine it is about.** All

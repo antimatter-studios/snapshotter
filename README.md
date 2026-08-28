@@ -354,6 +354,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.60.1
+
+Opening a snapshot is the slowest thing in the window and it said nothing until
+it was over. Waiting is a spinner now, the outcome is a tick or a cross held long
+enough to read, and an overlay names the password prompt that most of the wait
+actually is. Selecting a snapshot on another volume also briefly reported that
+the home directory is not on it — the device changed before the folder did, and
+the two are one value now.
+
 ### v0.60.0
 
 A built-in manual: five pages compiled into the binary, listed by `snapshotter
@@ -432,13 +441,6 @@ of what it caught was housekeeping and every catch pinned another whole-volume
 snapshot on the disk. It is now off with an empty list until a directory is named,
 each directory is counted on its own, and the cooldown stays shared because a
 snapshot is of the whole volume anyway.
-
-### v0.54.1
-
-v0.54.0 shipped with no window in it on Apple Silicon — the universal build
-compiled both architectures at once, and each half emptied the frontend's output
-directory under the other. Fixed, and checked three ways, including thinning the
-binary to inspect each slice on its own.
 
 ## Design decisions
 
