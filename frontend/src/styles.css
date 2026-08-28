@@ -1974,7 +1974,10 @@ button.destructive:hover:not(:disabled) {
    for it. A bar rather than a spinner, because the count is knowable: a spinner
    says something is happening, this says how much is left. */
 .status-bar {
-  position: fixed;
+  /* Absolute inside main, not fixed to the viewport: the work it reports on
+     belongs to that panel, and a bar spanning the whole window would cover the
+     snapshot list, which is not what is being counted. */
+  position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
@@ -2024,8 +2027,9 @@ button.destructive:hover:not(:disabled) {
   white-space: nowrap;
 }
 
-/* The bar covers the last row of whatever is scrolling behind it. */
-.browser, .aside { padding-bottom: 28px; }
+/* The bar covers the last row of whatever is scrolling behind it. Only the panel
+   it sits in needs the room; the sidebar is no longer underneath it. */
+.browser { padding-bottom: 28px; }
 
 @media (prefers-reduced-motion: reduce) {
   .status-bar-fill { transition: none; }

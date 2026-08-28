@@ -299,24 +299,6 @@ export default function App() {
 
   return (
     <div className="app">
-      {slowWork && slowWork.total > 0 && (
-        // Below everything, out of the way, and always in the same place — so a
-        // reader learns where to look rather than hunting for it.
-        <div className="status-bar" role="status" aria-live="polite">
-          <span className="status-bar-label">{slowWork.label}</span>
-          <span className="status-bar-track" aria-hidden="true">
-            <span
-              className="status-bar-fill"
-              style={{ width: `${Math.round((slowWork.done / slowWork.total) * 100)}%` }}
-            />
-          </span>
-          {/* Centred over the bar, because the number is the thing being read and
-              a count off to one side is read second. */}
-          <span className="status-bar-count">
-            {t("app.progressOf", { done: slowWork.done, total: slowWork.total })}
-          </span>
-        </div>
-      )}
       {working && (
         // Over the window rather than in the sidebar, because the sidebar row is
         // small and this is the moment the application looks frozen. It names the
@@ -590,6 +572,26 @@ export default function App() {
             <Search onStatus={setStatus} snapshot={current} path={at.device === selectedDevice ? at.path : ""} />
           )}
           </>
+          )}
+          {slowWork && slowWork.total > 0 && (
+            // Inside main, so it spans the panel the work belongs to and stops at
+            // the sidebar. main is already positioned for the file-diff panel,
+            // and for the same reason: absolute inside it stays inside it, where
+            // fixed would escape to the viewport and cover the snapshot list too.
+            <div className="status-bar" role="status" aria-live="polite">
+              <span className="status-bar-label">{slowWork.label}</span>
+              <span className="status-bar-track" aria-hidden="true">
+                <span
+                  className="status-bar-fill"
+                  style={{ width: `${Math.round((slowWork.done / slowWork.total) * 100)}%` }}
+                />
+              </span>
+              {/* Centred over the bar, because the number is the thing being read
+                  and a count off to one side is read second. */}
+              <span className="status-bar-count">
+                {t("app.progressOf", { done: slowWork.done, total: slowWork.total })}
+              </span>
+            </div>
           )}
         </main>
       </div>
