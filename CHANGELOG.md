@@ -7,6 +7,42 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.60.2 — 2026-08-28
+
+**The Health screen said "Checking…" and never finished.** Browsing hung with it.
+`Status.Check` did not return at all: five minutes in, it was still inside the
+volume enumeration.
+
+Enumerating volumes is one `mount`, a `diskutil apfs listSnapshots` for every
+mounted APFS filesystem — which includes every snapshot this application has
+opened — and a `diskutil info` for each one. Twenty-odd subprocesses, twenty-odd
+seconds on a loaded machine.
+
+That is fine once, and it was not once. Translating a path needs to know which
+volume it is on, and translating happens per directory entry — so a listing of
+two hundred files asked the machine to enumerate its disks two hundred times.
+
+- The volume's name is looked up after the snapshot filter rather than before it.
+  It is one subprocess per volume and it is wanted only for the ones that reach
+  the screen; asking for all twelve mount points a Mac has, most of which hold
+  nothing, was most of the cost. Alone this took an enumeration from about
+  twenty-one seconds to one.
+- A short-lived cache, shared by every service. Ten seconds: long enough that one
+  listing enumerates once, short enough that a disk plugged in appears without a
+  relaunch. A failed refresh keeps the answer it had, because diskutil not
+  answering for a moment is not evidence that the disks have gone — and reporting
+  none would empty the sidebar and refuse every translation.
+- The lookup is hoisted out of the loop over directory entries, which is where
+  the multiplication actually came from.
+
+Mounting and unmounting forget the cache rather than waiting it out: they add and
+remove APFS filesystems, which is what the list is a list of. The command line
+builds no cache and pays the full cost once, which is the right trade for a
+process that exits.
+
+Measured on the machine that reported it: Check went from not returning to 273ms,
+and a listing went from thousands of subprocesses to none.
+
 ## v0.60.1 — 2026-08-28
 
 **Opening a snapshot said nothing until it was over.** It raises an authorization
