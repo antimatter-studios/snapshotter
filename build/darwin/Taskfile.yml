@@ -70,7 +70,22 @@ tasks:
     summary: Builds the application natively on macOS
     internal: true
     deps:
-      - task: common:go:mod:tidy
+      # No `go mod tidy` here.
+      #
+      # It ran alongside the frontend build, and Task runs deps concurrently — so
+      # tidy walked frontend/node_modules while npm was still filling it and died
+      # on the platform packages npm lists for Linux and Windows and never
+      # installs on a Mac:
+      #
+      #   go: pattern all: open frontend/node_modules/lightningcss-linux-arm64-gnu:
+      #   no such file or directory
+      #
+      # That failed a release twice. Removing the race would have been enough; the
+      # reason it is gone rather than serialised is that tidy REWRITES go.mod, and
+      # a release build that edits its own inputs is not building what was
+      # reviewed. Tidiness is checked in the test workflow instead, where a
+      # go.mod that needs it fails honestly rather than being quietly corrected
+      # mid-build.
       - task: common:build:frontend
         vars:
           BUILD_FLAGS:
