@@ -209,6 +209,19 @@ export default function App() {
 
   const working = Object.values(progress).some((s) => s === "working");
 
+  // Slow work, counted, along the bottom of the window.
+  //
+  // The application had one honest way to say it was busy — a disabled button —
+  // and several kinds of work that take long enough to look like a freeze. A
+  // folder's verdict can be a walk of everything beneath it, so a listing of
+  // source trees sat on a column of "detecting…" that never changed. A meter that
+  // says 245/567 is the difference between waiting and giving up: it does not
+  // make the work faster, it makes it legible.
+  //
+  // A bar rather than a spinner, because the count is knowable. A spinner says
+  // "something is happening"; this says how much is left.
+  const [slowWork, setSlowWork] = useState<{ label: string; done: number; total: number } | null>(null);
+
   // Selecting a snapshot on another volume means browsing that volume, so where
   // browsing starts moves with it: a home directory on the startup disk, and the
   // volume's own root anywhere else, since another disk has no home directory and
@@ -286,6 +299,24 @@ export default function App() {
 
   return (
     <div className="app">
+      {slowWork && slowWork.total > 0 && (
+        // Below everything, out of the way, and always in the same place — so a
+        // reader learns where to look rather than hunting for it.
+        <div className="status-bar" role="status" aria-live="polite">
+          <span className="status-bar-label">{slowWork.label}</span>
+          <span className="status-bar-track" aria-hidden="true">
+            <span
+              className="status-bar-fill"
+              style={{ width: `${Math.round((slowWork.done / slowWork.total) * 100)}%` }}
+            />
+          </span>
+          {/* Centred over the bar, because the number is the thing being read and
+              a count off to one side is read second. */}
+          <span className="status-bar-count">
+            {t("app.progressOf", { done: slowWork.done, total: slowWork.total })}
+          </span>
+        </div>
+      )}
       {working && (
         // Over the window rather than in the sidebar, because the sidebar row is
         // small and this is the moment the application looks frozen. It names the
@@ -539,6 +570,7 @@ export default function App() {
               onMount={() => current && mount(current)}
               onDiff={(livePath) => setDiffFile(livePath)}
               onStatus={setStatus}
+              onProgress={setSlowWork}
             />
           )}
 
