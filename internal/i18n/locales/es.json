@@ -132,6 +132,9 @@
   "cli.usageHeading": {
     "other": "Uso:"
   },
+  "cli.usageTopic": {
+    "other": "leer uno de los temas de abajo"
+  },
   "cli.usageWindow": {
     "other": "abrir la ventana"
   },
