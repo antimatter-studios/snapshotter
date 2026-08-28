@@ -354,6 +354,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.60.0
+
+A built-in manual: five pages compiled into the binary, listed by `snapshotter
+help` and read with `snapshotter help <topic>`. The documentation was already
+written and none of it reached the machine it was about. Also, a volume that
+cannot be identified is now an error rather than a silent fall back to the home
+folder — which on an external disk opened a path that does not exist inside that
+snapshot and read as an empty one.
+
 ### v0.59.1
 
 Browsing a snapshot on another volume reported that the volume was "not on the
@@ -430,15 +439,6 @@ v0.54.0 shipped with no window in it on Apple Silicon — the universal build
 compiled both architectures at once, and each half emptied the frontend's output
 directory under the other. Fixed, and checked three ways, including thinning the
 binary to inspect each slice on its own.
-
-### v0.54.0
-
-How readily the bulk-deletion watcher trips is a setting: Cautious, Balanced,
-Sensitive or Very sensitive, each showing the count it stands for. The retention
-profile is now chosen before the two numbers it uses, which are labelled for the
-profile in force rather than for the flat one alone. And a translated message
-nobody asks for is a test failure — which found five screens still hardcoded in
-English.
 
 ## Design decisions
 

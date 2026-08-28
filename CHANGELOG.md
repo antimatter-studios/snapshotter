@@ -7,6 +7,56 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.60.0 — 2026-08-28
+
+**A built-in manual, so the documentation reaches the machine it is about.** All
+of it was already written and none of it reached anybody: the documents are in
+the repository, and somebody who installed a disk image has the binary and
+`snapshotter help`, which listed six command summaries and nothing else. The page
+answering "why did my snapshots disappear" was on GitHub.
+
+Five pages are compiled in — `snapshots`, `volumes`, `mounting`, `tripwire`,
+`restoring` — and they are the questions this application actually produces:
+purgeable snapshots vanishing early, one command writing to every disk, reading
+your own files needing a password, a watcher that cannot prevent a deletion, and
+where a restored file lands.
+
+    snapshotter help              the contents page: commands and topics
+    snapshotter help volumes      one page, as markdown
+
+They are documents rather than blocks extracted from the source. Lifting pages
+out of comments keeps a rule and its paragraph in one diff, which is right when
+the manual documents behaviour sitting next to code; this application's hardest
+documentation is narrative, and the best of it is attached to declarations where
+gofmt would reformat it. The problem here was distribution rather than drift, so
+the mechanism is an embed and a lookup rather than a generator and a CI guard.
+
+- Hyphens, underscores and case are interchangeable, because the name is a phrase
+  a reader half-remembers rather than an identifier they copied: `help
+  bulk_deletion` and `help bulk-deletion` are the same question.
+- Aliases reach for the word somebody actually types. `purgeable` is what they
+  just read in a listing, not `snapshots`; `fda` reaches mounting, `sdcard`
+  reaches volumes.
+- A near miss is answered with the page rather than a menu — `help restor`
+  suggests `help restoring` — and only something resembling nothing falls back to
+  the full help. Refusals go to stderr, so piping the command yields pages.
+- The markdown prints as written. It reads well in a terminal, survives being
+  piped into something that renders it, and a renderer of our own would be a
+  second markdown implementation to keep correct for no gain a reader would
+  notice.
+
+**A volume that cannot be identified is an error rather than a home folder.**
+Where browsing starts has two answers and the volume decides which: the startup
+disk starts at the home directory, and every other volume at its own root. There
+was a third answer hiding behind those two — a device that could not be resolved
+returned the home directory and logged it, which is the startup disk's answer
+wearing a guess's clothes. On an external disk that guess is silently wrong: a
+home path does not exist inside that snapshot, so the listing comes back empty
+and reads as an empty snapshot rather than as a path that was never right.
+
+The usage block also names the topic form now, which writing the help out as one
+page rather than two made obvious.
+
 ## v0.59.1 — 2026-08-27
 
 **"/Volumes/sdcard256gb is not on the data volume, so snapshots do not cover
