@@ -7,6 +7,59 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.62.0 — 2026-08-28
+
+**Browsing stopped re-reading whole trees to answer questions it had already
+answered.**
+
+Deciding a folder has changed needs one difference. Deciding it has NOT changed
+needs everything under it read, because there is no early exit from proving a
+negative — and on an SD card that was seconds per folder, paid again every time
+somebody navigated back.
+
+Nothing below concludes that anything is unchanged from anything cheaper than a
+full read. Every shortcut can only ever find a difference, and each is verified
+against the disk before it is believed.
+
+What is asked, in order of what it costs:
+
+1. **What is already recorded.** A walk stops at the first difference, so a
+   "changed" verdict always rests on a single path. Recording which one turns the
+   next question into one stat — and it answers not just its own folder but every
+   folder between it and wherever the question was asked. Kept in a
+   `change_detection` table so it survives a restart, which is only safe because
+   it is re-checked rather than trusted. The reverse holds too: a walk that
+   completes without finding a difference has read every folder below it and
+   proved them identical, which used to be thrown away.
+2. **The event log.** macOS already records what changed; it is replayed from
+   where we last looked and every path it names is verified before being
+   recorded. Measured here: 43 paths in 145ms, against 178,570 and a timeout for
+   the same call anchored at the start of history.
+3. **Reading the tree**, which the two above exist to avoid. A directory is now
+   settled by its own entries before anything is descended into: presence and
+   type first, which costs no reading at all, then file contents, then recursion.
+
+Also in this release:
+
+- `change_detection.ignore`, a list of paths not to read at all. It is the only
+  setting that helps the expensive direction — 17,239 of a project's 19,788
+  entries were node modules. It ships empty, with the usual names offered as one
+  click each, because a folder skipped is a folder this will not tell you about.
+- Leaving a folder gives up on its walks instead of letting them run to the end
+  for rows nobody will see again, with the next folder queued behind them.
+- How many folders are checked at once comes from the disk rather than being
+  three for everything: an SD card has one slow channel, internal storage wants a
+  deep queue. What is on screen is answered first.
+- Clicking a folder blanks the window in the same moment rather than when the new
+  listing arrives, which on a slow disk was eight to ten seconds later and read
+  as a window that had stopped responding.
+- A snapshot of an external disk no longer offers folders above that disk. The
+  trail across the top started at `/` whatever was being browsed, so `/Volumes`
+  was clickable and led straight to "that volume's snapshots do not cover it".
+- A folder's verdict row took its class name from the status word, and `ignored`
+  was already the name of the bulk-deletion watcher's panel — which put a border
+  across the row and a box around the folder's name.
+
 ## v0.61.0 — 2026-08-28
 
 **A status bar along the bottom of the window, counting the slow work.**
