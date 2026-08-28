@@ -127,7 +127,13 @@ func Run(ctx context.Context, e Env, args []string) int {
 
 func writeHelp(w io.Writer) {
 	fmt.Fprintln(w, i18n.T("cli.tagline"))
-	fmt.Fprintln(w, "\n"+i18n.T("cli.usageHeading")+"\n  snapshotter                 "+i18n.T("cli.usageWindow")+"\n  snapshotter <command>")
+	// The topic form is named here, not only implied by the listing below. A
+	// reader scanning the usage block should not have to infer that the pages are
+	// reached by the same verb as the command list.
+	fmt.Fprintln(w, "\n"+i18n.T("cli.usageHeading")+
+		"\n  snapshotter                 "+i18n.T("cli.usageWindow")+
+		"\n  snapshotter <command>"+
+		"\n  snapshotter help <topic>    "+i18n.T("cli.usageTopic"))
 	fmt.Fprintln(w, "\n"+i18n.T("cli.commandsHeading"))
 
 	all := commands()
