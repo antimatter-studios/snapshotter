@@ -134,6 +134,42 @@ func (v Volume) ToLive(mountPoint, snapshotPath string) (string, error) {
 	return filepath.Join(v.Root, rest), nil
 }
 
+// Top is the highest path this volume's snapshots have anything to say about.
+//
+// The data volume's is "/", because its snapshots cover the whole running system.
+// Any other volume's is where it is mounted: a snapshot of an SD card knows
+// nothing about /Volumes, which is on the startup disk, and nothing about the
+// other disks mounted beside it.
+//
+// It exists because the interface was offering paths it would then have to
+// refuse. Browsing a snapshot of /Volumes/sdcard256gb, the trail of folders
+// across the top read "/ › Volumes › sdcard256gb › projects", and the first two
+// were clickable — leading to an error saying that volume's snapshots do not
+// cover them. A control that cannot work should not be drawn.
+func (v Volume) Top() string {
+	if v.Root == "" {
+		return "/"
+	}
+	return v.Root
+}
+
+// Parent is the folder above one this volume covers, and never above Top.
+//
+// Clamped rather than refused: somebody at the top of a volume pressing "up" has
+// asked for something reasonable, and the answer is that they are already there.
+func (v Volume) Parent(livePath string) string {
+	top := v.Top()
+	clean := filepath.Clean(livePath)
+	if clean == top || !v.Covered(clean) {
+		return top
+	}
+	parent := filepath.Dir(clean)
+	if !v.Covered(parent) {
+		return top
+	}
+	return parent
+}
+
 // Covered reports whether a snapshot of v can contain a path.
 func (v Volume) Covered(livePath string) bool {
 	_, err := v.Canonical(livePath)

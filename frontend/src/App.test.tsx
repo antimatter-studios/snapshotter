@@ -52,6 +52,10 @@ function stub(over: Record<string, unknown> = {}) {
   // browser has no folder to list and every test about the listing fails for a
   // reason that has nothing to do with what it is testing.
   vi.spyOn(Browse, "Home").mockResolvedValue("/Users/someone" as never);
+  // Called at the start of every listing, to give up on the folder checks still
+  // running for the one being left. Same reasoning as Home above: unstubbed, the
+  // real binding rejects and nothing lists at all.
+  vi.spyOn(Browse, "AbandonFolderChecks").mockResolvedValue(undefined as never);
 }
 
 afterEach(() => vi.restoreAllMocks());

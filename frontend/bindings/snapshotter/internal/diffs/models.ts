@@ -79,6 +79,17 @@ export class Result {
      * than failing, so a protected subfolder cannot hide the rest of the answer.
      */
     "errors": string[];
+
+    /**
+     * Skipped records what the ignore list kept this walk out of.
+     *
+     * Carried rather than counted, because the question it answers is "what did
+     * you not look at" and a number cannot answer it. A result with anything here
+     * has not proved what an empty one proves: "nothing differs" becomes "nothing
+     * differs in what I was allowed to read", and only the caller holding this
+     * list can say the second sentence.
+     */
+    "skipped"?: string[];
     "scanned": number;
 
     /** Creates a new Result instance. */
@@ -108,12 +119,16 @@ export class Result {
     static createFrom($$source: any = {}): Result {
         const $$createField2_0 = $$createType1;
         const $$createField3_0 = $$createType2;
+        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("changes" in $$parsedSource) {
             $$parsedSource["changes"] = $$createField2_0($$parsedSource["changes"]);
         }
         if ("errors" in $$parsedSource) {
             $$parsedSource["errors"] = $$createField3_0($$parsedSource["errors"]);
+        }
+        if ("skipped" in $$parsedSource) {
+            $$parsedSource["skipped"] = $$createField4_0($$parsedSource["skipped"]);
         }
         return new Result($$parsedSource as Partial<Result>);
     }
@@ -163,6 +178,16 @@ export enum Status {
      * not checked.
      */
     NotExamined = "notExamined",
+
+    /**
+     * Ignored is a directory the ignore list says not to look inside.
+     *
+     * Its own word rather than NotExamined, which reads as "could not check" and
+     * would make a setting look like a fault. Nobody failed here: somebody said
+     * they did not want to be told about this, and the row saying so is how they
+     * can see the setting is working and find it again to undo.
+     */
+    Ignored = "ignored",
 };
 
 // Private type creation functions

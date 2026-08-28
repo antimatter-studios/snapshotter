@@ -46,11 +46,21 @@ export function stamp(when: string | Date): string {
 }
 
 /** Splits a path into its clickable segments. */
-export function breadcrumbs(path: string): { label: string; path: string }[] {
-  const parts = path.split("/").filter(Boolean);
-  const crumbs = [{ label: "/", path: "/" }];
-  let current = "";
-  for (const part of parts) {
+export function breadcrumbs(path: string, root = "/"): { label: string; path: string }[] {
+  // Never above the volume's own root.
+  //
+  // This used to start at "/" whatever was being browsed, so a snapshot of an SD
+  // card read "/ › Volumes › sdcard256gb › projects" with the first two
+  // clickable — and clicking either led to an error saying that volume's
+  // snapshots do not cover them. A control that cannot work should not be drawn.
+  const top = root === "" ? "/" : root.replace(/\/+$/, "") || "/";
+  const label = top === "/" ? "/" : top.split("/").filter(Boolean).pop()!;
+  const crumbs = [{ label, path: top }];
+
+  // The part of the path below the root, which is all anyone can navigate.
+  const rest = top === "/" ? path : path.startsWith(top + "/") ? path.slice(top.length) : "";
+  let current = top === "/" ? "" : top;
+  for (const part of rest.split("/").filter(Boolean)) {
     current += `/${part}`;
     crumbs.push({ label: part, path: current });
   }
@@ -77,4 +87,8 @@ export const statusLabel: Record<string, string> = {
   // not read as "detecting…", which would leave a row looking like it is still
   // working when it has stopped for good.
   notExamined: "could not check",
+  // Deliberately not looked inside, because the ignore list says so. "Not
+  // checked" rather than "ignored": the second reads as a judgement about the
+  // folder, and this is a statement about what this program did.
+  ignored: "not checked",
 };

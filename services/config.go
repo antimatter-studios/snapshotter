@@ -340,3 +340,66 @@ func asFragment(folder string) string {
 	}
 	return folder
 }
+
+// IgnoreInChangeDetection adds a pattern to the list of paths that comparing a
+// snapshot with the live disk does not look inside.
+//
+// Deliberately not the same list as IgnoreFolder, which is the bulk-deletion
+// watcher's. That one answers "deletions here do not count as a burst"; this one
+// answers "do not read this when comparing". They would usually hold the same
+// paths, which is why they are kept apart — sharing them would mean changing what
+// you are warned about in order to change what gets walked.
+func (c *ConfigService) IgnoreInChangeDetection(pattern string) (ConfigView, error) {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return c.Get(), fmt.Errorf("services: no pattern given")
+	}
+	// filepath.Match reports a malformed pattern only when it is asked to match
+	// something, so it is asked here. Without this an unclosed bracket would be
+	// saved, match nothing for ever, and look like the feature not working.
+	if _, err := filepath.Match(pattern, "x"); err != nil {
+		return c.Get(), fmt.Errorf("services: %q is not a usable pattern: %w", pattern, err)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		// Same reasoning as the theme: writing over a file that will not parse
+		// destroys whatever someone wrote there, to add one line.
+		return c.Get(), fmt.Errorf("not changing what is ignored: %w", err)
+	}
+	if slices.Contains(cfg.ChangeDetection.Ignore, pattern) {
+		return c.Get(), nil // already there; not an error
+	}
+	cfg.ChangeDetection.Ignore = append(cfg.ChangeDetection.Ignore, pattern)
+	if err := config.Save(cfg); err != nil {
+		return c.Get(), err
+	}
+	return c.Get(), nil
+}
+
+// StopIgnoringInChangeDetection removes a pattern, so those paths are compared
+// again.
+//
+// Matched exactly rather than by what it resolves to, because a pattern is not a
+// path: "node_modules" names every directory of that name at any depth, and there
+// is nothing to resolve it against.
+func (c *ConfigService) StopIgnoringInChangeDetection(pattern string) (ConfigView, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return c.Get(), fmt.Errorf("not changing what is ignored: %w", err)
+	}
+
+	pattern = strings.TrimSpace(pattern)
+	kept := make([]string, 0, len(cfg.ChangeDetection.Ignore))
+	for _, existing := range cfg.ChangeDetection.Ignore {
+		if strings.TrimSpace(existing) == pattern {
+			continue
+		}
+		kept = append(kept, existing)
+	}
+	cfg.ChangeDetection.Ignore = kept
+	if err := config.Save(cfg); err != nil {
+		return c.Get(), err
+	}
+	return c.Get(), nil
+}

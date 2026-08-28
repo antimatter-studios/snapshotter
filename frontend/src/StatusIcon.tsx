@@ -1,4 +1,4 @@
-import { Check, Pencil, Plus, Shuffle, Trash2, X, type LucideIcon } from "lucide-react";
+import { Check, EyeOff, Pencil, Plus, Shuffle, Trash2, X, type LucideIcon } from "lucide-react";
 
 /**
  * The mark beside a row's verdict.
@@ -31,6 +31,9 @@ const icons: Record<string, LucideIcon> = {
   // The walk finished without an answer. A cross rather than a warning triangle:
   // this is a failure to read, not a finding about the file.
   notExamined: X,
+  // Not looked inside, on purpose. An eye with a line through it rather than a
+  // cross: nothing failed here, somebody said they did not want to be told.
+  ignored: EyeOff,
 };
 
 /**
@@ -48,6 +51,7 @@ export const rowStatuses = [
   "onlyOnDisk",
   "typeChanged",
   "notExamined",
+  "ignored",
   // Drawn as the spinner instead, which is why it has no entry above.
   "detecting",
 ] as const;

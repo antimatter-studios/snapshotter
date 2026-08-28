@@ -42,6 +42,14 @@ const (
 	// how this application would tell somebody their work was safe when it had
 	// not checked.
 	NotExamined Status = "notExamined"
+
+	// Ignored is a directory the ignore list says not to look inside.
+	//
+	// Its own word rather than NotExamined, which reads as "could not check" and
+	// would make a setting look like a fault. Nobody failed here: somebody said
+	// they did not want to be told about this, and the row saying so is how they
+	// can see the setting is working and find it again to undo.
+	Ignored Status = "ignored"
 )
 
 // Change is one difference between the snapshot and the live filesystem.
@@ -71,6 +79,16 @@ type Options struct {
 	IncludeSame bool
 	// MaxDepth limits recursion; zero means no limit.
 	MaxDepth int
+	// Ignore names paths change detection does not look inside.
+	//
+	// It is the only thing here that helps the expensive direction. A folder that
+	// differs stops at the first difference; one that does not has to be read in
+	// full to prove it, and most of what it reads is not anybody's work — node
+	// modules, build output, virtual environments.
+	//
+	// A walk that skipped something says so through Skipped rather than reporting
+	// a clean result it did not earn.
+	Ignore Ignore
 	// DeferDirectories leaves every directory reported as NotExamined instead of
 	// walking it for a verdict.
 	//
@@ -79,6 +97,17 @@ type Options struct {
 	// several of those before drawing anything is a window that feels broken. Each
 	// row is then resolved on its own, and fills in as its answer arrives.
 	DeferDirectories bool
+	// Abandoned is asked, periodically, whether the answer is still wanted.
+	//
+	// Proving a folder unchanged means reading everything under it, and there is
+	// no early exit from that — so a walk started for a folder somebody has since
+	// navigated away from will keep an SD card busy for seconds producing an answer
+	// nobody will look at. With three of those running, the next folder's answer
+	// queues behind work that is already pointless.
+	//
+	// Nil means never abandon, which is right for the command line: it asked for
+	// the answer and is waiting for it.
+	Abandoned func() bool
 }
 
 // Result is the outcome of a comparison.
@@ -89,7 +118,15 @@ type Result struct {
 	// Errors records paths that could not be read, usually because macOS
 	// privacy protection covers them. A comparison continues past them rather
 	// than failing, so a protected subfolder cannot hide the rest of the answer.
-	Errors  []string `json:"errors"`
+	Errors []string `json:"errors"`
+	// Skipped records what the ignore list kept this walk out of.
+	//
+	// Carried rather than counted, because the question it answers is "what did
+	// you not look at" and a number cannot answer it. A result with anything here
+	// has not proved what an empty one proves: "nothing differs" becomes "nothing
+	// differs in what I was allowed to read", and only the caller holding this
+	// list can say the second sentence.
+	Skipped []string `json:"skipped,omitempty"`
 	Scanned int      `json:"scanned"`
 }
 
@@ -163,6 +200,14 @@ func (w *walker) walk(ctx context.Context, snapDir, liveDir, rel string, depth i
 		childRel := filepath.Join(rel, name)
 		snapPath := filepath.Join(snapDir, name)
 		livePath := filepath.Join(liveDir, name)
+
+		// Recorded, not silently dropped. A result that skipped something has not
+		// proved the thing a clean result claims, and the caller has to be able to
+		// tell the two apart.
+		if w.opt.Ignore.Match(livePath) || w.opt.Ignore.Match(childRel) {
+			w.res.Skipped = append(w.res.Skipped, childRel)
+			continue
+		}
 
 		w.res.Scanned++
 		w.report(childRel)

@@ -64,7 +64,7 @@ func started(t *testing.T, cache *verdict.Cache, root string) bool {
 		if err := os.WriteFile(probe, []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		cache.Put("snap", probe, verdict.Same)
+		cache.Put("snap", probe, verdict.Answer{Verdict: verdict.Same})
 		if err := os.Remove(probe); err != nil {
 			t.Fatal(err)
 		}
@@ -95,9 +95,9 @@ func TestAChangedFileForgetsTheVerdictForItsFolder(t *testing.T) {
 	// Every folder above the file, because a file edited five levels down changes
 	// the answer for all five: a directory's own modification time moves only when
 	// something is added or removed directly inside it.
-	cache.Put("snap", root, verdict.Same)
-	cache.Put("snap", filepath.Join(root, "projects"), verdict.Same)
-	cache.Put("snap", nested, verdict.Same)
+	cache.Put("snap", root, verdict.Answer{Verdict: verdict.Same})
+	cache.Put("snap", filepath.Join(root, "projects"), verdict.Answer{Verdict: verdict.Same})
+	cache.Put("snap", nested, verdict.Answer{Verdict: verdict.Same})
 
 	if err := os.WriteFile(filepath.Join(nested, "notes.md"), []byte("edited\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -130,8 +130,8 @@ func TestAnUnrelatedFolderKeepsItsVerdict(t *testing.T) {
 		t.Skip("filesystem events are not delivered here, so there is nothing to test")
 	}
 
-	cache.Put("snap", untouched, verdict.Same)
-	cache.Put("snap", touched, verdict.Same)
+	cache.Put("snap", untouched, verdict.Answer{Verdict: verdict.Same})
+	cache.Put("snap", touched, verdict.Answer{Verdict: verdict.Same})
 
 	if err := os.WriteFile(filepath.Join(touched, "notes.md"), []byte("edited\n"), 0o600); err != nil {
 		t.Fatal(err)

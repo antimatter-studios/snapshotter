@@ -48,6 +48,22 @@ export function IgnoreFolder(folder: string): $CancellablePromise<$models.Config
 }
 
 /**
+ * IgnoreInChangeDetection adds a pattern to the list of paths that comparing a
+ * snapshot with the live disk does not look inside.
+ *
+ * Deliberately not the same list as IgnoreFolder, which is the bulk-deletion
+ * watcher's. That one answers "deletions here do not count as a burst"; this one
+ * answers "do not read this when comparing". They would usually hold the same
+ * paths, which is why they are kept apart — sharing them would mean changing what
+ * you are warned about in order to change what gets walked.
+ */
+export function IgnoreInChangeDetection(pattern: string): $CancellablePromise<$models.ConfigView> {
+    return $Call.ByID(2752022164, pattern).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * SetLanguage records which language both surfaces should speak.
  *
  * Written to the settings file rather than only to the window, because the menu
@@ -96,6 +112,20 @@ export function SetTripwireSensitivity(name: string): $CancellablePromise<void> 
  */
 export function StopIgnoringFolder(fragment: string): $CancellablePromise<$models.ConfigView> {
     return $Call.ByID(1262749405, fragment).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
+ * StopIgnoringInChangeDetection removes a pattern, so those paths are compared
+ * again.
+ *
+ * Matched exactly rather than by what it resolves to, because a pattern is not a
+ * path: "node_modules" names every directory of that name at any depth, and there
+ * is nothing to resolve it against.
+ */
+export function StopIgnoringInChangeDetection(pattern: string): $CancellablePromise<$models.ConfigView> {
+    return $Call.ByID(788130005, pattern).then(($result: any) => {
         return $$createType0($result);
     });
 }

@@ -24,6 +24,7 @@ export {
     CompareRequest,
     CompareSnapshotsRequest,
     ConfigView,
+    EventLogScan,
     FileVersions,
     Finding,
     FolderVerdict,

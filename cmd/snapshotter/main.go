@@ -22,6 +22,7 @@ import (
 	"strconv"
 
 	"snapshotter/internal/apfs"
+	"snapshotter/internal/changedb"
 	"snapshotter/internal/cli"
 	"snapshotter/internal/config"
 	"snapshotter/internal/elevate"
@@ -334,13 +335,36 @@ func buildDeps(s setup, runner apfs.Runner) services.Deps {
 		FakeSeed:    fakeSeed,
 		Scenario:    s.scenario,
 		// One cache for the window's lifetime, kept honest by the watch started
-		// in runWindow. Nothing is written to disk: a cache that outlived the
-		// process would have to be right about everything that happened while it
-		// was gone, and a cold start costs one walk, which is what every start
-		// costs today.
+		// in runWindow.
+		//
+		// Half of it is written to disk and half is not, and the line between them
+		// is what each half would be promising. A recorded DIFFERENCE is safe to
+		// keep for ever because it is re-checked every time it is used — still
+		// different, and the folder still differs. A recorded SAMENESS would be a
+		// claim about everything that happened while this application was not
+		// running, which nothing can keep, so it is never written.
 		Verdicts: verdict.New(),
 		Space:    s.space,
 	}
+}
+
+// openChangeTable attaches the change_detection table, if it will open.
+//
+// Failure is not fatal and is not even reported to the window. Everything the
+// table holds is an optimisation: without it every folder is walked, which is
+// what this application did before it existed — slow rather than wrong.
+func openChangeTable() *changedb.Store {
+	path, err := changedb.Path()
+	if err != nil {
+		log.Printf("recorded changes will not be kept between runs: %v", err)
+		return nil
+	}
+	store, err := changedb.Open(path)
+	if err != nil {
+		log.Printf("recorded changes will not be kept between runs: %v", err)
+		return nil
+	}
+	return store
 }
 
 func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
@@ -351,6 +375,13 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 	scenarioName := s.scenario
 
 	deps := buildDeps(s, runner)
+	// Recorded differences, kept between runs. Closed when the window is, and the
+	// application runs without it if it will not open.
+	if store := openChangeTable(); store != nil {
+		defer store.Close()
+		deps.Changes = store
+		deps.Verdicts.Persist(store)
+	}
 	status := services.NewStatusService(deps)
 
 	server, err := serverOptions()

@@ -35,6 +35,37 @@ type Config struct {
 	Window     Window     `yaml:"window" json:"window"`
 	Refresh    Refresh    `yaml:"refresh" json:"refresh"`
 	Paths      Paths      `yaml:"paths" json:"paths"`
+	// ChangeDetection is what comparing a snapshot with the live disk looks at.
+	ChangeDetection ChangeDetection `yaml:"change_detection" json:"changeDetection"`
+}
+
+// ChangeDetection tunes what comparing a snapshot with the live disk reads.
+type ChangeDetection struct {
+	// Ignore lists paths not to look inside when deciding whether a folder has
+	// changed.
+	//
+	// It is the only setting that helps the expensive direction. A folder that
+	// differs is answered at the first difference; one that does not has to be
+	// read in full to prove it — and most of what that reads is not anybody's
+	// work. On the machine this was written for, 17,239 of a project's 19,788
+	// entries were node modules: nine seconds of an SD card's reading, per
+	// project, to confirm something nobody would restore.
+	//
+	// A bare name matches a path component at any depth, so "node_modules" means
+	// all of them. Wildcards are filepath.Match, so "*.tmp" and "build-*" work. A
+	// pattern containing a separator is matched against the whole path, so
+	// "*/projects/*/dist" picks out one place rather than every dist on the disk.
+	//
+	// Deliberately not the bulk-deletion watcher's ignore list, which answers a
+	// different question: that one is "deletions here do not count as a burst",
+	// this one is "do not read this when comparing". They would usually hold the
+	// same paths, which is why they are kept apart — sharing them would mean
+	// changing what you are warned about in order to change what gets walked.
+	//
+	// Empty by default. A folder skipped is a folder this application will not
+	// tell you about, and only the person using the machine knows which of those
+	// they could not reproduce.
+	Ignore []string `yaml:"ignore" json:"ignore"`
 }
 
 // Schedule is what to ask launchd for, not what launchd is currently doing.
@@ -219,6 +250,10 @@ func Defaults() Config {
 		Window:     Window{Width: 1180, Height: 780},
 		Refresh:    Refresh{MenuBarSeconds: 60, WindowSeconds: 30},
 		Paths:      Paths{}, // empty: see Paths, and Resolve below
+		// Empty rather than a helpful default. Skipping .git by default would hide
+		// a real loss from somebody who wanted it, and the window offers the usual
+		// suspects as one-click suggestions instead.
+		ChangeDetection: ChangeDetection{Ignore: []string{}},
 	}
 }
 

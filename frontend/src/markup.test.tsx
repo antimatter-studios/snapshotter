@@ -136,6 +136,8 @@ describe("the browser's markup", () => {
   // A table of files is a table: rows that line up in columns, with headers
   // naming them. Built from divs it looks the same until the text is long.
   it("lists files in a table with a header for every column", async () => {
+    // A listing gives up on the previous one's folder checks before it starts.
+    vi.spyOn(Browse, "AbandonFolderChecks").mockResolvedValue(undefined as never);
     vi.spyOn(Browse, "Merged").mockResolvedValue({
       rows: [
         {
