@@ -354,6 +354,20 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.62.0
+
+Browsing a snapshot stopped re-reading whole trees to answer questions it had
+already answered. Deciding a folder has changed needs one difference; deciding it
+has not needs everything under it read, and on an SD card that was seconds per
+folder. A difference is now recorded where it was found — one path, re-checked
+with a single stat, which answers that folder and every folder above it — and
+kept between runs. The reverse holds too: a walk that finishes without finding
+anything has already read every folder below it, and now says so. What macOS
+already remembers is harvested first, and `change_detection.ignore` names the
+paths not worth reading at all. Clicking a folder blanks the window immediately
+rather than eight seconds later, and the trail across the top no longer offers
+folders outside the volume being browsed.
+
 ### v0.61.0
 
 A status bar along the bottom of the window counts the slow work — "Checking
@@ -426,16 +440,6 @@ is now per copy: it deleted by date, and a date exists on every volume mounted
 when it was taken, so one press quietly took an external disk's snapshot of the
 same moment too. `diskutil apfs deleteSnapshot -uuid` is the only call that tells
 two copies apart.
-
-### v0.56.0
-
-Snapshots were taken on every APFS volume and pruned on one. `tmutil
-localsnapshot` takes no arguments at all, so it writes to every mounted APFS
-volume at once — and listing, pruning and reporting all ran on the startup disk
-alone, so everything else accumulated snapshots nothing would ever delete. Found
-on an SD card at 98% full holding eight that existed nowhere else. Pruning now
-plans over every volume, and the Health screen reports each one's own free space
-and pinning snapshot.
 
 ## Design decisions
 
