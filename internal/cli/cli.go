@@ -193,36 +193,52 @@ func writeTopic(e Env, name string) int {
 	return 0
 }
 
+// runList prints every volume's snapshots, grouped by the disk they are on.
+//
+// It used to answer for the data volume alone, which stopped being the whole
+// answer when `tmutil localsnapshot` turned out to write to every mounted APFS
+// volume at once. Somebody wanting to know what was on an external disk had to
+// leave this application and read diskutil, which is the one thing it exists to
+// save them from.
+//
+// One volume is printed without a heading. A machine with a single disk needs no
+// label saying which disk, and adding one would make every Mac look like it had
+// something to disambiguate.
 func runList(ctx context.Context, e Env, _ []string) error {
-	snaps, err := apfs.List(ctx, e.Runner, e.Volume)
+	vols, err := apfs.Volumes(ctx, e.Runner)
 	if err != nil {
 		return err
 	}
-	if len(snaps) == 0 {
+	if len(vols) == 0 {
 		fmt.Fprintln(e.Out, i18n.T("cli.noSnapshots"))
 		return nil
 	}
 
-	// Flags decorate rather than replace the listing, so a failure to read them
-	// costs detail and not the answer.
-	details, _ := apfs.Details(ctx, e.Runner, e.Volume)
-
 	tw := tabwriter.NewWriter(e.Out, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(tw, i18n.T("cli.colDate")+"\t"+i18n.T("cli.colAge")+"\t"+i18n.T("cli.colFlags"))
-	for _, s := range snaps {
-		var flags []string
-		if d, ok := details[s.Name]; ok {
-			if d.Purgeable {
+	for i, v := range vols {
+		if len(vols) > 1 {
+			if i > 0 {
+				fmt.Fprintln(tw)
+			}
+			// The name a person calls the disk, and where it is mounted. Both,
+			// because two disks can share a name and only the mount point says
+			// which one this is.
+			fmt.Fprintf(tw, "%s\t%s\t\n", v.Name, v.MountPoint)
+		}
+		fmt.Fprintln(tw, i18n.T("cli.colDate")+"\t"+i18n.T("cli.colAge")+"\t"+i18n.T("cli.colFlags"))
+		for _, s := range v.Snapshots {
+			var flags []string
+			if s.Purgeable {
 				flags = append(flags, "purgeable")
 			}
-			if d.LimitsContainer {
+			if s.LimitsContainer {
 				flags = append(flags, "pinning-container")
 			}
+			if len(flags) == 0 {
+				flags = []string{"-"}
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%s\n", s.Stamp, age(e.Now().Sub(s.Taken)), strings.Join(flags, ","))
 		}
-		if len(flags) == 0 {
-			flags = []string{"-"}
-		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\n", s.Stamp, age(e.Now().Sub(s.Taken)), strings.Join(flags, ","))
 	}
 	return tw.Flush()
 }
