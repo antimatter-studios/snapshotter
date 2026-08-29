@@ -354,6 +354,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.63.0
+
+`snapshotter list` answers for every disk rather than the startup one alone,
+grouped by volume with each disk's name and mount point. Local snapshots are
+written to every mounted APFS volume at once, so answering "what is on the SD
+card" used to mean leaving this application and reading diskutil — where it is
+easy to miss which snapshot is holding a container open, because that is a
+different line from the one saying it is purgeable.
+
 ### v0.62.2
 
 Every disk that was not the startup disk carried a note above its snapshots saying
@@ -433,16 +442,6 @@ comparing, searching and restoring all name the volume now, because a snapshot
 name does not identify a copy — the same date exists on every volume that was
 mounted when it was taken. Browsing starts at a home directory on the startup
 disk and at the volume's own root anywhere else.
-
-### v0.58.0
-
-A snapshot on any volume can be opened, not just the startup disk's. The
-privileged helper still keeps an allowlist of what it may read from — it is now
-discovered as root from the machine rather than written down as one constant, so
-a caller may name a volume but not add one. Each volume mounts into its own
-directory, because two volumes' snapshots of the same moment share a date. The
-home screen also gained one spacing rule where it had several, and the volumes
-table moved into the part of it that scrolls.
 
 ## Design decisions
 
