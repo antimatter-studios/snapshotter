@@ -49,7 +49,7 @@
     "other": "afficher, lire ou modifier les réglages"
   },
   "cli.desc.list": {
-    "other": "lister les snapshots du volume de données, du plus récent au plus ancien"
+    "other": "lister les snapshots de chaque disque, du plus récent au plus ancien"
   },
   "cli.desc.run": {
     "other": "créer un snapshot, puis exécuter une commande"

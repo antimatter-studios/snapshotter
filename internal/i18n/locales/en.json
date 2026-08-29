@@ -49,7 +49,7 @@
     "other": "show, read or change the settings"
   },
   "cli.desc.list": {
-    "other": "list the snapshots of the data volume, newest first"
+    "other": "list every disk's snapshots, newest first"
   },
   "cli.desc.run": {
     "other": "take a snapshot, then run a command"

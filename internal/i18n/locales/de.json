@@ -49,7 +49,7 @@
     "other": "die Einstellungen anzeigen, lesen oder ändern"
   },
   "cli.desc.list": {
-    "other": "die Snapshots des Datenvolumes auflisten, neueste zuerst"
+    "other": "die Snapshots jeder Festplatte auflisten, neueste zuerst"
   },
   "cli.desc.run": {
     "other": "einen Snapshot erstellen, dann einen Befehl ausführen"

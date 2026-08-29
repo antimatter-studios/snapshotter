@@ -25,9 +25,17 @@ var now = time.Date(2026, 8, 14, 8, 0, 0, 0, time.Local)
 type fakeRunner struct {
 	snapshots []string
 	details   string
-	createErr error
-	created   int
-	calls     []string
+	// mounted is the `mount` output, empty for a machine with one APFS volume.
+	mounted string
+	// volumeName is what diskutil calls the disk, shown as a heading when there
+	// is more than one.
+	volumeName string
+	// detailsFor is the snapshot listing per mount point, for a machine with more
+	// than one disk. Falls back to details.
+	detailsFor map[string]string
+	createErr  error
+	created    int
+	calls      []string
 }
 
 func (f *fakeRunner) Run(_ context.Context, name string, args ...string) (string, error) {
@@ -43,7 +51,26 @@ func (f *fakeRunner) Run(_ context.Context, name string, args ...string) (string
 		return "Created local snapshot with date: 2026-08-14-080000\n", nil
 	case name == "tmutil" && args[0] == "destinationinfo":
 		return "No destinations configured", errors.New("exit status 1")
+	case name == "mount":
+		// What `list` reads first, now that it answers for every volume rather
+		// than the data volume alone. One volume unless a test says otherwise, so
+		// the listings below stay about snapshots rather than about disks.
+		if f.mounted != "" {
+			return f.mounted, nil
+		}
+		return "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n", nil
+	case name == "diskutil" && len(args) > 0 && args[0] == "info":
+		return "   Volume Name:               " + f.volumeName + "\n   Protocol:                  Apple Fabric\n", nil
 	case name == "diskutil":
+		// Per mount point where a test describes more than one disk. Volumes are
+		// deduplicated by the device in this output, so a fake answering the same
+		// thing for every mount point describes one disk mounted twice — which is
+		// a real shape (/ and /System/Volumes/Data) and not the one being tested.
+		if len(args) > 2 {
+			if d, ok := f.detailsFor[args[2]]; ok {
+				return d, nil
+			}
+		}
 		return f.details, nil
 	}
 	return "", nil
@@ -115,7 +142,8 @@ func TestListReportsFlagsPerSnapshot(t *testing.T) {
 			"com.apple.TimeMachine.2026-08-14-003200.local",
 			"com.apple.TimeMachine.2026-08-13-172036.local",
 		},
-		details: `+-- A
+		details: `Snapshots for disk3s1 (2 found)
++-- A
 |   Name:        com.apple.TimeMachine.2026-08-13-172036.local
 |   Purgeable:   Yes
 |   NOTE:        This snapshot limits the minimum size of APFS Container disk3
@@ -640,5 +668,75 @@ func TestATopicLikeNothingFallsBackToTheHelp(t *testing.T) {
 	}
 	if !strings.Contains(errBuf.String(), "Usage:") {
 		t.Errorf("no help was offered:\n%s", errBuf.String())
+	}
+}
+
+// `list` answers for every disk, not just the startup one.
+//
+// It read the data volume alone, which stopped being the whole answer when
+// `tmutil localsnapshot` turned out to write to every mounted APFS volume at
+// once. Somebody wanting to know what was on an external disk had to leave this
+// application and read diskutil — the one thing it exists to save them from.
+func TestListReportsEveryVolume(t *testing.T) {
+	r := &fakeRunner{
+		mounted: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, nodev)\n",
+		volumeName: "sdcard256gb",
+		detailsFor: map[string]string{
+			"/System/Volumes/Data": `Snapshots for disk3s1 (1 found)
++-- A
+    Name:        com.apple.TimeMachine.2026-08-14-003200.local
+    Purgeable:   Yes
+`,
+			// The same date on both, which is what tmutil localsnapshot actually
+			// produces: it takes no arguments and writes to every mounted APFS
+			// volume at once.
+			"/Volumes/sdcard256gb": `Snapshots for disk8s1 (1 found)
++-- B
+    Name:        com.apple.TimeMachine.2026-08-14-003200.local
+    Purgeable:   Yes
+`,
+		},
+	}
+	e, out, _ := newEnv(r)
+	if code := Run(context.Background(), e, []string{"list"}); code != 0 {
+		t.Fatalf("list exited %d", code)
+	}
+	got := out.String()
+
+	// Both disks, each named and each saying where it is mounted: two disks can
+	// share a name, and only the mount point says which one this is.
+	for _, want := range []string{"/System/Volumes/Data", "/Volumes/sdcard256gb"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("%s is missing from the listing:\n%s", want, got)
+		}
+	}
+	// And the snapshots are listed under each rather than once for the machine.
+	if n := strings.Count(got, "2026-08-14-003200"); n != 2 {
+		t.Errorf("the snapshot appears %d times, want once per volume:\n%s", n, got)
+	}
+}
+
+// One disk needs no heading saying which disk. Labelling it would make every Mac
+// look like it had something to disambiguate.
+func TestListDoesNotNameTheDiskWhenThereIsOnlyOne(t *testing.T) {
+	r := &fakeRunner{
+		details: `Snapshots for disk3s1 (1 found)
++-- A
+    Name:        com.apple.TimeMachine.2026-08-14-003200.local
+    Purgeable:   Yes
+`,
+	}
+	e, out, _ := newEnv(r)
+	if code := Run(context.Background(), e, []string{"list"}); code != 0 {
+		t.Fatalf("list exited %d", code)
+	}
+	got := out.String()
+
+	if strings.Contains(got, "/System/Volumes/Data") {
+		t.Errorf("a single disk was labelled anyway:\n%s", got)
+	}
+	if !strings.Contains(got, "2026-08-14-003200") {
+		t.Errorf("the snapshot is missing:\n%s", got)
 	}
 }
