@@ -7,6 +7,31 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.63.0 — 2026-08-29
+
+**`list` answers for every disk, not just the startup one.**
+
+It read the data volume alone. That stopped being the whole answer when `tmutil
+localsnapshot` turned out to take no arguments and write to every mounted APFS
+volume at once, so somebody wanting to know what was on an external disk had to
+leave this application and read diskutil — the one thing it exists to save them
+from.
+
+Reading diskutil by hand is also easy to get wrong. The flags column comes from
+the NOTE line rather than the Purgeable line, and on the machine this was written
+for that is the difference between "nothing is pinning the SD card's container"
+and the truth, which is that a snapshot from 22:10 is. The two disks pin at
+different dates, so there is no single oldest snapshot whose deletion frees space
+on both.
+
+Grouped by disk, with the name and the mount point: two disks can share a name,
+and only the mount point says which one this is. A machine with one disk gets no
+heading, because labelling it would make every Mac look like it had something to
+disambiguate.
+
+The help text said "of the data volume" in four languages — the same rot as the
+notice removed in v0.62.2, true when written and false since.
+
 ## v0.62.2 — 2026-08-29
 
 **A notice that was no longer true.**
