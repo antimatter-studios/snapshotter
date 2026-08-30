@@ -7,6 +7,25 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.63.2 — 2026-08-30
+
+**`snapshotter open` could not find the bundle it was launched from.**
+
+It answered "this copy is not in an application bundle, so there is no window to
+open" — from inside the installed application. os.Executable on macOS hands back
+the path the process was started with rather than the file it ended up at, so run
+through Homebrew's link it is /opt/homebrew/bin/snapshotter, which is not a
+bundle.
+
+Resolved there, and deliberately not in the check that decides whether a bare
+invocation is a question or a launch: that one wants to know how the program was
+addressed — through a bundle by the Dock, by name at a prompt — and resolving
+would erase the difference it exists to see.
+
+The command line and the window are one binary; the only thing that separates
+them is how it was asked for, which is why this distinction has to be made
+carefully.
+
 ## v0.63.1 — 2026-08-30
 
 **A way in, and a way home.**

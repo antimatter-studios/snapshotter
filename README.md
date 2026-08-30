@@ -354,6 +354,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.63.2
+
+`snapshotter open` answered "this copy is not in an application bundle" from
+inside the installed application: on macOS a program is told the path it was
+started with, and through Homebrew's link that is not the bundle it lives in.
+
 ### v0.63.1
 
 `snapshotter` with no arguments prints the help instead of opening a window — and
@@ -434,14 +440,6 @@ written and none of it reached the machine it was about. Also, a volume that
 cannot be identified is now an error rather than a silent fall back to the home
 folder — which on an external disk opened a path that does not exist inside that
 snapshot and read as an empty one.
-
-### v0.59.1
-
-Browsing a snapshot on another volume reported that the volume was "not on the
-data volume", because path translation assumed there was only one. It now
-translates against the volume being browsed — and coming back out lands on that
-volume too, where it used to return a path on the startup disk and aim a restore
-at the wrong disk.
 
 ## Design decisions
 
