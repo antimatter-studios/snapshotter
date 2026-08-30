@@ -7,6 +7,35 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.63.1 — 2026-08-30
+
+**A way in, and a way home.**
+
+`snapshotter` with no arguments printed nothing and opened a window. That is how
+somebody finds out what the commands are — and when a window was already open it
+refused with an explanation of two menu bar icons, which answered a question
+nobody had asked. It prints the help now.
+
+Told apart by how the program was addressed rather than by what it is. Homebrew
+links /opt/homebrew/bin/snapshotter straight into the bundle, so the file on disk
+is the same either way and os.Executable resolves the link and loses the
+difference. os.Args[0] keeps it: the Dock, Finder, `open` and `wails3 dev` all
+address the binary through the bundle it lives in, and a person types a name. A
+terminal check was tried first and was wrong — `wails3 dev` runs the binary with
+the developer's terminal still attached, so the window never opened at all.
+
+`snapshotter open` is the other half: asking for the window now needs a word, so
+there is one. It goes through LaunchServices, which is what gives an application
+its Dock icon and its menu bar, and what brings a running copy forward instead of
+starting a second one the instance guard would refuse.
+
+And the Home button was a line of plain text the width of the sidebar, which read
+as a heading rather than as somewhere to go. An outline and a word were no better:
+everything else in that panel is an outline and a word. It is built as a
+destination now — a filled mark, a name, and a line saying what is on the other
+side — and it is the one place in the sidebar entitled to the accent, because the
+snapshot list below it is deliberately quiet.
+
 ## v0.63.0 — 2026-08-29
 
 **`list` answers for every disk, not just the startup one.**
