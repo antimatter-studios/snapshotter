@@ -160,3 +160,42 @@ func TestTheLockSitsBesideTheSettings(t *testing.T) {
 		t.Error("the path is not stable between calls")
 	}
 }
+
+// Asking for the application when it is already open should show it to you.
+// Typing `snapshotter` is asking for the window, and there is a window — the
+// refusal answered a question nobody had asked.
+
+func TestTheBundleIsFoundFromTheBinaryInsideIt(t *testing.T) {
+	got, ok := BundleOf("/Applications/Snapshotter.app/Contents/MacOS/snapshotter")
+	if !ok {
+		t.Fatal("an installed binary has no bundle")
+	}
+	if got != "/Applications/Snapshotter.app" {
+		t.Errorf("found %q", got)
+	}
+}
+
+// A development build run straight from bin/ has no bundle to raise. Guessing at
+// one would open whatever else on the machine is called Snapshotter, so it says
+// it cannot and the caller falls back to explaining itself.
+func TestABareBinaryHasNoBundleToRaise(t *testing.T) {
+	for _, p := range []string{
+		"/Volumes/sd/projects/snapshotter/bin/snapshotter",
+		"",
+		"/Applications/Snapshotter.app/Contents/snapshotter",
+		"/somewhere/Contents/MacOS/snapshotter",
+	} {
+		if got, ok := BundleOf(p); ok {
+			t.Errorf("%q was taken for the bundle %q", p, got)
+		}
+	}
+}
+
+// Nothing to raise means nothing raised, rather than a command run against an
+// empty path.
+func TestRaisingWithNothingToRaiseFails(t *testing.T) {
+	e := &ErrAlreadyRunning{PID: 123}
+	if e.Raise() {
+		t.Error("claimed to raise a window it knows nothing about")
+	}
+}

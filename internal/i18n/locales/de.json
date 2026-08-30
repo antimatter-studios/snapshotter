@@ -51,6 +51,9 @@
   "cli.desc.list": {
     "other": "die Snapshots jeder Festplatte auflisten, neueste zuerst"
   },
+  "cli.desc.open": {
+    "other": "das Fenster öffnen oder nach vorne holen, wenn es bereits offen ist"
+  },
   "cli.desc.run": {
     "other": "einen Snapshot erstellen, dann einen Befehl ausführen"
   },
@@ -103,6 +106,9 @@
   },
   "cli.notAConfigCommand": {
     "other": "{{.Name}} ist kein config-Befehl (versuchen Sie: keys, get, set)"
+  },
+  "cli.notInstalled": {
+    "other": "diese Kopie liegt in keinem Programmbündel, es gibt also kein Fenster zu öffnen"
   },
   "cli.oldest": {
     "other": "ältester"

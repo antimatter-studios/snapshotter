@@ -1,3 +1,4 @@
+import { House } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Snapshots, Browse, Status, message, type SnapshotView, type Overview } from "./api";
 import { age, bytes, stamp } from "./format";
@@ -375,8 +376,20 @@ export default function App() {
           <button
             className={`aside-home ${view === "home" ? "active" : ""}`}
             onClick={() => setView("home")}
+            aria-current={view === "home" ? "page" : undefined}
           >
-            {t("nav.home")}
+            {/* A mark as well as a word. This is the only control in the sidebar
+                that leaves the snapshot behind, and as a line of plain text it
+                read as a heading rather than as somewhere to go — people looked
+                past it. The icon is what makes it findable at a glance; the word
+                stays because an icon alone would be a guess. */}
+            <span className="aside-home-mark" aria-hidden="true">
+              <House size={16} strokeWidth={2.25} />
+            </span>
+            <span className="aside-home-text">
+              <span className="aside-home-label">{t("nav.home")}</span>
+              <span className="aside-home-sub">{t("nav.homeSub")}</span>
+            </span>
           </button>
 
           <div className="aside-head">

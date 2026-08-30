@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -135,4 +136,45 @@ func describeHolder(f *os.File) (string, int) {
 		held = strings.TrimSpace(lines[1])
 	}
 	return held, pid
+}
+
+// Raise brings the running copy's window to the front.
+//
+// Asking for the application when it is already open should show it to you. That
+// is what every other Mac application does, and what the Dock and Spotlight do
+// for this one — only the terminal refused, with an explanation of a problem the
+// person had not caused: they asked for the window, and there is a window.
+//
+// The refusal is still right when a SECOND copy would be started. It was never
+// right as the answer to "show me the one that is running".
+//
+// Reported rather than assumed: an activation that did not work has to fall back
+// to saying why, or asking for the window would silently do nothing at all.
+func (e *ErrAlreadyRunning) Raise() bool {
+	// The bundle, from the executable inside it. `open` takes the .app rather than
+	// the binary — handed the binary it launches a second copy, which is the thing
+	// being avoided.
+	bundle, ok := BundleOf(e.Held)
+	if !ok {
+		return false
+	}
+	return exec.Command("open", "-a", bundle).Run() == nil
+}
+
+// BundleOf finds the .app a binary lives in.
+//
+// Empty for a bare binary — a development build run straight from bin/ has no
+// bundle to raise, and pretending otherwise would open whatever else is called
+// Snapshotter.
+func BundleOf(executable string) (string, bool) {
+	const inside = "/Contents/MacOS/"
+	i := strings.LastIndex(executable, inside)
+	if i < 0 {
+		return "", false
+	}
+	bundle := executable[:i]
+	if !strings.HasSuffix(bundle, ".app") {
+		return "", false
+	}
+	return bundle, true
 }

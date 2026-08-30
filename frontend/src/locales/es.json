@@ -147,6 +147,7 @@
   "language.label": "Idioma",
   "nav.browse": "Explorar",
   "nav.home": "Inicio",
+  "nav.homeSub": "Estado de este Mac",
   "nav.search": "Buscar",
   "nav.snapshots": "Snapshots",
   "schedule.automatic": "Snapshots automáticos",

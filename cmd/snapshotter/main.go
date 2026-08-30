@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -162,12 +163,49 @@ func main() {
 	// however it ends. The command line and both agents return before reaching
 	// here, so none of them is blocked by a window being open — they take no icon
 	// and they are the things that must keep working.
+	// Typed at a prompt with nothing after it, this is a question rather than a
+	// launch: `snapshotter` alone is how somebody finds out what the commands are.
+	// It used to open the window instead, and when a window was already open it
+	// refused with an explanation of two menu bar icons — which answered a
+	// question nobody had asked.
+	//
+	// Told apart by HOW it was invoked, not by what it is. Homebrew links
+	// /opt/homebrew/bin/snapshotter straight into the bundle, so the file on disk
+	// is the same either way and os.Executable resolves the link and loses the
+	// difference. os.Args[0] keeps it: launched by the Dock, by Finder, by `open`
+	// or by `wails3 dev`, the program is addressed through the bundle it lives in;
+	// typed at a prompt it is addressed by the name on PATH or by the symlink.
+	//
+	// A terminal check was tried first and was wrong: `wails3 dev` runs the binary
+	// with the developer's terminal still attached, so the window never opened.
+	//
+	// After the launchd flags, not before: --take-snapshot run by hand is still a
+	// snapshot, and printing help at it would be refusing to do the one thing it
+	// was asked.
+	if _, launchedFromBundle := single.BundleOf(os.Args[0]); !launchedFromBundle {
+		env := cli.SystemEnv()
+		env.Runner = runner
+		os.Exit(cli.Run(context.Background(), env, nil))
+	}
+
 	configDir, dirErr := config.Dir()
 	if dirErr != nil {
 		log.Fatal(dirErr)
 	}
 	releaseWindow, err := single.Hold(single.Path(configDir))
 	if err != nil {
+		// Asking for the application when it is already open should show it to
+		// you. Typing `snapshotter` is asking for the window, and there is a
+		// window — refusing with an explanation of two menu bar icons answered a
+		// question nobody had asked.
+		//
+		// The refusal still stands where a second copy really would be started:
+		// a development build outside a bundle has nothing to raise, and saying
+		// so is better than opening whatever else is called Snapshotter.
+		var running *single.ErrAlreadyRunning
+		if errors.As(err, &running) && running.Raise() {
+			return
+		}
 		log.Fatal(err)
 	}
 	defer releaseWindow()

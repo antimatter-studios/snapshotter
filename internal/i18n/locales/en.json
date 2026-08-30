@@ -51,6 +51,9 @@
   "cli.desc.list": {
     "other": "list every disk's snapshots, newest first"
   },
+  "cli.desc.open": {
+    "other": "open the window, or bring it to the front if it is already open"
+  },
   "cli.desc.run": {
     "other": "take a snapshot, then run a command"
   },
@@ -103,6 +106,9 @@
   },
   "cli.notAConfigCommand": {
     "other": "{{.Name}} is not a config command (try: keys, get, set)"
+  },
+  "cli.notInstalled": {
+    "other": "this copy is not in an application bundle, so there is no window to open"
   },
   "cli.oldest": {
     "other": "oldest"

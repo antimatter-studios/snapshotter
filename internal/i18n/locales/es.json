@@ -51,6 +51,9 @@
   "cli.desc.list": {
     "other": "listar los snapshots de cada disco, primero los más recientes"
   },
+  "cli.desc.open": {
+    "other": "abrir la ventana, o traerla al frente si ya está abierta"
+  },
   "cli.desc.run": {
     "other": "crear un snapshot y luego ejecutar un comando"
   },
@@ -103,6 +106,9 @@
   },
   "cli.notAConfigCommand": {
     "other": "{{.Name}} no es un comando de config (pruebe: keys, get, set)"
+  },
+  "cli.notInstalled": {
+    "other": "esta copia no está en un paquete de aplicación, así que no hay ventana que abrir"
   },
   "cli.oldest": {
     "other": "más antiguo"
