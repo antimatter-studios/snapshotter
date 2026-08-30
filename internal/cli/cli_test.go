@@ -11,6 +11,7 @@ import (
 	"snapshotter/internal/config"
 	"snapshotter/internal/i18n"
 	"snapshotter/internal/manual"
+	"snapshotter/internal/single"
 	"strings"
 	"testing"
 	"time"
@@ -738,5 +739,40 @@ func TestListDoesNotNameTheDiskWhenThereIsOnlyOne(t *testing.T) {
 	}
 	if !strings.Contains(got, "2026-08-14-003200") {
 		t.Errorf("the snapshot is missing:\n%s", got)
+	}
+}
+
+// `open` has to find the bundle through Homebrew's symlink.
+//
+// os.Executable on macOS hands back the path the process was started with, so run
+// through /opt/homebrew/bin/snapshotter it is that link rather than the binary
+// inside the bundle — and asking for the window answered that there was no window
+// to open. The check that decides whether a bare invocation is a question is the
+// opposite: it wants how the program was ADDRESSED, and must not resolve.
+func TestOpenFindsTheBundleThroughASymlink(t *testing.T) {
+	dir := t.TempDir()
+	inside := filepath.Join(dir, "Snapshotter.app", "Contents", "MacOS")
+	if err := os.MkdirAll(inside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	real := filepath.Join(inside, "snapshotter")
+	if err := os.WriteFile(real, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "snapshotter")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+
+	// Through the link, which is what Homebrew installs.
+	resolved, err := filepath.EvalSymlinks(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := single.BundleOf(link); ok {
+		t.Error("the symlink was taken for a bundle without being resolved")
+	}
+	if _, ok := single.BundleOf(resolved); !ok {
+		t.Error("resolving the symlink did not reach the bundle")
 	}
 }

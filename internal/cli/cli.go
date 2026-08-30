@@ -17,6 +17,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"snapshotter/internal/i18n"
 	"snapshotter/internal/manual"
 	"sort"
@@ -476,6 +477,15 @@ func runOpen(_ context.Context, e Env, _ []string) error {
 	self, err := os.Executable()
 	if err != nil {
 		return err
+	}
+	// Resolved, unlike the check that decides whether a bare invocation is a
+	// question or a launch. That one wants to know how the program was ADDRESSED;
+	// this wants to know where it actually lives. On macOS os.Executable hands
+	// back the path used to start the process, so run through Homebrew's symlink
+	// it is /opt/homebrew/bin/snapshotter — which is not a bundle, and asking for
+	// the window said so.
+	if resolved, err := filepath.EvalSymlinks(self); err == nil {
+		self = resolved
 	}
 	bundle, ok := single.BundleOf(self)
 	if !ok {
