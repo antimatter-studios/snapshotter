@@ -354,6 +354,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.63.1
+
+`snapshotter` with no arguments prints the help instead of opening a window — and
+`snapshotter open` is how you ask for the window, which also brings a running one
+to the front. The Home button in the sidebar was a line of plain text that read as
+a heading rather than as somewhere to go; it is a proper destination now, with a
+mark, a name and a line saying what is on the other side.
+
 ### v0.63.0
 
 `snapshotter list` answers for every disk rather than the startup one alone,
@@ -434,14 +442,6 @@ data volume", because path translation assumed there was only one. It now
 translates against the volume being browsed — and coming back out lands on that
 volume too, where it used to return a path on the startup disk and aim a restore
 at the wrong disk.
-
-### v0.59.0
-
-A snapshot on another volume can be looked inside, not only opened. Browsing,
-comparing, searching and restoring all name the volume now, because a snapshot
-name does not identify a copy — the same date exists on every volume that was
-mounted when it was taken. Browsing starts at a home directory on the startup
-disk and at the volume's own root anywhere else.
 
 ## Design decisions
 
