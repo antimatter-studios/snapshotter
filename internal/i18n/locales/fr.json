@@ -51,6 +51,9 @@
   "cli.desc.list": {
     "other": "lister les snapshots de chaque disque, du plus récent au plus ancien"
   },
+  "cli.desc.open": {
+    "other": "ouvrir la fenêtre, ou la mettre au premier plan si elle est déjà ouverte"
+  },
   "cli.desc.run": {
     "other": "créer un snapshot, puis exécuter une commande"
   },
@@ -103,6 +106,9 @@
   },
   "cli.notAConfigCommand": {
     "other": "{{.Name}} n'est pas une commande config (essayez : keys, get, set)"
+  },
+  "cli.notInstalled": {
+    "other": "cette copie n'est pas dans un bundle d'application, il n'y a donc pas de fenêtre à ouvrir"
   },
   "cli.oldest": {
     "other": "le plus ancien"

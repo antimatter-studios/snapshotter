@@ -377,14 +377,91 @@ aside {
   gap: 8px;
 }
 
+/* The only control in the sidebar that leaves the snapshot behind.
+
+   It was a line of plain text the width of the panel, which read as a heading
+   rather than as somewhere to go — people looked past it entirely. An outline and
+   a word were not enough either: everything else in this sidebar is an outline
+   and a word, so it still had nothing to catch the eye.
+
+   So it is built as a destination rather than as a control: a filled mark, a
+   name, and a line saying what is on the other side. The accent carries it,
+   because this is the one place in the panel entitled to use it — the snapshot
+   list below is deliberately quiet, and a second bright thing would compete with
+   the row somebody actually came to choose. */
 .aside-home {
-  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
+  padding: 9px 11px;
+  margin-bottom: 14px;
+  text-align: left;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 16%, transparent),
+      color-mix(in srgb, var(--accent) 7%, transparent));
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
+/* A filled tile rather than a bare glyph. At this size an outlined icon on an
+   outlined button is two thin rectangles and reads as neither. */
+.aside-home-mark {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.aside-home-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.aside-home-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* What is on the other side, because "Home" on its own does not say. Every other
+   thing in this panel is about one snapshot; this is the way back to the machine
+   itself, and the word for that is not obvious. */
+.aside-home-sub {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+.aside-home:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 24%, transparent),
+      color-mix(in srgb, var(--accent) 12%, transparent));
+}
+
+/* Where you already are. Said by the border and the accent on the words rather
+   than by a heavier fill: this is a place, not a pressed button. */
 .aside-home.active {
-  background: var(--selected);
   border-color: var(--accent);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 28%, transparent),
+      color-mix(in srgb, var(--accent) 14%, transparent));
+}
+
+.aside-home.active .aside-home-label {
+  color: var(--accent);
 }
 
 .aside-head {

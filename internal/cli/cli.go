@@ -27,6 +27,7 @@ import (
 
 	"snapshotter/internal/apfs"
 	"snapshotter/internal/config"
+	"snapshotter/internal/single"
 	"snapshotter/internal/version"
 )
 
@@ -88,6 +89,11 @@ func commands() map[string]command {
 			summary: i18n.T("cli.desc.run"),
 			usage:   "run -- <command> [args...]",
 			run:     runRun,
+		},
+		"open": {
+			summary: i18n.T("cli.desc.open"),
+			usage:   "open",
+			run:     runOpen,
 		},
 		"version": {
 			summary: i18n.T("cli.desc.version"),
@@ -455,4 +461,30 @@ func configSubcommand(e Env, args []string) error {
 	default:
 		return fmt.Errorf("config: "+i18n.T("cli.notAConfigCommand", "Name", "%q"), args[0])
 	}
+}
+
+// runOpen shows the window, and shows the one already open rather than refusing.
+//
+// Typing the bare name is a question — it prints this help — so asking for the
+// window needs a word of its own. It exists because the alternative was reaching
+// for Finder or `open -a` to do something this command line can obviously do.
+//
+// Through LaunchServices rather than by starting the binary: it is what gives an
+// application a Dock icon and a menu bar, and what brings a running copy forward
+// instead of starting a second one that would be refused by the instance guard.
+func runOpen(_ context.Context, e Env, _ []string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	bundle, ok := single.BundleOf(self)
+	if !ok {
+		// A development build run straight from bin/ has no bundle. Guessing at one
+		// would open whatever else on this machine is called Snapshotter.
+		return errors.New(i18n.T("cli.notInstalled"))
+	}
+	if err := exec.Command("open", "-a", bundle).Run(); err != nil {
+		return fmt.Errorf("%s: %w", bundle, err)
+	}
+	return nil
 }
