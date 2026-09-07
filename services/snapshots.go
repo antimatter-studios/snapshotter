@@ -238,6 +238,39 @@ func (s *SnapshotService) TakeNow(ctx context.Context) (SnapshotView, error) {
 	return SnapshotView{Name: snap.Name, Stamp: snap.Stamp, Taken: snap.Taken, MountPoint: mp}, nil
 }
 
+// TakeOn creates a snapshot and leaves it on one disk, which is what the camera
+// beside each disk's heading does.
+//
+// macOS has no per-disk create — `tmutil localsnapshot` takes no arguments and
+// writes to every eligible volume — so this takes the machine-wide snapshot and
+// then removes the copy it just put on every other disk. Only the copy it just
+// made: apfs.CreateOn compares the volumes before and after, so a stamp that was
+// already there is never touched.
+//
+// An empty device means the volumes could not be enumerated, and then this is
+// exactly TakeNow: a snapshot everywhere and nothing removed. Guessing which
+// disk was meant is the one thing that could delete somebody's only new copy.
+//
+// The reply describes the startup disk's copy for the same reason TakeNow's
+// does: it is the one the window selects and browses. The others appear in their
+// own groups on the next refresh.
+func (s *SnapshotService) TakeOn(ctx context.Context, device string) (SnapshotView, error) {
+	snap, _, err := apfs.CreateOn(ctx, s.Runner, device)
+	// Forgotten whether this worked or not. Snapshots were created on every disk
+	// before anything was removed, so the cached list is stale in either case —
+	// and after a failure it is the stale list that would hide what was left
+	// behind.
+	s.VolumeCache.Forget()
+	if err != nil {
+		return SnapshotView{}, err
+	}
+	mp, err := s.Mounts.MountPoint(snap.Name)
+	if err != nil {
+		return SnapshotView{}, err
+	}
+	return SnapshotView{Name: snap.Name, Stamp: snap.Stamp, Taken: snap.Taken, MountPoint: mp}, nil
+}
+
 // Delete removes ONE VOLUME'S COPY of a snapshot, identified by the volume it is
 // on and its identifier there. This is the one irreversible action in the
 // application: a deleted snapshot cannot be recreated, because it recorded a past

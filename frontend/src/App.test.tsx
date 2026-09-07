@@ -39,14 +39,20 @@ const snapshots = [
   { name: "snap-b", stamp: "2026-08-18-120000", taken: "2026-08-18T12:00:00Z", mounted: false, mountPoint: "", device: "disk3s1", uuid: "AAAAAAAA-0000-0000-0000-000000000002" },
 ];
 
+// The disk every Mac has, named so a case wanting it empty can say so without
+// rebuilding the shape. An empty one is a state the sidebar reports now: every
+// volume Time Machine would snapshot is listed, whether it holds any yet or not.
+const startupDisk = {
+  name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1",
+  isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000,
+};
+
 function overview(over: Record<string, unknown> = {}) {
   return {
     snapshots,
     // One volume unless a case says otherwise, which is what a Mac with nothing
-    // plugged in looks like: the grouping is then invisible, as it should be.
-    volumes: [
-      { name: "Macintosh HD", mountPoint: "/System/Volumes/Data", device: "disk3s1", isStartupDisk: true, snapshots, freeBytes: 400, totalBytes: 1000 },
-    ],
+    // plugged in looks like.
+    volumes: [startupDisk],
     volumeTotalBytes: 1000,
     volumeFreeBytes: 400,
     timeMachineWarning: "",
@@ -113,6 +119,25 @@ async function snapshotRow(n = 0) {
   });
 }
 
+/** The camera on the heading of the disk called `disk`, once the real grouping
+ *  has arrived.
+ *
+ *  Found through the disk's name rather than taken from the first heading on
+ *  screen, because the sidebar renders a placeholder group — headed "This Mac" —
+ *  while the overview is still in flight, and the real group replaces it under
+ *  its own device key. A button found during that first render is a detached
+ *  node by the time it is clicked: the click lands on nothing, no handler runs,
+ *  and the test fails as a timeout with no indication that it clicked a ghost. */
+async function cameraOn(disk: string) {
+  const head = await waitFor(() => {
+    const heads = [...document.querySelectorAll(".volume-head")];
+    const found = heads.find((h) => h.querySelector(".volume-name")?.textContent === disk);
+    expect(found).toBeTruthy();
+    return found as HTMLElement;
+  });
+  return within(head).getByRole("button", { name: /take a snapshot of/i });
+}
+
 describe("the application shell", () => {
   it("lists every snapshot on the machine", async () => {
     stub();
@@ -149,19 +174,19 @@ describe("the application shell", () => {
   // A machine with none is the state this application exists to change, so it
   // must say so and offer the way out rather than showing an empty list.
   it("says what to do when there are no snapshots", async () => {
-    stub({ snapshots: [] });
+    stub({ snapshots: [], volumes: [{ ...startupDisk, snapshots: [] }] });
     render(<App />);
 
-    expect(await screen.findByText(/none yet/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /take a snapshot now/i })).toBeTruthy();
+    expect(await screen.findByText(/no snapshots on this disk yet/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /take a snapshot of/i })).toBeTruthy();
   });
 
   it("takes a snapshot when asked", async () => {
-    stub({ snapshots: [] });
-    const take = vi.spyOn(Snapshots, "TakeNow").mockResolvedValue({} as never);
+    stub({ snapshots: [], volumes: [{ ...startupDisk, snapshots: [] }] });
+    const take = vi.spyOn(Snapshots, "TakeOn").mockResolvedValue({} as never);
     render(<App />);
 
-    await userEvent.click(await screen.findByRole("button", { name: /take a snapshot now/i }));
+    await userEvent.click(await cameraOn("Macintosh HD"));
 
     await waitFor(() => expect(take).toHaveBeenCalledOnce());
   });
@@ -372,10 +397,10 @@ describe("getting back out", () => {
 
   it("dismisses a status line when it is clicked", async () => {
     stub();
-    vi.spyOn(Snapshots, "TakeNow").mockResolvedValue({} as never);
+    vi.spyOn(Snapshots, "TakeOn").mockResolvedValue({} as never);
 
     render(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: /take a snapshot now/i }));
+    await userEvent.click(await cameraOn("Macintosh HD"));
     const said = await screen.findByText(/snapshot/i, { selector: ".banner.ok" });
 
     await userEvent.click(said);
@@ -592,16 +617,80 @@ describe("snapshots grouped by volume", () => {
     expect(heads).toEqual(["Macintosh HD", "sdcard256gb"]);
   });
 
-  // One disk needs no label saying which disk. Every Mac would otherwise look as
-  // though it had something to disambiguate.
-  it("says nothing about volumes when there is only one", async () => {
+  // Headed even when there is one disk, which is a reversal.
+  //
+  // It used to be headless on a single-disk Mac, on the grounds that a label
+  // saying which disk is noise when there is only one. That stopped being true
+  // when the heading started carrying the camera: a machine with one disk would
+  // have had nowhere to take a snapshot from.
+  it("heads the one disk a plain Mac has, and gives it a camera", async () => {
     stub();
     render(<App />);
 
     await waitFor(() => {
       expect(document.querySelectorAll("ul.snapshot-list li").length).toBe(2);
     });
-    expect(document.querySelectorAll(".volume-head").length).toBe(0);
+    const head = document.querySelector(".volume-head")!;
+    expect(head.querySelector(".volume-name")!.textContent).toBe("Macintosh HD");
+    expect(within(head as HTMLElement).getByRole("button", { name: /take a snapshot of/i })).toBeTruthy();
+  });
+
+  // Every disk gets one, including a disk holding nothing: an empty disk is the
+  // one somebody most wants the button for.
+  it("puts a camera on every disk, empty ones included", async () => {
+    stub({
+      volumes: [
+        startupDisk,
+        { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: [], freeBytes: 20, totalBytes: 1000 },
+      ],
+    });
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelectorAll(".volume-group").length).toBe(2));
+    expect(screen.getAllByRole("button", { name: /take a snapshot of/i }).length).toBe(2);
+    // The card is listed with nothing under it rather than left out, and says so.
+    expect(screen.getByText(/no snapshots on this disk yet/i)).toBeTruthy();
+  });
+
+  // Each camera asks for its own disk. That is the whole point of there being
+  // one per heading rather than one for the machine.
+  it("takes a snapshot from a disk's own heading", async () => {
+    stub({
+      volumes: [
+        startupDisk,
+        { name: "sdcard256gb", mountPoint: "/Volumes/sdcard256gb", device: "disk8s1", isStartupDisk: false, snapshots: [], freeBytes: 20, totalBytes: 1000 },
+      ],
+    });
+    const take = vi.spyOn(Snapshots, "TakeOn").mockResolvedValue({} as never);
+    render(<App />);
+
+    await userEvent.click(await cameraOn("sdcard256gb"));
+
+    // The card's own device, not the startup disk's. The service takes a
+    // machine-wide snapshot and then removes the copies from every other disk,
+    // so which device is named here decides which disk keeps one.
+    await waitFor(() => expect(take).toHaveBeenCalledWith("disk8s1"));
+  });
+
+  // The label names the disk, because the disk is what the button leaves a
+  // snapshot on. Getting there means a machine-wide create and then removing the
+  // copies nobody asked for, which is the service's business and not a tooltip's.
+  it("names the disk it will leave a snapshot on", async () => {
+    stub();
+    render(<App />);
+
+    expect((await cameraOn("Macintosh HD")).getAttribute("title")).toMatch(/Macintosh HD/);
+  });
+
+  // One place to press, not two. The wide button along the bottom said the same
+  // thing as the cameras above it.
+  it("no longer offers a second way to take one at the foot of the sidebar", async () => {
+    stub();
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelector(".volume-head")).not.toBeNull());
+    const footer = document.querySelector(".aside-footer")!;
+    expect(within(footer as HTMLElement).queryByRole("button", { name: /snapshot/i })).toBeNull();
   });
 
   // Opening works on every volume now that the privileged helper builds its
@@ -700,7 +789,12 @@ describe("snapshots grouped by volume", () => {
     await waitFor(() => {
       expect(document.querySelectorAll("ul.snapshot-list li").length).toBe(2);
     });
-    expect(document.querySelectorAll(".volume-head").length).toBe(0);
+    // Headed "This Mac", because the heading holds the camera and a fallback
+    // with no heading would be a fallback with no way to take a snapshot. The
+    // name is the one thing that is honestly not known here.
+    expect(document.querySelectorAll(".volume-head").length).toBe(1);
+    expect(document.querySelector(".volume-name")!.textContent).toBe("This Mac");
+    expect(screen.getByRole("button", { name: /take a snapshot of/i })).toBeTruthy();
   });
 });
 

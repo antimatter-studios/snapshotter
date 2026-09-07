@@ -1,4 +1,4 @@
-import { House } from "lucide-react";
+import { Camera, House } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Snapshots, Browse, Status, message, type SnapshotView, type Overview } from "./api";
 import { age, bytes, stamp } from "./format";
@@ -397,12 +397,6 @@ export default function App() {
             <span className="count">{total}</span>
           </div>
 
-          {total === 0 && (
-            <p className="aside-empty">
-              {t("app.noneYet")}
-            </p>
-          )}
-
           {/* One scrolling region holding every group.
 
               It used to be the list itself, which worked while there was exactly
@@ -413,15 +407,42 @@ export default function App() {
           <div className="snapshot-scroll">
           {groups.map((group) => (
             <div className="volume-group" key={group.device || "startup"}>
-              {/* Headed only when there is more than one. A single disk needs no
-                  label saying which disk, and adding one would make every machine
-                  look like it had something to disambiguate. */}
-              {groups.length > 1 && (
-                <div className="volume-head" title={`${group.mountPoint} (${group.device})`}>
-                  <span className="volume-name">{group.name || group.mountPoint}</span>
-                  <span className="count">{group.snapshots.length}</span>
-                </div>
-              )}
+              {/* Headed always, including on a machine with one disk.
+
+                  It used to be headed only when there was more than one, on the
+                  grounds that a single disk needs no label saying which disk.
+                  That reasoning does not survive the head carrying a control:
+                  the camera lives here, and a machine with one disk would have
+                  nowhere to take a snapshot from. */}
+              <div className="volume-head" title={`${group.mountPoint} (${group.device})`}>
+                <span className="volume-name">{group.name || group.mountPoint || t("app.thisMac")}</span>
+                <span className="count">{group.snapshots.length}</span>
+                {/* A snapshot of this disk, arrived at the only way macOS allows.
+                    `tmutil localsnapshot` takes no arguments — the binary has a
+                    deleteLocalSnapshotsForDisk: and no create counterpart — so
+                    the service takes the machine-wide snapshot and then removes
+                    the copy it just made on every other disk. Only the copy it
+                    just made; see apfs.CreateOn.
+
+                    The label says the disk, because that is what the button
+                    leaves behind. What it does on the way there is the manual's
+                    job, not a tooltip's. */}
+                <button
+                  className="volume-snapshot"
+                  title={t("app.takeSnapshotOnDisk", { disk: group.name || group.mountPoint || t("app.thisMac") })}
+                  aria-label={t("app.takeSnapshotOnDisk", { disk: group.name || group.mountPoint || t("app.thisMac") })}
+                  onClick={() => act(() => Snapshots.TakeOn(group.device), t("app.snapshotTaken"))}
+                  disabled={busy}
+                >
+                  <Camera size={14} strokeWidth={2} aria-hidden="true" />
+                </button>
+              </div>
+
+              {/* An eligible disk with nothing on it yet, which is a state the
+                  list used to have no way to show: a card plugged in and never
+                  snapshotted looked exactly like a card the application could
+                  not see. */}
+              {group.snapshots.length === 0 && <p className="volume-empty">{t("app.noneOnThisDisk")}</p>}
 
           <ul className="snapshot-list">
             {group.snapshots.map((snapshot) => (
@@ -506,13 +527,11 @@ export default function App() {
           {/* Pushed to the bottom: these act on the machine, not on whichever
               snapshot happens to be selected above. */}
           <div className="aside-footer">
-            <button
-              className="wide primary"
-              onClick={() => act(() => Snapshots.TakeNow(), t("app.snapshotTaken"))}
-              disabled={busy}
-            >
-              {t("app.takeSnapshotNow")}
-            </button>
+            {/* Taking a snapshot used to live here, as a wide primary button. It
+                moved up to the disk headings: every supported disk is listed
+                now, each heading has the camera, and one more button down here
+                saying the same thing would be a second place to press for one
+                action. */}
             <button
               className={`wide ${view === "schedule" ? "active" : ""}`}
               onClick={() => {

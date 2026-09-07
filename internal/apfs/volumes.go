@@ -102,21 +102,32 @@ type VolumeSnapshot struct {
 	LimitsContainer bool
 }
 
-// Volumes returns every mounted APFS volume that holds at least one Time Machine
-// local snapshot, deduplicated by volume.
+// Volumes returns every mounted APFS volume that Time Machine would snapshot,
+// deduplicated by volume, whether or not it holds any snapshots yet.
 //
-// A volume with none is left out rather than reported empty: the answer this is
-// used for is "what did localsnapshot write to, and what has to be pruned", and
-// a volume with nothing on it is neither.
+// Two ways in, and either is enough. A volume Time Machine says it includes is a
+// place the next `tmutil localsnapshot` will write, which is worth showing while
+// it is still empty — an empty disk is the state somebody is most likely to be
+// looking at the application to change, and leaving it out made a plugged-in
+// card indistinguishable from one the application could not see. A volume
+// holding snapshots is listed regardless of what Time Machine says about it now,
+// because those snapshots exist and have to be prunable: excluding a disk after
+// the fact must not turn its history into something nothing can ever delete.
+//
+// Callers that mean strictly "volumes with snapshots on them" — the elevated
+// helper's allowlist above all — say so with WithSnapshots.
 func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 	out, err := r.Run(ctx, "mount")
 	if err != nil {
 		return nil, fmt.Errorf("apfs: listing mounted volumes: %w: %s", err, strings.TrimSpace(out))
 	}
 
+	mounts := mountedAPFS(out)
+	included := includedInBackup(ctx, r, mounts)
+
 	var vols []Volume
 	seen := map[string]bool{}
-	for _, mount := range mountedAPFS(out) {
+	for _, mount := range mounts {
 		// diskutil rather than tmutil, for the device identifier. tmutil names no
 		// volume in its output, so there would be nothing to deduplicate on.
 		listing, err := r.Run(ctx, "diskutil", "apfs", "listSnapshots", mount)
@@ -151,7 +162,7 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 				vol.PinningStamp = d.Stamp
 			}
 		}
-		if len(vol.Snapshots) == 0 {
+		if len(vol.Snapshots) == 0 && !included[mount] {
 			continue
 		}
 		// After the filter, never before. The name is one more subprocess per
@@ -170,6 +181,66 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 	// otherwise the mount table's, which is not stable across a remount.
 	sort.Slice(vols, func(i, j int) bool { return vols[i].Device < vols[j].Device })
 	return vols, nil
+}
+
+// WithSnapshots narrows a volume list to the ones that actually hold snapshots.
+//
+// Volumes answers a wider question than it used to — it includes eligible
+// volumes that are still empty, so the window can show a disk before anything
+// has been written to it. Anywhere the older meaning is the load-bearing one,
+// this says which meaning is intended rather than leaving it to be inferred from
+// a length check written out longhand at each site.
+func WithSnapshots(vols []Volume) []Volume {
+	out := make([]Volume, 0, len(vols))
+	for _, v := range vols {
+		if len(v.Snapshots) > 0 {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// includedInBackup asks Time Machine which of these mount points it would
+// snapshot, as the set of the ones it says it includes.
+//
+// tmutil is the only honest source. There is no property of a mount line that
+// separates a snapshot target from the rest: the data volume is nobrowse, so
+// hiding nobrowse would hide the main disk, and every other filter lets through
+// Preboot, VM, xarts and the recovery mounts — nine rows of macOS plumbing in a
+// list of somebody's disks. `tmutil isexcluded` answers for exactly the volumes
+// localsnapshot writes to and nothing else.
+//
+// One call for every path, not one per path. tmutil takes any number of items
+// and answers a line each, so the whole mount table costs a single subprocess —
+// which matters because this function runs inside an enumeration that was
+// already the expensive thing on the screen.
+//
+// A failure is an empty set, not an error. Not being able to ask leaves the
+// listing exactly as it was before this existed — volumes that hold snapshots,
+// which need no permission to recognise — rather than emptying a sidebar because
+// one subprocess would not run.
+func includedInBackup(ctx context.Context, r Runner, mounts []string) map[string]bool {
+	included := map[string]bool{}
+	if len(mounts) == 0 {
+		return included
+	}
+	out, err := r.Run(ctx, "tmutil", append([]string{"isexcluded"}, mounts...)...)
+	if err != nil {
+		return included
+	}
+	for _, line := range strings.Split(out, "\n") {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "[Included]")
+		if !ok {
+			continue
+		}
+		// Everything after the marker, trimmed: tmutil separates them with a tab
+		// on some releases and spaces on others, and a mount point can contain
+		// spaces of its own — so the split is at the marker and nowhere else.
+		if path := strings.TrimSpace(rest); path != "" {
+			included[path] = true
+		}
+	}
+	return included
 }
 
 // volumeInfo asks diskutil what the volume is called and how it is attached,
@@ -228,6 +299,115 @@ func DeleteOn(ctx context.Context, r Runner, device, uuid string) error {
 		return fmt.Errorf("apfs: deleting snapshot %s from %s: %w: %s", uuid, device, err, strings.TrimSpace(out))
 	}
 	return nil
+}
+
+// CreateOn takes a snapshot and leaves it on one volume only, which is the
+// closest thing to a per-disk snapshot macOS allows.
+//
+// There is no per-disk create to call. `tmutil localsnapshot` takes no arguments
+// — the binary carries a deleteLocalSnapshotsForDisk: and no create counterpart
+// — so one is written to every eligible volume whatever anybody asked for.
+// Deletion is the half Apple did make selectable, and DeleteOn removes one copy
+// on one volume by UUID. Create, then remove the copies nobody wanted.
+//
+// The removals are held to a rule that makes this safe to offer: a copy is only
+// deleted if the stamp was NOT on that volume before this call. So the worst a
+// bug here can do is leave a snapshot behind. It cannot reach a snapshot that
+// already existed, which is the only kind whose loss could not be undone by
+// pressing the button again — and the enumeration is taken fresh rather than
+// from a cache precisely so "before" means before.
+//
+// An empty device sweeps nothing and is the honest answer to "which disk did you
+// mean" when the volumes could not be enumerated: a machine-wide snapshot, which
+// is what the command does anyway.
+//
+// Returns the snapshot, and the volumes the new copy was removed from. A volume
+// that would not give it up is reported in the error WITH the snapshot: the
+// snapshot was taken, and saying otherwise would send somebody looking for one
+// that is there.
+func CreateOn(ctx context.Context, r Runner, device string) (Snapshot, []Volume, error) {
+	if device == "" {
+		snap, err := Create(ctx, r)
+		return snap, nil, err
+	}
+
+	// Before, so a stamp that somehow already exists elsewhere is never mistaken
+	// for one this call produced. Two snapshots cannot share a second in
+	// practice, which is exactly why this costs nothing and is worth having: the
+	// check is free and the thing it prevents is unrecoverable.
+	before, err := Volumes(ctx, r)
+	if err != nil {
+		return Snapshot{}, nil, fmt.Errorf("apfs: cannot tell which volumes hold snapshots, so none was taken: %w", err)
+	}
+	held := map[string]map[string]bool{}
+	for _, v := range before {
+		stamps := map[string]bool{}
+		for _, s := range v.Snapshots {
+			stamps[s.Stamp] = true
+		}
+		held[v.Device] = stamps
+	}
+
+	snap, err := Create(ctx, r)
+	if err != nil {
+		return Snapshot{}, nil, err
+	}
+
+	after, err := Volumes(ctx, r)
+	if err != nil {
+		// The snapshot exists and is returned. Not being able to enumerate is a
+		// reason to leave the other disks' copies alone, not a reason to report a
+		// snapshot that was taken as one that was not.
+		return snap, nil, fmt.Errorf("apfs: %s was taken on every disk, and the copies on the others could not be removed: %w", snap.Stamp, err)
+	}
+
+	// Nothing is swept unless the disk somebody asked for actually got one.
+	//
+	// A volume excluded from Time Machine is still listed here while it holds
+	// snapshots, and localsnapshot does not write to it — so pressing its camera
+	// would take a snapshot everywhere, find none on the disk that was asked for,
+	// and delete every copy that was made. A snapshot taken and then entirely
+	// destroyed, which is the one outcome this button must never have.
+	var landed bool
+	for _, v := range after {
+		if v.Device != device {
+			continue
+		}
+		for _, s := range v.Snapshots {
+			if s.Stamp == snap.Stamp {
+				landed = true
+			}
+		}
+	}
+	if !landed {
+		return snap, nil, fmt.Errorf("apfs: %s was taken, but not on %s — macOS does not snapshot that disk, so the copies on the others were left alone", snap.Stamp, device)
+	}
+
+	var swept []Volume
+	var failed []string
+	for _, v := range after {
+		if v.Device == device {
+			continue
+		}
+		for _, s := range v.Snapshots {
+			if s.Stamp != snap.Stamp || held[v.Device][s.Stamp] {
+				continue
+			}
+			// One failure does not abandon the rest. Every copy left behind is a
+			// disk quietly keeping something nobody asked for, so the others are
+			// still worth removing, and all of them are named at the end.
+			if err := DeleteOn(ctx, r, v.Device, s.UUID); err != nil {
+				failed = append(failed, fmt.Sprintf("%s (%s)", v.Name, v.Device))
+				continue
+			}
+			swept = append(swept, v)
+		}
+	}
+	if len(failed) > 0 {
+		return snap, swept, fmt.Errorf("apfs: %s was taken, and the copy could not be removed from %s",
+			snap.Stamp, strings.Join(failed, ", "))
+	}
+	return snap, swept, nil
 }
 
 // devicePattern guards the volume handed to diskutil, for the same reason

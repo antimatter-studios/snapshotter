@@ -44,12 +44,31 @@ func snapshotBlocks(device string, snaps ...string) string {
 type volumeRunner struct {
 	mount  string
 	byPath map[string]string
-	asked  []string
+	// included is what `tmutil isexcluded` says, when a test cares. A nil map
+	// refuses the command, which is the case worth having as the default: it is
+	// what a Mac that will not answer looks like, and every test written before
+	// eligibility existed goes down that path and must still list what it did.
+	included map[string]bool
+	asked    []string
 }
 
 func (v *volumeRunner) Run(_ context.Context, name string, args ...string) (string, error) {
 	if name == "mount" {
 		return v.mount, nil
+	}
+	if name == "tmutil" && len(args) > 1 && args[0] == "isexcluded" {
+		if v.included == nil {
+			return "", fmt.Errorf("tmutil: cannot answer")
+		}
+		var b strings.Builder
+		for _, item := range args[1:] {
+			verdict := "[Excluded]"
+			if v.included[item] {
+				verdict = "[Included]"
+			}
+			fmt.Fprintf(&b, "%s\t%s\n", verdict, item)
+		}
+		return b.String(), nil
 	}
 	if name == "diskutil" && len(args) == 3 && args[1] == "listSnapshots" {
 		v.asked = append(v.asked, args[2])
@@ -307,10 +326,175 @@ func TestOnlyVolumesWithSnapshotsAreNamed(t *testing.T) {
 	if len(vols) != 1 {
 		t.Fatalf("got %d volumes, want 1", len(vols))
 	}
-	// mount, four listSnapshots, and one info for the one volume that has any.
-	if r.runs > 6 {
+	// mount, one isexcluded for every mount point at once, four listSnapshots,
+	// and one info for the one volume that has any.
+	if r.runs > 7 {
 		t.Errorf("%d commands for four mount points, which is a name looked up for volumes that hold nothing", r.runs)
 	}
+}
+
+// Eligibility costs one subprocess however many disks are mounted.
+//
+// tmutil takes any number of items and answers a line each. Asking per mount
+// point would be a dozen subprocesses added to the function that was already the
+// expensive thing behind the window, to answer a question tmutil will answer for
+// the whole mount table at once.
+func TestEligibilityIsOneCallForEveryMountPoint(t *testing.T) {
+	r := &volumeRunner{
+		mount: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk3s6 on /System/Volumes/VM (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, journaled)\n",
+		byPath: map[string]string{
+			"/System/Volumes/Data": "No snapshots for disk3s1\n",
+			"/System/Volumes/VM":   "No snapshots for disk3s6\n",
+			"/Volumes/sdcard256gb": "No snapshots for disk8s1\n",
+		},
+		included: map[string]bool{"/System/Volumes/Data": true, "/Volumes/sdcard256gb": true},
+	}
+	counted := &countingRunner{inner: r}
+
+	if _, err := Volumes(context.Background(), counted); err != nil {
+		t.Fatal(err)
+	}
+	// mount, one isexcluded, three listSnapshots, two info for the two volumes
+	// that are eligible. Seven, and none of them a second isexcluded.
+	if counted.runs > 7 {
+		t.Errorf("%d commands for three mount points, which is eligibility asked more than once", counted.runs)
+	}
+}
+
+// A volume Time Machine would snapshot appears before anything has been written
+// to it.
+//
+// It used to be left out, and an empty eligible disk is exactly the state
+// somebody opens this application to change: a card plugged in and not yet
+// snapshotted looked identical to a card the application could not see at all.
+func TestAnEligibleVolumeIsListedWhileItIsStillEmpty(t *testing.T) {
+	r := &volumeRunner{
+		mount: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, journaled)\n",
+		byPath: map[string]string{
+			"/System/Volumes/Data": snapshotBlocks("disk3s1", "com.apple.TimeMachine.2026-08-27-130450.local"),
+			"/Volumes/sdcard256gb": "No snapshots for disk8s1\n",
+		},
+		included: map[string]bool{"/System/Volumes/Data": true, "/Volumes/sdcard256gb": true},
+	}
+
+	vols, err := Volumes(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vols) != 2 {
+		t.Fatalf("got %d volumes, want both the data volume and the empty card", len(vols))
+	}
+	card := vols[1]
+	if card.MountPoint != "/Volumes/sdcard256gb" {
+		t.Fatalf("got %q, want the card", card.MountPoint)
+	}
+	if len(card.Snapshots) != 0 {
+		t.Errorf("got %d snapshots on an empty card", len(card.Snapshots))
+	}
+	// WithSnapshots is what the callers that mean the older, narrower question
+	// use, and it has to still answer it.
+	if held := WithSnapshots(vols); len(held) != 1 || held[0].MountPoint != "/System/Volumes/Data" {
+		t.Errorf("WithSnapshots gave %v, want the data volume alone", held)
+	}
+}
+
+// Everything macOS mounts that is not a snapshot target stays out.
+//
+// A Mac mounts a dozen APFS filesystems and only one or two of them are disks
+// anybody means: Preboot, VM, xarts, iSCPreboot, Hardware, the recovery mounts
+// and the sealed system volume are all APFS, all mounted, and none of them are
+// places a snapshot is ever written. Listing empty volumes without this filter
+// would have put nine rows of macOS plumbing in a list of somebody's disks.
+func TestExcludedVolumesStayOutWhenTheyAreEmpty(t *testing.T) {
+	r := &volumeRunner{
+		mount: "/dev/disk3s3s1 on / (apfs, sealed, local, read-only, journaled)\n" +
+			"/dev/disk3s6 on /System/Volumes/VM (apfs, local, journaled)\n" +
+			"/dev/disk3s4 on /System/Volumes/Preboot (apfs, local, journaled)\n" +
+			"/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n",
+		byPath: map[string]string{
+			"/":                       "No snapshots for disk3s3s1\n",
+			"/System/Volumes/VM":      "No snapshots for disk3s6\n",
+			"/System/Volumes/Preboot": "No snapshots for disk3s4\n",
+			"/System/Volumes/Data":    "No snapshots for disk3s1\n",
+		},
+		included: map[string]bool{"/System/Volumes/Data": true},
+	}
+
+	vols, err := Volumes(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vols) != 1 || vols[0].MountPoint != "/System/Volumes/Data" {
+		t.Fatalf("got %v, want the data volume alone", vols)
+	}
+}
+
+// A disk excluded from Time Machine after its snapshots were taken keeps them
+// visible, because they still have to be deletable.
+//
+// This is the invariant the empty-volume change must not break. Snapshots that
+// reach a volume nothing lists are not merely unseen, they are permanent:
+// retention plans over what it can enumerate, so a list that dropped them would
+// leave them on the disk forever with nothing able to ask for their removal.
+func TestSnapshotsOnAnExcludedVolumeAreStillListed(t *testing.T) {
+	r := &volumeRunner{
+		mount: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, journaled)\n",
+		byPath: map[string]string{
+			"/System/Volumes/Data": "No snapshots for disk3s1\n",
+			"/Volumes/sdcard256gb": snapshotBlocks("disk8s1", "com.apple.TimeMachine.2026-08-27-130450.local"),
+		},
+		included: map[string]bool{"/System/Volumes/Data": true},
+	}
+
+	vols, err := Volumes(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, v := range vols {
+		if v.MountPoint == "/Volumes/sdcard256gb" && len(v.Snapshots) == 1 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("got %v, want the excluded card's snapshot still listed", vols)
+	}
+}
+
+// tmutil's own output shape, including the mount point with a space in it that
+// the mount(8) parsing already had to survive.
+func TestReadingWhichVolumesTimeMachineIncludes(t *testing.T) {
+	r := &fixedRunner{out: "[Excluded]\t/\n" +
+		"[Included]  /System/Volumes/Data\n" +
+		"[Included]\t/Volumes/My Backup Disk\n"}
+
+	got := includedInBackup(context.Background(), r, []string{"/", "/System/Volumes/Data", "/Volumes/My Backup Disk"})
+	if len(got) != 2 || !got["/System/Volumes/Data"] || !got["/Volumes/My Backup Disk"] {
+		t.Errorf("got %v, want the data volume and the backup disk", got)
+	}
+}
+
+// A refusal narrows the answer rather than emptying it. Not being able to ask
+// leaves the listing as it was before eligibility existed — the volumes that
+// hold snapshots, which need no permission to recognise.
+func TestAnUnanswerableEligibilityQuestionIsNotAnError(t *testing.T) {
+	if got := includedInBackup(context.Background(), &fixedRunner{err: errors.New("no")}, []string{"/"}); len(got) != 0 {
+		t.Errorf("got %v, want nothing", got)
+	}
+}
+
+// fixedRunner answers every command with the same thing.
+type fixedRunner struct {
+	out string
+	err error
+}
+
+func (f *fixedRunner) Run(context.Context, string, ...string) (string, error) {
+	return f.out, f.err
 }
 
 // The cache is what keeps the cost off the hot path. Without it every path

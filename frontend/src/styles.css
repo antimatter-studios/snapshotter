@@ -1952,6 +1952,53 @@ button.destructive:hover:not(:disabled) {
   letter-spacing: 0.04em;
   word-break: break-word;
   overflow-wrap: anywhere;
+  /* Takes the slack, so the count and the camera sit at the right edge together
+     however long the disk is called. */
+  flex: 1;
+}
+
+/* Taking a snapshot, from the disk you were looking at.
+
+   It used to be one wide button along the bottom of the sidebar, which read as
+   being about nothing in particular. Every supported disk is listed now, empty
+   ones included, and the camera beside each heading is where somebody looks for
+   it. The tooltip carries what the icon cannot: macOS takes them for every disk
+   at once, because `tmutil localsnapshot` accepts no volume to take one of. */
+.volume-snapshot {
+  /* Aligned to the row's text rather than to its baseline: the heading is
+     baseline-aligned, and an icon has no baseline to share with it. */
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  min-width: 0;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--muted);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.volume-snapshot:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.volume-snapshot:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* An eligible disk with nothing on it yet. Muted and indented under its own
+   heading, so it reads as this disk's state rather than as the list's. */
+.volume-empty {
+  margin: 4px 0 2px;
+  padding-left: 2px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 /* A row that cannot be opened is not a row that failed to open. It takes no
