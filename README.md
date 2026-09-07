@@ -354,6 +354,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.64.1
+
+The camera beside each disk heading now looks like a button. It had no fill and
+no border until the pointer was on it, so at rest it read as a graphic rather
+than as something to press.
+
 ### v0.64.0
 
 The sidebar shows every disk that can be snapshotted, empty ones included — a
@@ -432,15 +438,6 @@ path is on costs twenty-odd subprocesses, and it was being done once per
 directory entry — thousands of them for a single folder. Names are now looked up
 only for volumes that reach the screen, the answer is cached for a few seconds,
 and the lookup happens once per listing rather than once per file.
-
-### v0.60.1
-
-Opening a snapshot is the slowest thing in the window and it said nothing until
-it was over. Waiting is a spinner now, the outcome is a tick or a cross held long
-enough to read, and an overlay names the password prompt that most of the wait
-actually is. Selecting a snapshot on another volume also briefly reported that
-the home directory is not on it — the device changed before the folder did, and
-the two are one value now.
 
 ## Design decisions
 

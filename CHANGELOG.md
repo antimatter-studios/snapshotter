@@ -7,6 +7,33 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.64.1 — 2026-09-08
+
+**The camera beside each disk did not look like a button.**
+
+It set `background: none` over a transparent border and showed an outline only on
+hover, so at rest it was a bare glyph next to a heading. That reads as a
+decoration: nothing said it could be pressed until the pointer was already on it,
+and a control nobody knows is a control does not exist. It keeps the
+application's own button chrome now — the same fill, border and radius every
+other button has — and overrides only what an icon needs.
+
+**Server mode printed the help text instead of serving.** Not something a release
+contains, but it is why the button above shipped looking wrong: `task server` is
+the only way to drive this interface by code, and it had not served anything
+since v0.63.1, so the window went back to being checked by eye.
+
+The cause was a guard inferring at runtime what the build already knew. A bare
+invocation is a question when it is typed at a prompt and a launch when
+LaunchServices execs the bundle, and the two are told apart by looking for a
+bundle in the program's own path — but a server binary has no bundle and never
+will, so it always read as a question. Past that, the one-window lock refused it
+whenever a window was open, though a headless server has neither window nor menu
+bar icon to be a second of. The build tag is now visible to the code, and both
+guards consult it. Nothing about the released application changes: built without
+the tag, it carries no HTTP server at all, and the build is compiled and tested
+in CI so this cannot rot again unnoticed.
+
 ## v0.64.0 — 2026-09-07
 
 **Every disk that can be snapshotted, and a camera on each one.**
