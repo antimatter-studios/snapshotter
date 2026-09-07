@@ -94,6 +94,8 @@ func (r *Runner) Run(_ context.Context, name string, args ...string) (string, er
 		return r.deleteSnapshot(args[1])
 	case name == "tmutil" && len(args) == 1 && args[0] == "destinationinfo":
 		return r.destinationInfo(), nil
+	case name == "tmutil" && len(args) > 1 && args[0] == "isexcluded":
+		return r.excluded(args[1:]), nil
 	case name == "diskutil" && len(args) == 3 && args[0] == "apfs" && args[1] == "listSnapshots":
 		return r.listDetails(args[2]), nil
 	case name == "mount":
@@ -124,6 +126,25 @@ func (r *Runner) Run(_ context.Context, name string, args ...string) (string, er
 func (r *Runner) mounted() string {
 	return "/dev/disk1s3s1 on / (apfs, sealed, local, read-only, journaled)\n" +
 		"/dev/disk1s1 on " + apfs.DataVolume + " (apfs, local, journaled, nobrowse)\n"
+}
+
+// excluded answers `tmutil isexcluded`, which is how the enumeration recognises
+// a volume Time Machine would snapshot but has not yet.
+//
+// The data volume is included and the sealed system volume is not, which is what
+// a real Mac says: localsnapshot writes to the first and never to the second.
+// Getting this backwards would put macOS's own sealed snapshot volume in the
+// sidebar as a disk somebody could take snapshots of.
+func (r *Runner) excluded(items []string) string {
+	var b strings.Builder
+	for _, item := range items {
+		verdict := "[Excluded]"
+		if item == apfs.DataVolume {
+			verdict = "[Included]"
+		}
+		fmt.Fprintf(&b, "%s\t%s\n", verdict, item)
+	}
+	return b.String()
 }
 
 // deviceFor names a volume's device the way diskutil would. Stable per mount

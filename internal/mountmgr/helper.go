@@ -45,7 +45,12 @@ func checkVolume(ctx context.Context, r apfs.Runner, volume string) error {
 		// the failure would look like a broken button rather than a broken query.
 		return fmt.Errorf("mountmgr: cannot tell which volumes hold snapshots, so nothing was mounted: %w", err)
 	}
-	for _, v := range vols {
+	// WithSnapshots, deliberately. apfs.Volumes now also reports volumes Time
+	// Machine would snapshot but has not yet, so the window can show an empty
+	// disk — and widening this allowlist as a side effect of a change to the
+	// sidebar is exactly the kind of drift an allowlist exists to prevent. There
+	// is nothing to mount on a volume with no snapshots, so nothing is lost.
+	for _, v := range apfs.WithSnapshots(vols) {
 		if v.MountPoint == volume {
 			return nil
 		}

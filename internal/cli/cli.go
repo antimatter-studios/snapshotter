@@ -216,6 +216,13 @@ func runList(ctx context.Context, e Env, _ []string) error {
 	if err != nil {
 		return err
 	}
+	// The ones holding snapshots, which is what this command was asked for. The
+	// enumeration also reports volumes Time Machine would snapshot but has not
+	// yet — that is the window's question, where an empty disk is a row worth
+	// showing — and printing them here would put headings with nothing under
+	// them above "no snapshots yet", or silence that line entirely on a machine
+	// that has none.
+	vols = apfs.WithSnapshots(vols)
 	if len(vols) == 0 {
 		fmt.Fprintln(e.Out, i18n.T("cli.noSnapshots"))
 		return nil

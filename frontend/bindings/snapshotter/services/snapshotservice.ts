@@ -82,6 +82,30 @@ export function TakeNow(): $CancellablePromise<$models.SnapshotView> {
 }
 
 /**
+ * TakeOn creates a snapshot and leaves it on one disk, which is what the camera
+ * beside each disk's heading does.
+ *
+ * macOS has no per-disk create — `tmutil localsnapshot` takes no arguments and
+ * writes to every eligible volume — so this takes the machine-wide snapshot and
+ * then removes the copy it just put on every other disk. Only the copy it just
+ * made: apfs.CreateOn compares the volumes before and after, so a stamp that was
+ * already there is never touched.
+ *
+ * An empty device means the volumes could not be enumerated, and then this is
+ * exactly TakeNow: a snapshot everywhere and nothing removed. Guessing which
+ * disk was meant is the one thing that could delete somebody's only new copy.
+ *
+ * The reply describes the startup disk's copy for the same reason TakeNow's
+ * does: it is the one the window selects and browses. The others appear in their
+ * own groups on the next refresh.
+ */
+export function TakeOn(device: string): $CancellablePromise<$models.SnapshotView> {
+    return $Call.ByID(1687470476, device).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * Unmount detaches snapshots, on the volume named by device.
  */
 export function Unmount(device: string, names: string[]): $CancellablePromise<void> {

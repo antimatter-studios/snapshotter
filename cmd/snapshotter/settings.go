@@ -147,7 +147,11 @@ func watchEveryVolume(ctx context.Context, deps services.Deps) {
 	if err != nil {
 		log.Printf("cached folder verdicts: cannot list volumes, watching the home folder only: %v", err)
 	}
-	for _, v := range vols {
+	// Volumes with snapshots on them, not every volume that could have one. These
+	// streams exist to keep folder verdicts warm for browsing INSIDE a snapshot,
+	// so a disk holding none has nothing for a watcher to be right about — and an
+	// FSEvents stream per plugged-in disk is not a cost to take on speculatively.
+	for _, v := range apfs.WithSnapshots(vols) {
 		if v.MountPoint != deps.Volume {
 			roots[v.MountPoint] = true
 		}
