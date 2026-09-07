@@ -182,17 +182,59 @@ func main() {
 	// After the launchd flags, not before: --take-snapshot run by hand is still a
 	// snapshot, and printing help at it would be refusing to do the one thing it
 	// was asked.
-	if _, launchedFromBundle := single.BundleOf(os.Args[0]); !launchedFromBundle {
-		env := cli.SystemEnv()
-		env.Runner = runner
-		os.Exit(cli.Run(context.Background(), env, nil))
+	//
+	// Except in the server build, which knows what it is for without having to
+	// look. It is started from bin/snapshotter-server, which is not a bundle and
+	// never will be, so this test called it a question and printed the help — and
+	// `task server`, the only documented way to drive this interface by code, had
+	// not served anything since the test was introduced.
+	if !servesOverHTTP {
+		if _, launchedFromBundle := single.BundleOf(os.Args[0]); !launchedFromBundle {
+			env := cli.SystemEnv()
+			env.Runner = runner
+			os.Exit(cli.Run(context.Background(), env, nil))
+		}
 	}
 
 	configDir, dirErr := config.Dir()
 	if dirErr != nil {
 		log.Fatal(dirErr)
 	}
-	releaseWindow, err := single.Hold(single.Path(configDir))
+	// The lock is about windows, so the server build does not take it.
+	//
+	// What it prevents is two copies with two identical menu bar icons, only one
+	// of which holds the Full Disk Access grant. A headless server has no icon and
+	// no window, so it is not a second one of anything — and taking the lock meant
+	// it refused to start whenever the real application was open, which is exactly
+	// when somebody is most likely to want to drive it.
+	releaseWindow := func() {}
+	if !servesOverHTTP {
+		release, err := holdTheWindow(configDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if release == nil {
+			// Raised the window that was already open. Nothing else to do.
+			return
+		}
+		releaseWindow = release
+	}
+	defer releaseWindow()
+
+	if err := runWindow(paths, runner, sim); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// holdTheWindow takes the one-window lock, or reports that the window it would
+// have opened is already on screen.
+//
+// A nil release with a nil error means exactly that: the running copy was raised
+// and this process has nothing left to do. It is separated from main so the
+// server build can skip the whole thing by not calling it, rather than by
+// threading a condition through the middle of it.
+func holdTheWindow(configDir string) (func(), error) {
+	release, err := single.Hold(single.Path(configDir))
 	if err != nil {
 		// Asking for the application when it is already open should show it to
 		// you. Typing `snapshotter` is asking for the window, and there is a
@@ -204,15 +246,11 @@ func main() {
 		// so is better than opening whatever else is called Snapshotter.
 		var running *single.ErrAlreadyRunning
 		if errors.As(err, &running) && running.Raise() {
-			return
+			return nil, nil
 		}
-		log.Fatal(err)
+		return nil, err
 	}
-	defer releaseWindow()
-
-	if err := runWindow(paths, runner, sim); err != nil {
-		log.Fatal(err)
-	}
+	return release, nil
 }
 
 // paths are the locations the application reads and writes.

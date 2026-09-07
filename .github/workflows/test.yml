@@ -73,6 +73,21 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # The headless build, which nothing here compiled until it had been broken
+      # for two releases.
+      #
+      # `task server` is the only way to drive this interface by code —
+      # accessibility presses do not reach inside a WKWebView — so when it stopped
+      # serving, UI changes quietly went back to being verified by eye, and the
+      # ordinary test run had nothing to say about it because `-tags server` was
+      # never passed. Vetting and testing that build is what makes the next
+      # breakage a red check rather than a discovery.
+      - name: Vet the server build
+        run: go vet -tags server ./...
+
+      - name: Test the server build
+        run: go test -tags server ./cmd/...
+
       # -race because the window, the menu bar refresh and the tripwire all read
       # the same services from different goroutines. A data race that only shows
       # up under load is precisely the bug this catches cheaply.
