@@ -354,6 +354,16 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.64.0
+
+The sidebar shows every disk that can be snapshotted, empty ones included — a
+card plugged in and never snapshotted used to look exactly like one the
+application could not see. Each heading carries a camera that leaves a snapshot
+on that disk alone: macOS has no per-disk create, so the machine-wide snapshot is
+taken and the copies nobody asked for are removed, and only ever the copies that
+call made. The wide "Take a snapshot now" button at the foot of the sidebar is
+gone, because every disk has its own now.
+
 ### v0.63.2
 
 `snapshotter open` answered "this copy is not in an application bundle" from
@@ -431,15 +441,6 @@ enough to read, and an overlay names the password prompt that most of the wait
 actually is. Selecting a snapshot on another volume also briefly reported that
 the home directory is not on it — the device changed before the folder did, and
 the two are one value now.
-
-### v0.60.0
-
-A built-in manual: five pages compiled into the binary, listed by `snapshotter
-help` and read with `snapshotter help <topic>`. The documentation was already
-written and none of it reached the machine it was about. Also, a volume that
-cannot be identified is now an error rather than a silent fall back to the home
-folder — which on an external disk opened a path that does not exist inside that
-snapshot and read as an empty one.
 
 ## Design decisions
 

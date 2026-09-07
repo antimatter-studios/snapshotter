@@ -7,6 +7,50 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.64.0 — 2026-09-07
+
+**Every disk that can be snapshotted, and a camera on each one.**
+
+The sidebar listed a disk only once it held a snapshot. A card plugged in and
+never snapshotted was therefore indistinguishable from a card the application
+could not see — which is the state somebody is most likely to have opened the
+application to change. Every volume Time Machine would snapshot is listed now,
+empty ones included, saying so under its own heading.
+
+Eligibility comes from `tmutil isexcluded`, asked once for the whole mount table.
+Nothing else separates a snapshot target from the nine other APFS filesystems
+macOS keeps mounted: the data volume is nobrowse, so that cannot be the filter,
+and every other property lets Preboot, VM, xarts, iSCPreboot, Hardware and the
+recovery mounts through. Twelve mounted filesystems reduce to the two disks
+anybody means.
+
+A volume holding snapshots is still listed whatever Time Machine says about it
+now. Excluding a disk after the fact must not turn its history into something
+nothing can ever delete.
+
+**A camera on each heading, and it means that disk.**
+
+There is no per-disk create. `tmutil localsnapshot` takes no arguments at all,
+and the binary carries a `deleteLocalSnapshotsForDisk:` with no create
+counterpart — creation is the one verb Apple did not make selectable. So the
+snapshot is taken the only way it can be, machine-wide, and the copy it just made
+on every other disk is removed. Deletion being selectable is what makes this
+possible at all.
+
+Only the copy it just made. The volumes are enumerated before and after, and
+freshly rather than from the cache, so a date that was already on a disk is never
+touched — the worst a fault here can do is leave a snapshot behind, never remove
+one that existed. And if the disk asked for receives no snapshot, because Time
+Machine excludes it, nothing is swept: the alternative is a snapshot taken and
+then entirely destroyed.
+
+`snapshotter take`, the menu bar and the scheduled task are unchanged. They mean
+the machine, and a machine-wide snapshot is what `localsnapshot` already is.
+
+The wide "Take a snapshot now" button at the foot of the sidebar is gone. Every
+disk has its own now, and one more control saying the same thing would be a
+second place to press for one action.
+
 ## v0.63.2 — 2026-08-30
 
 **`snapshotter open` could not find the bundle it was launched from.**
