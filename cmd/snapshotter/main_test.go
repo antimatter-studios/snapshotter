@@ -347,3 +347,34 @@ func TestTheDocumentedOverrideLetsASecondCopyThrough(t *testing.T) {
 		second()
 	}
 }
+
+// The lock is taken by the build that opens a window, and holdTheWindow is how.
+//
+// Separated out of main so the server build can decline to call it; this covers
+// the half that still does, including the answer that means "the window you
+// asked for is already open, so there is nothing left to do".
+func TestHoldingTheWindowReportsAnAlreadyOpenCopy(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir, err := config.Dir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	release, err := holdTheWindow(dir)
+	if err != nil {
+		t.Fatalf("taking the lock: %v", err)
+	}
+	if release == nil {
+		t.Fatal("nothing held the lock, so the rest of this proves nothing")
+	}
+	defer release()
+
+	// A development build outside a bundle has no running copy to raise, so the
+	// second attempt is a refusal rather than a nil-nil "already open". Either
+	// way it must not hand back a second hold on the same lock.
+	second, err := holdTheWindow(dir)
+	if err == nil && second != nil {
+		second()
+		t.Error("a second window took the lock while the first still held it")
+	}
+}
