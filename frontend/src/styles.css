@@ -1965,30 +1965,32 @@ button.destructive:hover:not(:disabled) {
    it. The tooltip carries what the icon cannot: macOS takes them for every disk
    at once, because `tmutil localsnapshot` accepts no volume to take one of. */
 .volume-snapshot {
-  /* Aligned to the row's text rather than to its baseline: the heading is
+  /* Keeps the application's button chrome — panel fill, hairline border, the
+     same radius — rather than replacing it.
+
+     It used to set background:none over a transparent border, showing an outline
+     only on hover. That leaves a bare glyph sitting beside a heading, which reads
+     as a decoration: there is nothing to say it can be pressed until the pointer
+     is already on it, and a control nobody knows is a control does not exist. */
+
+  /* Aligned to the row's centre rather than its baseline: the heading is
      baseline-aligned, and an icon has no baseline to share with it. */
   align-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
-  min-width: 0;
-  border: 1px solid transparent;
-  background: none;
+  /* Square around the glyph. The shared padding is 4px 10px, shaped for a word,
+     and a 14px icon inside it would sit in a wide lozenge. */
+  padding: 3px;
   color: var(--muted);
-  border-radius: 5px;
-  cursor: pointer;
 }
 
+/* The fill comes from the shared button:hover. Only the mark and its edge pick
+   up the accent, so the hover reads as this control waking rather than as a
+   different-coloured button appearing. */
 .volume-snapshot:hover:not(:disabled) {
   color: var(--accent);
-  border-color: var(--line);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.volume-snapshot:disabled {
-  opacity: 0.4;
-  cursor: default;
+  border-color: var(--accent);
 }
 
 /* An eligible disk with nothing on it yet. Muted and indented under its own
