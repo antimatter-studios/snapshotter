@@ -354,6 +354,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.64.2
+
+The camera beside each disk heading takes the interface's primary button style,
+rather than reading as a grey graphic where a blue button used to be, and now
+lines up with the name and count beside it.
+
 ### v0.64.1
 
 The camera beside each disk heading now looks like a button. It had no fill and
@@ -430,14 +436,6 @@ always there, saying what the window is doing even when there is nothing to coun
 A status bar along the bottom of the window counts the slow work — "Checking
 folders 245/567" — so work that takes a while reads as progress rather than as a
 freeze. A bar rather than a spinner, because the count is knowable.
-
-### v0.60.2
-
-The Health screen said "Checking…" and never finished. Working out which volume a
-path is on costs twenty-odd subprocesses, and it was being done once per
-directory entry — thousands of them for a single folder. Names are now looked up
-only for volumes that reach the screen, the answer is cached for a few seconds,
-and the lookup happens once per listing rather than once per file.
 
 ## Design decisions
 
