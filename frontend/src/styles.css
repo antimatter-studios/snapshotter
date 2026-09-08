@@ -1937,10 +1937,19 @@ button.destructive:hover:not(:disabled) {
 
 .volume-head {
   display: flex;
-  align-items: baseline;
+  /* Centred, not baseline-aligned.
+
+     Baseline was right while this row held nothing but two pieces of text. It
+     now holds a button, and a 22px button has no baseline to share with an 11px
+     label — so the glyph settled two and a half pixels below the centre of the
+     words beside it, which is exactly the amount that reads as wrong without
+     saying why. Centring gives the name, the count and the button one axis. */
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 0 2px;
+  /* Even top and bottom. The 4px/2px it had was invisible under text alone and
+     became a visible lean once the row was as tall as a button. */
+  padding: 4px 0;
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -1978,9 +1987,8 @@ button.destructive:hover:not(:disabled) {
    Only the geometry is set here. The colour is button.primary's, which is higher
    specificity than this rule, so the two cannot drift apart. */
 .volume-snapshot {
-  /* Aligned to the row's centre rather than its baseline: the heading is
-     baseline-aligned, and an icon has no baseline to share with it. */
-  align-self: center;
+  /* No align-self: the heading centres its children now, which is what stopped
+     this sitting below the words beside it. */
   display: flex;
   align-items: center;
   justify-content: center;
