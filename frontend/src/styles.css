@@ -1964,15 +1964,20 @@ button.destructive:hover:not(:disabled) {
    ones included, and the camera beside each heading is where somebody looks for
    it. The tooltip carries what the icon cannot: macOS takes them for every disk
    at once, because `tmutil localsnapshot` accepts no volume to take one of. */
+/* Taking a snapshot is the primary action, so it carries `primary` and looks it:
+   accent fill, white mark, the same blue as every other call to action here.
+
+   Two earlier attempts were both too quiet. It began with background:none over a
+   transparent border, showing an outline only on hover — a bare glyph beside a
+   heading, which reads as a decoration rather than a control. Giving it the
+   ordinary button chrome fixed that and still understated it, because the button
+   this replaced was `wide primary`: a blue button along the foot of the sidebar.
+   Moving an action to a better place should not cost it its prominence, and a
+   muted icon where a blue button used to be reads as a demotion.
+
+   Only the geometry is set here. The colour is button.primary's, which is higher
+   specificity than this rule, so the two cannot drift apart. */
 .volume-snapshot {
-  /* Keeps the application's button chrome — panel fill, hairline border, the
-     same radius — rather than replacing it.
-
-     It used to set background:none over a transparent border, showing an outline
-     only on hover. That leaves a bare glyph sitting beside a heading, which reads
-     as a decoration: there is nothing to say it can be pressed until the pointer
-     is already on it, and a control nobody knows is a control does not exist. */
-
   /* Aligned to the row's centre rather than its baseline: the heading is
      baseline-aligned, and an icon has no baseline to share with it. */
   align-self: center;
@@ -1982,15 +1987,6 @@ button.destructive:hover:not(:disabled) {
   /* Square around the glyph. The shared padding is 4px 10px, shaped for a word,
      and a 14px icon inside it would sit in a wide lozenge. */
   padding: 3px;
-  color: var(--muted);
-}
-
-/* The fill comes from the shared button:hover. Only the mark and its edge pick
-   up the accent, so the hover reads as this control waking rather than as a
-   different-coloured button appearing. */
-.volume-snapshot:hover:not(:disabled) {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 /* An eligible disk with nothing on it yet. Muted and indented under its own
