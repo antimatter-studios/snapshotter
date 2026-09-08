@@ -7,6 +7,24 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.64.2 — 2026-09-08
+
+**The camera beside each disk now looks like the action it is, and sits where it
+should.**
+
+It was a grey icon where a blue button used to be. The control this replaced was
+the `Take a snapshot now` button along the foot of the sidebar, which was the
+interface's primary style — accent fill, white label — and moving the action up
+to each disk's heading quietly cost it that. It takes the primary style now, from
+the same rule every other call to action here uses rather than a copy of it.
+
+It also sat two and a half pixels below the words beside it. The heading was
+baseline-aligned, which is right for a row of text and meaningless for a 22px
+button, so the button centred itself against a line box the text does not fill.
+The heading centres its children now, and the name, the count and the button
+share one axis. Its padding was a little deeper at the top than the bottom too,
+which nothing revealed until the row was as tall as a button.
+
 ## v0.64.1 — 2026-09-08
 
 **The camera beside each disk did not look like a button.**
