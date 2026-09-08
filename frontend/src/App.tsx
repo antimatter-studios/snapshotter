@@ -428,7 +428,7 @@ export default function App() {
                     leaves behind. What it does on the way there is the manual's
                     job, not a tooltip's. */}
                 <button
-                  className="volume-snapshot"
+                  className="volume-snapshot primary"
                   title={t("app.takeSnapshotOnDisk", { disk: group.name || group.mountPoint || t("app.thisMac") })}
                   aria-label={t("app.takeSnapshotOnDisk", { disk: group.name || group.mountPoint || t("app.thisMac") })}
                   onClick={() => act(() => Snapshots.TakeOn(group.device), t("app.snapshotTaken"))}
