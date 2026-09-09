@@ -169,7 +169,7 @@
   "schedule.howOften": "Wie oft",
   "schedule.install": "Zeitplan einrichten",
   "schedule.installed": "Zeitplan eingerichtet. Der erste Snapshot wird sofort erstellt.",
-  "schedule.installedState": "Ein Snapshot alle {{every}}. {{summary}} Etwa {{count}} Snapshots, die {{reach}} zurückreichen — {{state}}.",
+  "schedule.installedState": "Ein Snapshot alle {{every}}. {{summary}} Etwa {{count}} eigene Snapshots, die {{reach}} zurückreichen — {{state}}.",
   "schedule.keepEverySnapshotFor": "Jeden Snapshot aufbewahren für",
   "schedule.keepEverythingFor": "Alles aufbewahren für",
   "schedule.log": "Protokoll",

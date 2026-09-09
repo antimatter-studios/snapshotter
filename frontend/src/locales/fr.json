@@ -169,7 +169,7 @@
   "schedule.howOften": "À quelle fréquence",
   "schedule.install": "Installer la planification",
   "schedule.installed": "Planification installée. Le premier snapshot est créé immédiatement.",
-  "schedule.installedState": "Un snapshot toutes les {{every}}. {{summary}} Environ {{count}} snapshots, remontant à {{reach}} — {{state}}.",
+  "schedule.installedState": "Un snapshot toutes les {{every}}. {{summary}} Environ {{count}} qui lui appartiennent, remontant à {{reach}} — {{state}}.",
   "schedule.keepEverySnapshotFor": "Conserver chaque snapshot pendant",
   "schedule.keepEverythingFor": "Tout conserver pendant",
   "schedule.log": "Journal",

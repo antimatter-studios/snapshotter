@@ -69,6 +69,15 @@ func ParseName(name string) (Snapshot, bool) {
 	return Snapshot{Name: name, Stamp: stamp, Taken: taken}, true
 }
 
+// IsStamp reports whether this is a bare snapshot date, "2026-09-09-061633".
+//
+// Exported because the guard is needed outside this package now: the schedule
+// records which snapshots it created, and a stamp read back from that file is an
+// argument to a command that deletes. Every such value is checked at the point
+// of use rather than trusted from its source — the same reasoning as Delete
+// refusing anything that is not a bare date.
+func IsStamp(stamp string) bool { return stampPattern.MatchString(stamp) }
+
 // NameForStamp rebuilds the full identifier from a bare stamp.
 func NameForStamp(stamp string) (string, error) {
 	if !stampPattern.MatchString(stamp) {

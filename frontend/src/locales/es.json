@@ -169,7 +169,7 @@
   "schedule.howOften": "Con qué frecuencia",
   "schedule.install": "Instalar programación",
   "schedule.installed": "Programación instalada. El primer snapshot se crea de inmediato.",
-  "schedule.installedState": "Un snapshot cada {{every}}. {{summary}} Unos {{count}} snapshots, que llegan {{reach}} atrás: {{state}}.",
+  "schedule.installedState": "Un snapshot cada {{every}}. {{summary}} Unos {{count}} propios, que llegan {{reach}} atrás: {{state}}.",
   "schedule.keepEverySnapshotFor": "Conservar cada snapshot durante",
   "schedule.keepEverythingFor": "Conservar todo durante",
   "schedule.log": "Registro",

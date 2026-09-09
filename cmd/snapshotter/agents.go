@@ -18,52 +18,113 @@ import (
 	"time"
 )
 
-// runScheduledSnapshot is the whole of the scheduled task: take one snapshot,
-// drop the ones past the retention window, and report what happened to the log
-// launchd captures. It needs no privileges, because tmutil asks backupd to do
-// the work.
-func runScheduledSnapshot(ctx context.Context, runner apfs.Runner) error {
-	snap, err := apfs.Create(ctx, runner)
-	if err != nil {
-		// A scheduled run that fails is invisible: launchd keeps the output and
-		// nobody reads a log until something has already been lost.
-		if nerr := notify.Send(ctx, i18n.T("notify.scheduledFailed"), err.Error()); nerr != nil {
-			log.Printf("could not post a notification: %v", nerr)
-		}
-		return err
-	}
-	log.Printf("created %s", snap.Stamp)
-
-	// The plist carries the policy, so the schedule prunes by whatever it was
-	// installed with rather than by whatever this binary's default happens to be.
+// runScheduledSnapshot is the whole of the scheduled task: make sure this period
+// has a snapshot, reap the ones this schedule created and no longer wants, and
+// report what happened to the log launchd captures. It needs no privileges,
+// because tmutil asks backupd to do the work.
+//
+// Two changes of principle, both learned the hard way on a real machine.
+//
+// It ASKS whether a snapshot is needed rather than taking one regardless. A
+// person who takes a snapshot by hand at 06:00 has covered the day; a scheduled
+// run at 06:16 that takes another has added nothing and, under the old
+// behaviour, then deleted one of the two.
+//
+// And it reaps only the snapshots it created — the managed ones. It used to plan
+// over every snapshot on the machine and delete whatever the policy did not
+// keep, which meant "one a day" quietly ate a hand-made snapshot the next
+// morning for sharing a day with a scheduled one. The person who took it had no
+// way to know that would happen and nothing said so afterwards. A snapshot this
+// schedule did not create is not its business: not to delete, and not to count
+// against the policy either.
+//
+// What neither change can do is protect anything from macOS. Every local
+// snapshot is purgeable and the system reclaims them under space pressure
+// without asking, managed or not.
+func runScheduledSnapshot(ctx context.Context, runner apfs.Runner, p paths) error {
+	// Read first, because it decides whether to create at all. The plist carries
+	// it, so the run behaves as it was installed rather than as this binary's
+	// defaults would.
 	policy, err := schedule.PolicyFromEnv()
 	if err != nil {
-		// A policy this build cannot read prunes NOTHING rather than pruning on a
-		// guess. Keeping too much is corrected by the next run; deleting too much
-		// is not correctable at all, because a snapshot records a past state of the
-		// disk and cannot be recreated.
+		// A policy this build cannot read reaps NOTHING rather than reaping on a
+		// guess, and still takes a snapshot, because failing to protect the disk
+		// is the worse of the two failures.
 		log.Print(err)
 	}
-	// Every volume that holds snapshots, not the data volume: localsnapshot above
-	// wrote to all of them, and pruning one of them is how the others filled up.
-	pruned, err := schedule.PruneByPolicy(ctx, runner, policy, time.Now())
-	for _, p := range pruned {
-		log.Printf("pruned %s", p.Stamp)
-	}
+
+	dir, err := config.Dir()
 	if err != nil {
 		return err
 	}
+	// Once per installation, and exact rather than a guess: this task logs
+	// "created <stamp>" and nothing else does, so a stamp in that file was made
+	// by this schedule. Without it every snapshot already on disk would be
+	// unmanaged and therefore permanent, and upgrading would silently stop the
+	// history thinning.
+	if err := schedule.Adopt(dir, p.logPath); err != nil {
+		log.Printf("could not adopt the existing snapshots, so none will be reaped: %v", err)
+	}
 
-	// Every volume, because the pruning above covered every volume. Counting the
-	// data volume's alone reported a number the run had not acted on, which is
-	// the shape of a log line that quietly stops being true.
 	vols, err := apfs.Volumes(ctx, runner)
 	if err != nil {
 		return err
 	}
+	existing := apfs.EverySnapshot(vols)
+
+	// Covered by ANY snapshot, not only a managed one. This is the whole point:
+	// the question is whether the period has a restore point, and one somebody
+	// took themselves answers it exactly as well as one this task took.
+	if covering, ok := schedule.Covering(existing, policy, time.Now()); ok {
+		log.Printf("nothing to do: %s already covers this period", covering.Stamp)
+	} else {
+		snap, err := apfs.Create(ctx, runner)
+		if err != nil {
+			// A scheduled run that fails is invisible: launchd keeps the output and
+			// nobody reads a log until something has already been lost.
+			if nerr := notify.Send(ctx, i18n.T("notify.scheduledFailed"), err.Error()); nerr != nil {
+				log.Printf("could not post a notification: %v", nerr)
+			}
+			return err
+		}
+		log.Printf("created %s", snap.Stamp)
+		// Recorded before anything is reaped. A crash between the two leaves a
+		// snapshot recorded and not yet planned over, which costs nothing; the
+		// other order would leave one this task made and will never reap.
+		if err := schedule.Manage(dir, snap.Stamp); err != nil {
+			log.Printf("could not record %s as this schedule's, so it will not be reaped: %v", snap.Stamp, err)
+		}
+		// Re-read, because the volumes changed. Reaping against the list from
+		// before the create would plan without the snapshot just taken.
+		if vols, err = apfs.Volumes(ctx, runner); err != nil {
+			return err
+		}
+		existing = apfs.EverySnapshot(vols)
+	}
+
+	// Managed only. Every volume too: localsnapshot writes to all of them, so a
+	// date this task created exists on all of them, and reaping one volume's is
+	// how the others filled up.
+	pruned, err := schedule.ReapManaged(ctx, runner, dir, existing, policy, time.Now())
+	for _, p := range pruned {
+		log.Printf("reaped %s", p.Stamp)
+	}
+	if err != nil {
+		return err
+	}
+
 	for _, v := range vols {
-		log.Printf("holding %d snapshots on %s, keeping %s",
-			len(v.Snapshots), v.MountPoint, schedule.Describe(policy))
+		managed, unmanaged := 0, 0
+		set := schedule.Managed(dir)
+		for _, s := range v.Snapshots {
+			if set[s.Stamp] {
+				managed++
+			} else {
+				unmanaged++
+			}
+		}
+		log.Printf("holding %d snapshots on %s (%d managed, %d left alone), aiming for %s",
+			len(v.Snapshots), v.MountPoint, managed, unmanaged, schedule.Describe(policy))
 	}
 	return nil
 }

@@ -169,7 +169,7 @@
   "schedule.howOften": "How often",
   "schedule.install": "Install schedule",
   "schedule.installed": "Schedule installed. The first snapshot is taken immediately.",
-  "schedule.installedState": "A snapshot every {{every}}. {{summary}} About {{count}} snapshots, reaching back {{reach}} — {{state}}.",
+  "schedule.installedState": "A snapshot every {{every}}. {{summary}} About {{count}} of its own, reaching back {{reach}} — {{state}}.",
   "schedule.keepEverySnapshotFor": "Keep every snapshot for",
   "schedule.keepEverythingFor": "Keep everything for",
   "schedule.log": "Log",
