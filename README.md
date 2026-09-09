@@ -354,6 +354,13 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.65.0
+
+The schedule no longer deletes snapshots it did not create. It used to plan over
+everything on the machine, so a snapshot you took by hand was reaped the next
+morning for sharing a day with a scheduled one. It now reaps only its own, and
+takes nothing at all when the period already holds a snapshot — yours included.
+
 ### v0.64.2
 
 The camera beside each disk heading takes the interface's primary button style,
@@ -430,12 +437,6 @@ paths not worth reading at all. Clicking a folder blanks the window immediately
 rather than eight seconds later, and the trail across the top no longer offers
 folders outside the volume being browsed. The status bar along the bottom is now
 always there, saying what the window is doing even when there is nothing to count.
-
-### v0.61.0
-
-A status bar along the bottom of the window counts the slow work — "Checking
-folders 245/567" — so work that takes a while reads as progress rather than as a
-freeze. A bar rather than a spinner, because the count is knowable.
 
 ## Design decisions
 
