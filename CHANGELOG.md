@@ -7,6 +7,47 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.65.0 — 2026-09-09
+
+**The schedule reaped snapshots it did not create.**
+
+Reported from a real machine: a snapshot taken by hand was gone the next morning,
+with a fresh scheduled one in its place.
+
+The scheduled task reconciled. Every run planned over every snapshot on the
+machine and deleted whatever the policy did not keep — so a hand-made snapshot
+competed in its period against the scheduled one, lost for being older, and was
+removed by `tmutil deletelocalsnapshots <date>`, which strips that date from
+every disk holding it. Nobody taking a snapshot could have known that would
+happen, and nothing said so afterwards.
+
+Two changes of principle.
+
+**It reaps only what it created.** The stamps it takes are recorded beside the
+settings, and the plan is made over that set alone. Everything else is unmanaged:
+not deleted, and not counted against the policy either. Installations that
+predate the record are adopted exactly rather than guessed — the scheduled task
+logs "created <stamp>" and nothing else does, so a stamp in that log was made by
+this schedule — because without adoption an upgrade would leave every snapshot on
+disk unmanaged and permanent, and the history would silently stop thinning.
+
+**It asks whether a snapshot is needed** rather than taking one regardless. A
+period that already holds a snapshot needs no second one. Somebody taking a
+snapshot at 06:00 has covered the day, and the 06:16 run adding another and then
+deleting one of the two was the whole shape of the fault. Coverage counts every
+snapshot, taken by hand or not: the question is whether the period has a restore
+point, not who made it.
+
+Every way of failing to know what it created falls towards keeping. A missing or
+unreadable record manages nothing, so nothing is reaped. A stamp is checked on
+the way into the record and on the way out, because a line read back from a file
+becomes an argument to a command that deletes. An unreadable policy still takes a
+snapshot, because failing to protect the disk is the worse of the two failures.
+
+What none of this can do is protect a snapshot from macOS, which reclaims
+purgeable snapshots under space pressure without asking and does not care who
+made them.
+
 ## v0.64.2 — 2026-09-08
 
 **The camera beside each disk now looks like the action it is, and sits where it
