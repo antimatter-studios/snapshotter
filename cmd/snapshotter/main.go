@@ -140,7 +140,7 @@ func main() {
 	}
 
 	if *takeSnapshot {
-		if err := runScheduledSnapshot(context.Background(), runner); err != nil {
+		if err := runScheduledSnapshot(context.Background(), runner, paths); err != nil {
 			log.Fatal(err)
 		}
 		return
