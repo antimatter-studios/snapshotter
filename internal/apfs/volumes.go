@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"snapshotter/internal/audit"
 	"sort"
 	"strings"
 	"sync"
@@ -117,6 +118,32 @@ type VolumeSnapshot struct {
 // Callers that mean strictly "volumes with snapshots on them" — the elevated
 // helper's allowlist above all — say so with WithSnapshots.
 func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
+	return volumesAsking(ctx, r, nil)
+}
+
+// volumesAsking is Volumes, with the option of not asking every mounted
+// filesystem whether it holds snapshots.
+//
+// asking says which mount points are worth a `diskutil apfs listSnapshots`
+// beyond the ones Time Machine includes. A nil map means ask all of them, which
+// is what a one-shot process should do — the command line and the launchd agents
+// pay a dozen subprocesses once and exit.
+//
+// The window cannot. It refreshes on a timer, and a full walk per tick was
+// twelve subprocesses a minute, for ever, to answer a question where two volumes
+// can possibly matter: measured on one machine, sixty-five walks an hour, ten of
+// the twelve filesystems queried sixty-five times each, about nineteen thousand
+// subprocesses a day. The ten are Preboot, VM, xarts, iSCPreboot, Hardware, the
+// recovery mounts and the sealed system volume, none of which will ever hold a
+// Time Machine snapshot.
+//
+// Skipping one is safe when Time Machine excludes it AND it held nothing last
+// time, because localsnapshot does not write to an excluded volume — so it
+// cannot have gained a snapshot since. The reverse case, a volume excluded after
+// it acquired snapshots, is exactly the one that must stay visible or its
+// history becomes unprunable, and it stays visible because it held something
+// last time and is therefore asked.
+func volumesAsking(ctx context.Context, r Runner, asking map[string]bool) ([]Volume, error) {
 	out, err := r.Run(ctx, "mount")
 	if err != nil {
 		return nil, fmt.Errorf("apfs: listing mounted volumes: %w: %s", err, strings.TrimSpace(out))
@@ -128,6 +155,10 @@ func Volumes(ctx context.Context, r Runner) ([]Volume, error) {
 	var vols []Volume
 	seen := map[string]bool{}
 	for _, mount := range mounts {
+		// Not asked at all when it cannot have anything to say. See volumesAsking.
+		if asking != nil && !included[mount] && !asking[mount] {
+			continue
+		}
 		// diskutil rather than tmutil, for the device identifier. tmutil names no
 		// volume in its output, so there would be nothing to deduplicate on.
 		listing, err := r.Run(ctx, "diskutil", "apfs", "listSnapshots", mount)
@@ -295,6 +326,9 @@ func DeleteOn(ctx context.Context, r Runner, device, uuid string) error {
 		return fmt.Errorf("apfs: refusing to delete %q: not a snapshot identifier", uuid)
 	}
 	out, err := r.Run(ctx, "diskutil", "apfs", "deleteSnapshot", device, "-uuid", uuid)
+	// At the deletion, not at the request. See apfs.Delete for why, and package
+	// audit for the question that could not be answered without this.
+	audit.Deleted(uuid, device, "diskutil apfs deleteSnapshot", err)
 	if err != nil {
 		return fmt.Errorf("apfs: deleting snapshot %s from %s: %w: %s", uuid, device, err, strings.TrimSpace(out))
 	}
@@ -506,7 +540,22 @@ type Cache struct {
 	at     time.Time
 	vols   []Volume
 	cached bool
+	// sweptAt is when every mounted filesystem was last asked, rather than only
+	// the ones that could plausibly answer. See Volumes below.
+	sweptAt time.Time
 }
+
+// FullSweep is how often the cached enumeration asks EVERY mounted APFS
+// filesystem, rather than only the ones Time Machine includes or that held
+// something last time.
+//
+// The narrow question is right almost always, and the sweep exists for the one
+// state it cannot see: a volume that is excluded from Time Machine, held nothing
+// when we last looked, and has since acquired a snapshot from something other
+// than this application. Rare enough to be worth minutes rather than seconds,
+// and consequential enough — an unlisted snapshot is an unprunable one — to be
+// worth checking at all.
+const FullSweep = 10 * time.Minute
 
 // NewCache builds a cache. A zero or negative ttl gets DefaultVolumeTTL.
 //
@@ -537,7 +586,23 @@ func (c *Cache) Volumes(ctx context.Context, r Runner, now time.Time) ([]Volume,
 	if c.cached && now.Sub(c.at) < c.ttl {
 		return c.vols, nil
 	}
-	vols, err := Volumes(ctx, r)
+
+	// Which mount points are worth asking, beyond the ones Time Machine includes:
+	// the ones that held something when we last looked. Nil until the first
+	// answer, and nil again on the periodic sweep, and nil means ask everything.
+	var asking map[string]bool
+	if c.cached && now.Sub(c.sweptAt) < FullSweep {
+		asking = make(map[string]bool, len(c.vols))
+		for _, v := range c.vols {
+			if len(v.Snapshots) > 0 {
+				asking[v.MountPoint] = true
+			}
+		}
+	} else {
+		c.sweptAt = now
+	}
+
+	vols, err := volumesAsking(ctx, r, asking)
 	if err != nil {
 		// The previous answer is kept rather than cleared. A momentary failure to
 		// run diskutil is not evidence that the disks have gone, and answering

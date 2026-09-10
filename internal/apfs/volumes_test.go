@@ -597,3 +597,112 @@ type mute struct{}
 func (mute) Run(context.Context, string, ...string) (string, error) {
 	return "", errors.New("nothing here answers")
 }
+
+// The cost of a refresh, which is the thing that went wrong in the field.
+//
+// The window refreshes on a timer, and a full walk per tick meant one
+// `diskutil apfs listSnapshots` subprocess per mounted APFS filesystem, for
+// ever. Measured on one machine over eleven and a half hours: 12,469 calls,
+// sixty-five an hour against each of ten filesystems that can never hold a Time
+// Machine snapshot — Preboot, VM, xarts, iSCPreboot, Hardware, the recovery
+// mounts and the sealed system volume. About nineteen thousand subprocesses a
+// day to answer a question where two volumes could possibly matter.
+func TestARefreshDoesNotInterrogateEveryFilesystem(t *testing.T) {
+	inner := &volumeRunner{
+		mount: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, journaled)\n" +
+			"/dev/disk3s6 on /System/Volumes/VM (apfs, local, journaled)\n" +
+			"/dev/disk3s4 on /System/Volumes/Preboot (apfs, local, journaled)\n" +
+			"/dev/disk1s2 on /System/Volumes/xarts (apfs, local, journaled)\n" +
+			"/dev/disk1s1 on /System/Volumes/iSCPreboot (apfs, local, journaled)\n" +
+			"/dev/disk1s3 on /System/Volumes/Hardware (apfs, local, journaled)\n",
+		byPath: map[string]string{
+			"/System/Volumes/Data":       snapshotBlocks("disk3s1", "com.apple.TimeMachine.2026-09-09-061633.local"),
+			"/Volumes/sdcard256gb":       snapshotBlocks("disk8s1", "com.apple.TimeMachine.2026-09-09-130736.local"),
+			"/System/Volumes/VM":         "No snapshots for disk3s6\n",
+			"/System/Volumes/Preboot":    "No snapshots for disk3s4\n",
+			"/System/Volumes/xarts":      "No snapshots for disk1s2\n",
+			"/System/Volumes/iSCPreboot": "No snapshots for disk1s1\n",
+			"/System/Volumes/Hardware":   "No snapshots for disk1s3\n",
+		},
+		included: map[string]bool{"/System/Volumes/Data": true, "/Volumes/sdcard256gb": true},
+	}
+	c := NewCache(time.Millisecond)
+	at := time.Date(2026, 9, 10, 9, 0, 0, 0, time.UTC)
+
+	// The first answer is a full sweep: nothing is known yet.
+	if _, err := c.Volumes(context.Background(), inner, at); err != nil {
+		t.Fatal(err)
+	}
+	if len(inner.asked) != 7 {
+		t.Fatalf("the first enumeration asked %d filesystems, want all 7", len(inner.asked))
+	}
+
+	// Every refresh after it asks only what can answer. Past the ttl and well
+	// inside FullSweep, at the window's own thirty-second cadence, which is the
+	// state the application actually lives in.
+	inner.asked = nil
+	for i := 1; i <= 10; i++ {
+		if _, err := c.Volumes(context.Background(), inner, at.Add(time.Duration(i)*30*time.Second)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Two volumes per refresh, not seven. The five that can never hold a snapshot
+	// are not asked at all.
+	if len(inner.asked) != 20 {
+		t.Errorf("ten refreshes cost %d listSnapshots calls, want 20 — two a refresh", len(inner.asked))
+	}
+	for _, mount := range inner.asked {
+		if mount != "/System/Volumes/Data" && mount != "/Volumes/sdcard256gb" {
+			t.Errorf("a refresh interrogated %s, which cannot hold a snapshot", mount)
+		}
+	}
+}
+
+// The one state the narrow question cannot see, and the reason the sweep exists:
+// a volume excluded from Time Machine that holds snapshots anyway. It must stay
+// listed, or its history is unprunable.
+func TestTheSweepFindsAnExcludedVolumeThatHoldsSnapshots(t *testing.T) {
+	inner := &volumeRunner{
+		mount: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, journaled)\n",
+		byPath: map[string]string{
+			"/System/Volumes/Data": snapshotBlocks("disk3s1", "com.apple.TimeMachine.2026-09-09-061633.local"),
+			"/Volumes/sdcard256gb": "No snapshots for disk8s1\n",
+		},
+		included: map[string]bool{"/System/Volumes/Data": true},
+	}
+	c := NewCache(time.Millisecond)
+	at := time.Date(2026, 9, 10, 9, 0, 0, 0, time.UTC)
+
+	if _, err := c.Volumes(context.Background(), inner, at); err != nil {
+		t.Fatal(err)
+	}
+	// The excluded card acquires a snapshot from somewhere that is not this
+	// application, so nothing here knows to look for it.
+	inner.byPath["/Volumes/sdcard256gb"] = snapshotBlocks("disk8s1", "com.apple.TimeMachine.2026-09-09-130736.local")
+
+	// A refresh inside the sweep window does not see it, which is the trade.
+	vols, err := c.Volumes(context.Background(), inner, at.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(WithSnapshots(vols)) != 1 {
+		t.Errorf("a narrow refresh found the excluded volume, so this test proves nothing")
+	}
+
+	// Past the sweep it does.
+	vols, err = c.Volumes(context.Background(), inner, at.Add(FullSweep+time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, v := range WithSnapshots(vols) {
+		if v.MountPoint == "/Volumes/sdcard256gb" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("the sweep did not find an excluded volume holding snapshots, so its history would never be pruned")
+	}
+}
