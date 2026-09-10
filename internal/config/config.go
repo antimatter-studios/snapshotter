@@ -69,6 +69,10 @@ type ChangeDetection struct {
 }
 
 // Schedule is what to ask launchd for, not what launchd is currently doing.
+// NoHourChosen is the AtHour of a schedule nobody has given a time to, which
+// takes the default instead. It is not zero, because zero is midnight.
+const NoHourChosen = -1
+
 type Schedule struct {
 	// Enabled says a schedule was ASKED for, which the numbers below cannot: a
 	// fresh settings file carries defaults that are indistinguishable from a
@@ -82,6 +86,15 @@ type Schedule struct {
 	// the tiered ones thin with age. Stored by id rather than by its expansion so
 	// that improving a preset improves existing configurations.
 	Policy string `yaml:"policy" json:"policy"`
+	// AtHour is the hour of the day the schedule is anchored to, 0-23, and -1
+	// where nobody has chosen.
+	//
+	// Minus one rather than zero, because zero is midnight and somebody is
+	// entitled to ask for it. The schedule anchors at 08:00 when nothing has been
+	// chosen, and a zero value here would have made "midnight" and "no opinion"
+	// the same request — so the first person to pick midnight would silently get
+	// eight in the morning.
+	AtHour int `yaml:"at_hour" json:"at_hour"`
 }
 
 type Tripwire struct {
@@ -209,7 +222,7 @@ type Paths struct {
 // intra-day granularity.
 func Defaults() Config {
 	return Config{
-		Schedule: Schedule{IntervalHours: 6, RetentionDays: 14, Policy: "flat"},
+		Schedule: Schedule{IntervalHours: 6, RetentionDays: 14, Policy: "flat", AtHour: NoHourChosen},
 		// Off, with nothing to watch, until someone says what to watch.
 		//
 		// It was on by default and watching the whole home directory, which cost

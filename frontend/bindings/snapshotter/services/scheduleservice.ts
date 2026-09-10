@@ -28,6 +28,20 @@ export function Install(intervalHours: number, retentionDays: number): $Cancella
 }
 
 /**
+ * InstallAt is InstallPolicy with a time of day. atHour is 0-23, or negative for
+ * "no opinion", which takes the default.
+ *
+ * A separate entry point rather than a fourth argument on InstallPolicy: the
+ * one-click fix in the Health panel calls that, and installing a schedule from a
+ * panic must not require an opinion about what time of day it should be.
+ */
+export function InstallAt(intervalHours: number, retentionDays: number, policyID: string, atHour: number): $CancellablePromise<$models.ScheduleView> {
+    return $Call.ByID(96574939, intervalHours, retentionDays, policyID, atHour).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * InstallPolicy writes and loads the schedule with a chosen retention policy.
  * retentionDays is the flat window, and is used only when policyID names it —
  * every other policy carries its own bands.

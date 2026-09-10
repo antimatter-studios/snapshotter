@@ -151,6 +151,7 @@
   "nav.homeSub": "Estado de este Mac",
   "nav.search": "Buscar",
   "nav.snapshots": "Snapshots",
+  "schedule.atWhatTime": "A qué hora",
   "schedule.automatic": "Snapshots automáticos",
   "schedule.cannotRecreate": "Un snapshot no se puede recrear: registra un estado del disco que ya pasó. Todo lo que quede fuera de la política se borra en la siguiente ejecución programada, y macOS puede recuperar más aún si falta espacio, así que estas cifras son límites superiores, no reservas.",
   "schedule.conflict": "Otra tarea programada también crea snapshots: {{tasks}}. Dos de ellas duplicarán el ritmo y aplicarán dos ventanas de retención distintas al mismo conjunto. Elimine una.",

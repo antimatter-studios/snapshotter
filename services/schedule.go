@@ -25,11 +25,17 @@ type ScheduleView struct {
 	Loaded    bool `json:"loaded"`
 	// IntervalHours and RetentionDays are the units the interface offers,
 	// rather than the durations stored underneath.
-	IntervalHours float64  `json:"intervalHours"`
-	RetentionDays float64  `json:"retentionDays"`
-	PlistPath     string   `json:"plistPath"`
-	LogPath       string   `json:"logPath"`
-	Conflicts     []string `json:"conflicts"`
+	IntervalHours float64 `json:"intervalHours"`
+	RetentionDays float64 `json:"retentionDays"`
+	// AtHour is the hour of the day the schedule fires, 0-23, read back from the
+	// installed plist so the screen shows what launchd will do rather than what
+	// was last asked for. Negative where the schedule fires at an interval
+	// counted from load and so has no hour — which is what every schedule
+	// installed before v0.66.0 does until it is migrated.
+	AtHour    int      `json:"atHour"`
+	PlistPath string   `json:"plistPath"`
+	LogPath   string   `json:"logPath"`
+	Conflicts []string `json:"conflicts"`
 	// MaxSnapshots is how many the schedule will hold at this interval and
 	// retention, which is the number worth seeing before committing to a
 	// setting. Counted by planning a history rather than by dividing the window
@@ -94,10 +100,30 @@ func (s *ScheduleService) Install(ctx context.Context, intervalHours, retentionD
 	return s.InstallPolicy(ctx, intervalHours, retentionDays, schedule.FlatID)
 }
 
+// InstallAt is InstallPolicy with a time of day. atHour is 0-23, or negative for
+// "no opinion", which takes the default.
+//
+// A separate entry point rather than a fourth argument on InstallPolicy: the
+// one-click fix in the Health panel calls that, and installing a schedule from a
+// panic must not require an opinion about what time of day it should be.
+func (s *ScheduleService) InstallAt(ctx context.Context, intervalHours, retentionDays float64, policyID string, atHour int) (ScheduleView, error) {
+	return s.install(ctx, intervalHours, retentionDays, policyID, atHour)
+}
+
 // InstallPolicy writes and loads the schedule with a chosen retention policy.
 // retentionDays is the flat window, and is used only when policyID names it —
 // every other policy carries its own bands.
 func (s *ScheduleService) InstallPolicy(ctx context.Context, intervalHours, retentionDays float64, policyID string) (ScheduleView, error) {
+	// Whatever was chosen before, so reinstalling from the Health panel does not
+	// quietly move somebody's schedule to the default hour.
+	atHour := schedule.NoHourChosen
+	if cfg, err := config.Load(); err == nil {
+		atHour = cfg.Schedule.AtHour
+	}
+	return s.install(ctx, intervalHours, retentionDays, policyID, atHour)
+}
+
+func (s *ScheduleService) install(ctx context.Context, intervalHours, retentionDays float64, policyID string, atHour int) (ScheduleView, error) {
 	// Recorded as intent before anything is installed. launchd remains the truth
 	// about what is running; this is what the settings screen should show on a
 	// machine where nothing is installed yet, and what a second installation should
@@ -106,6 +132,7 @@ func (s *ScheduleService) InstallPolicy(ctx context.Context, intervalHours, rete
 		cfg.Schedule.Enabled = true
 		cfg.Schedule.IntervalHours = intervalHours
 		cfg.Schedule.RetentionDays = retentionDays
+		cfg.Schedule.AtHour = atHour
 		if policyID != "" {
 			cfg.Schedule.Policy = policyID
 		}
@@ -121,6 +148,7 @@ func (s *ScheduleService) InstallPolicy(ctx context.Context, intervalHours, rete
 		Interval:  time.Duration(intervalHours * float64(time.Hour)),
 		Retention: days(retentionDays),
 		Policy:    policy,
+		AtHour:    atHour,
 	}
 	if err := s.Agent.Install(ctx, cfg); err != nil {
 		return ScheduleView{}, err
@@ -240,6 +268,8 @@ func viewOf(st schedule.Status) ScheduleView {
 		Installed:     st.Installed,
 		Loaded:        st.Loaded,
 		IntervalHours: st.Config.Interval.Hours(),
+		// Negative where the installed plist fires from load and so names no hour.
+		AtHour:        hourOf(st),
 		RetentionDays: inDays(st.Config.Retention),
 		PlistPath:     st.PlistPath,
 		LogPath:       st.LogPath,
@@ -394,7 +424,7 @@ func (s *ScheduleService) Restore(ctx context.Context) (Restored, error) {
 			// and this is the only thing that installs on anybody's behalf. An
 			// upgrade would leave every existing machine with the schedule that
 			// moves every time its owner logs in.
-			if _, err := s.InstallPolicy(ctx, cfg.Schedule.IntervalHours, cfg.Schedule.RetentionDays, cfg.Schedule.Policy); err != nil {
+			if _, err := s.install(ctx, cfg.Schedule.IntervalHours, cfg.Schedule.RetentionDays, cfg.Schedule.Policy, cfg.Schedule.AtHour); err != nil {
 				failures = append(failures, fmt.Errorf("putting the schedule back: %w", err))
 			} else {
 				out.Schedule = true
@@ -420,4 +450,17 @@ func (s *ScheduleService) Restore(ctx context.Context) (Restored, error) {
 	// Both outcomes are reported: what was put back, and what could not be. The
 	// caller needs the first to say so and the second to say so louder.
 	return out, errors.Join(failures...)
+}
+
+// hourOf is the hour an installed schedule fires at, or negative where it fires
+// at an interval counted from load and so has none.
+//
+// Read from what is installed rather than from the settings file, because the
+// two can disagree: the settings record what was asked for, and launchd is the
+// only authority on what will actually happen.
+func hourOf(st schedule.Status) int {
+	if !st.Installed || st.DriftsWithLogin {
+		return schedule.NoHourChosen
+	}
+	return st.Config.AtHour
 }

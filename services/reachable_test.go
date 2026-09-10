@@ -32,6 +32,9 @@ var notSurfaced = map[string]string{
 	"Locate":           "finds one path across snapshots; the search screen answers this by name instead",
 	"UninstallTripwire": "the health screen offers installing and starting it; removing it is a " +
 		"terminal job, and a button that silences the protection is not one to put a stray click near",
+	"InstallPolicy": "the settings screen calls InstallAt, which is this plus a time of day. This " +
+		"one stays because Install — the one-click fix in the health panel — is built on it, and " +
+		"installing a schedule out of a panic must not require an opinion about what hour it is",
 }
 
 func TestEveryBoundMethodIsReachableOrKnownNotToBe(t *testing.T) {

@@ -1127,6 +1127,15 @@ export class ScheduleView {
      */
     "intervalHours": number;
     "retentionDays": number;
+
+    /**
+     * AtHour is the hour of the day the schedule fires, 0-23, read back from the
+     * installed plist so the screen shows what launchd will do rather than what
+     * was last asked for. Negative where the schedule fires at an interval
+     * counted from load and so has no hour — which is what every schedule
+     * installed before v0.66.0 does until it is migrated.
+     */
+    "atHour": number;
     "plistPath": string;
     "logPath": string;
     "conflicts": string[];
@@ -1175,6 +1184,9 @@ export class ScheduleView {
         if (!("retentionDays" in $$source)) {
             this["retentionDays"] = 0;
         }
+        if (!("atHour" in $$source)) {
+            this["atHour"] = 0;
+        }
         if (!("plistPath" in $$source)) {
             this["plistPath"] = "";
         }
@@ -1207,14 +1219,14 @@ export class ScheduleView {
      * Creates a new ScheduleView instance from a string or object.
      */
     static createFrom($$source: any = {}): ScheduleView {
-        const $$createField6_0 = $$createType15;
-        const $$createField11_0 = $$createType14;
+        const $$createField7_0 = $$createType15;
+        const $$createField12_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("conflicts" in $$parsedSource) {
-            $$parsedSource["conflicts"] = $$createField6_0($$parsedSource["conflicts"]);
+            $$parsedSource["conflicts"] = $$createField7_0($$parsedSource["conflicts"]);
         }
         if ("tiers" in $$parsedSource) {
-            $$parsedSource["tiers"] = $$createField11_0($$parsedSource["tiers"]);
+            $$parsedSource["tiers"] = $$createField12_0($$parsedSource["tiers"]);
         }
         return new ScheduleView($$parsedSource as Partial<ScheduleView>);
     }

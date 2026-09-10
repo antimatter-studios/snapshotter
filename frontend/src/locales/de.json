@@ -151,6 +151,7 @@
   "nav.homeSub": "Zustand dieses Macs",
   "nav.search": "Suchen",
   "nav.snapshots": "Snapshots",
+  "schedule.atWhatTime": "Zu welcher Uhrzeit",
   "schedule.automatic": "Automatische Snapshots",
   "schedule.cannotRecreate": "Ein Snapshot lässt sich nicht neu erstellen: er hält einen vergangenen Zustand der Festplatte fest. Alles außerhalb der Richtlinie wird beim nächsten geplanten Lauf gelöscht, und macOS kann noch mehr freigeben, wenn der Speicherplatz knapp wird — diese Zahlen sind Obergrenzen, keine Reservierungen.",
   "schedule.conflict": "Eine weitere geplante Aufgabe erstellt ebenfalls Snapshots: {{tasks}}. Zwei davon verdoppeln die Rate und wenden zwei verschiedene Aufbewahrungszeiträume auf denselben Satz an. Entfernen Sie eine.",
