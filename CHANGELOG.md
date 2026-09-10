@@ -7,6 +7,30 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.67.0 — 2026-09-10
+
+**You choose what time of day the schedule runs.**
+
+The fixed-time trigger arrived with the hour hard-coded to eight, which is a time
+somebody else picked. There is a control beside how often now, offering every
+hour rather than a shortlist: a time of day is a personal thing — before work,
+after the school run, the middle of the night on a machine that never sleeps.
+
+Midnight is a real answer. It used to be the same value as "nobody chose", which
+was safe only while nothing could choose; the moment a control existed, the first
+person to ask for midnight would silently have got eight in the morning. "Nobody
+chose" has a value of its own now and every hour means itself.
+
+The screen shows the hour read back from the installed schedule rather than the
+one last asked for, because the two can disagree and launchd is the only
+authority on what will actually happen. A schedule installed before times of day
+existed names no hour at all, and shows the default rather than an hour it does
+not keep.
+
+Reinstalling from the Health panel keeps whatever hour was chosen. That path
+deliberately takes no opinion about the time — putting a schedule back in a panic
+should not require one — so it reads the setting instead of resetting it.
+
 ## v0.66.0 — 2026-09-10
 
 **The schedule fires at a time of day now, not an interval counted from when you
