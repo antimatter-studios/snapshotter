@@ -258,9 +258,27 @@ func runList(ctx context.Context, e Env, _ []string) error {
 }
 
 func runStatus(ctx context.Context, e Env, _ []string) error {
-	snaps, err := apfs.List(ctx, e.Runner, e.Volume)
-	if err != nil {
-		return err
+	// Every disk, not the startup disk.
+	//
+	// This counted the data volume alone and answered "No snapshots — nothing to
+	// roll back to" on a machine holding one on an external disk, which `list`
+	// was showing at that moment. Telling somebody they have no restore points
+	// while they are looking at one is the worst answer this command can give.
+	//
+	// The listing was widened in #116 and this was not, so the two disagreed.
+	// The per-volume counts are printed below because "three snapshots" says
+	// nothing about which disk would be there if one were unplugged.
+	vols, verr := apfs.Volumes(ctx, e.Runner)
+	snaps := apfs.EverySnapshot(vols)
+	if verr != nil {
+		// The startup disk alone, which is what this reported before the volumes
+		// could be enumerated at all. A disk that cannot be interrogated costs the
+		// wider count, not the answer.
+		only, err := apfs.List(ctx, e.Runner, e.Volume)
+		if err != nil {
+			return err
+		}
+		snaps, vols = only, nil
 	}
 	if len(snaps) == 0 {
 		fmt.Fprintln(e.Out, i18n.T("cli.noSnapshotsShort"))
@@ -271,6 +289,19 @@ func runStatus(ctx context.Context, e Env, _ []string) error {
 	fmt.Fprintln(e.Out, i18n.N("cli.snapshotsCovering", len(snaps), "Span", i18n.Span(newest.Taken.Sub(oldest.Taken).Hours())))
 	fmt.Fprintf(e.Out, i18n.T("cli.newest")+"  %s (%s)\n", newest.Stamp, age(e.Now().Sub(newest.Taken)))
 	fmt.Fprintf(e.Out, i18n.T("cli.oldest")+"  %s (%s)\n", oldest.Stamp, age(e.Now().Sub(oldest.Taken)))
+
+	// Which disk holds what. A total is what somebody asks for; the breakdown is
+	// what they need the moment one of those disks is a card they can unplug.
+	if held := apfs.WithSnapshots(vols); len(held) > 1 || (len(held) == 1 && held[0].MountPoint != e.Volume) {
+		fmt.Fprintln(e.Out)
+		for _, v := range held {
+			name := v.Name
+			if name == "" {
+				name = v.MountPoint
+			}
+			fmt.Fprintf(e.Out, "  %-22s %d\n", name, len(v.Snapshots))
+		}
+	}
 
 	// A configured Time Machine destination silently changes what retention
 	// means, so it is reported here rather than left to surprise someone.

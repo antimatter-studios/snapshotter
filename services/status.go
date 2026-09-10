@@ -214,9 +214,31 @@ func (s *StatusService) Check(ctx context.Context) (Health, error) {
 	if err != nil {
 		return h, err
 	}
-	h.SnapshotCount = len(snaps)
-	if len(snaps) > 0 {
-		newest, oldest := snaps[0].Taken, snaps[len(snaps)-1].Taken
+
+	// Every disk, not the startup disk.
+	//
+	// This counted the data volume alone and said "No snapshots — nothing to roll
+	// back to" on a machine with a snapshot sitting on an external disk, visible
+	// in the sidebar at that moment. Telling somebody they have no restore points
+	// while they are looking at one is the worst thing this screen can do: it is
+	// the screen they open to find out whether they are covered.
+	//
+	// The listing and the command line were widened in #116 and this was not, so
+	// the three disagreed. The union is what the others already use.
+	//
+	// The data volume's list stays as the fallback. A failure to enumerate costs
+	// the wider count and not the screen, which is the same trade the volume rows
+	// below make.
+	counted := snaps
+	if vols, verr := s.volumes(ctx); verr == nil {
+		if every := apfs.EverySnapshot(vols); len(every) > 0 || len(vols) > 0 {
+			counted = every
+		}
+	}
+
+	h.SnapshotCount = len(counted)
+	if len(counted) > 0 {
+		newest, oldest := counted[0].Taken, counted[len(counted)-1].Taken
 		h.Newest, h.Oldest = &newest, &oldest
 		h.CoverageHours = newest.Sub(oldest).Hours()
 	}

@@ -72,7 +72,27 @@ func (f *fakeRunner) Run(_ context.Context, name string, args ...string) (string
 				return d, nil
 			}
 		}
-		return f.details, nil
+		if f.details != "" {
+			return f.details, nil
+		}
+		// Derived from the same snapshots the tmutil listing above reports, so a
+		// test that describes a machine describes it once.
+		//
+		// They used to be separate: a test could fill `snapshots` and leave the
+		// diskutil side empty, which is a machine where `tmutil` sees snapshots
+		// and `diskutil` sees none — a state no Mac can be in. That was harmless
+		// only while status read tmutil; when it started answering for every disk,
+		// the fake said there was nothing to report and the test failed for
+		// describing an impossible machine rather than for anything being wrong.
+		if len(f.snapshots) == 0 {
+			return "No snapshots for disk3s1\n", nil
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "Snapshots for disk3s1 (%d found)\n", len(f.snapshots))
+		for i, name := range f.snapshots {
+			fmt.Fprintf(&b, "+-- %08X-0000-0000-0000-000000000000\n    Name:        %s\n    Purgeable:   Yes\n", i+1, name)
+		}
+		return b.String(), nil
 	}
 	return "", nil
 }
@@ -774,5 +794,69 @@ func TestOpenFindsTheBundleThroughASymlink(t *testing.T) {
 	}
 	if _, ok := single.BundleOf(resolved); !ok {
 		t.Error("resolving the symlink did not reach the bundle")
+	}
+}
+
+// The worst answer this command can give: "you have no restore points" to
+// somebody who has one.
+//
+// status counted the data volume alone, so a machine holding a snapshot on an
+// external disk — visible in `list` at that moment — was told there was nothing
+// to roll back to. The listing was widened when localsnapshot turned out to
+// write to every volume; this was not, and the two disagreed about the same
+// machine.
+func TestStatusCountsSnapshotsOnEveryDisk(t *testing.T) {
+	r := &fakeRunner{
+		mounted: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, nodev)\n",
+		volumeName: "sdcard256gb",
+		detailsFor: map[string]string{
+			// The startup disk has nothing, which is the state that produced the
+			// wrong answer.
+			"/System/Volumes/Data": "No snapshots for disk3s1\n",
+			"/Volumes/sdcard256gb": `Snapshots for disk8s1 (1 found)
++-- B
+    Name:        com.apple.TimeMachine.2026-08-14-003200.local
+    Purgeable:   Yes
+`,
+		},
+	}
+	env, out, _ := newEnv(r)
+
+	if code := Run(context.Background(), env, []string{"status"}); code != 0 {
+		t.Fatalf("status exited %d: %s", code, out.String())
+	}
+	got := out.String()
+	if strings.Contains(strings.ToLower(got), "no snapshots") {
+		t.Errorf("said there are no snapshots while one exists on another disk:\n%s", got)
+	}
+	if !strings.Contains(got, "2026-08-14-003200") {
+		t.Errorf("the snapshot on the external disk is not reported:\n%s", got)
+	}
+	// And which disk holds it: a total says nothing about which disk would be
+	// there if one of them were unplugged.
+	if !strings.Contains(got, "sdcard256gb") {
+		t.Errorf("the count is not broken down by disk:\n%s", got)
+	}
+}
+
+// A machine with genuinely nothing must still say so, or the fix above would
+// have replaced one wrong answer with another.
+func TestStatusStillSaysWhenThereAreNoSnapshotsAnywhere(t *testing.T) {
+	r := &fakeRunner{
+		mounted: "/dev/disk3s1 on /System/Volumes/Data (apfs, local, journaled)\n" +
+			"/dev/disk8s1 on /Volumes/sdcard256gb (apfs, local, nodev)\n",
+		detailsFor: map[string]string{
+			"/System/Volumes/Data": "No snapshots for disk3s1\n",
+			"/Volumes/sdcard256gb": "No snapshots for disk8s1\n",
+		},
+	}
+	env, out, _ := newEnv(r)
+
+	if code := Run(context.Background(), env, []string{"status"}); code != 0 {
+		t.Fatalf("status exited %d: %s", code, out.String())
+	}
+	if !strings.Contains(strings.ToLower(out.String()), "no snapshots") {
+		t.Errorf("a machine with no snapshots was not told so:\n%s", out.String())
 	}
 }
