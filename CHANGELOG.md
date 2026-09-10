@@ -7,6 +7,42 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.65.1 — 2026-09-10
+
+**The Home screen said there were no snapshots while the sidebar was showing
+one.**
+
+Health counted the data volume alone, and so did `snapshotter status`. The
+listing, `snapshotter list` and retention were all widened when `tmutil
+localsnapshot` turned out to write to every mounted volume; these two were not.
+So on a machine whose startup disk held nothing and whose card held a snapshot,
+the screen somebody opens to find out whether they are covered told them they
+were not. Both count every disk now, and `snapshotter status` says which disk
+holds what — a total is what you ask for, and which disk holds it is what you
+need the moment one of them is a card you can unplug.
+
+**Every destructive act is now recorded**, in
+`~/Library/Logs/snapshotter-audit.log`. Both deletions write to it, and so does
+the one place a live file is modified: Replace moving the existing file aside
+during a restore. Written where the deleting happens rather than where it is
+requested, so no route through this application removes a snapshot without
+saying so, and a refused deletion is recorded as refused — "attempted and
+refused" and "never attempted" are different facts, and only one of them means
+the snapshot should still be there.
+
+This exists because of a question that could not be answered. Snapshots
+disappeared from a real machine and nothing here could say whether it had
+deleted them: the scheduled task's prunes were on record, but the window wrote
+nowhere at all. Answering it took the system log and most of a day.
+
+**A refresh no longer interrogates every mounted filesystem.** Measured on that
+same machine over eleven and a half hours: 12,469 calls to storagekit, sixty-five
+an hour against each of ten filesystems that can never hold a snapshot — about
+nineteen thousand subprocesses a day to answer a question where two volumes could
+possibly matter. The enumeration already knew which volumes were eligible and
+asked them all anyway. A refresh now costs two calls rather than twelve, with a
+full sweep every ten minutes for the one case the narrow question cannot see.
+
 ## v0.65.0 — 2026-09-09
 
 **The schedule reaped snapshots it did not create.**

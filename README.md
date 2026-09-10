@@ -354,6 +354,15 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.65.1
+
+The Home screen counted only the startup disk, so a machine with a snapshot on an
+external disk was told it had none — while the sidebar showed it. Every
+destructive action is now recorded in `~/Library/Logs/snapshotter-audit.log`, so
+a snapshot that disappears can be traced rather than guessed at. And a refresh no
+longer asks every mounted filesystem whether it holds snapshots, which was about
+nineteen thousand subprocesses a day.
+
 ### v0.65.0
 
 The schedule no longer deletes snapshots it did not create. It used to plan over
@@ -422,21 +431,6 @@ only the last of them has a number — and the bar appeared for that one alone,
 which left the first two looking like nothing happening. Where there is no number
 it moves rather than fills, because a bar at an invented percentage would be a
 claim about progress nobody is measuring.
-
-### v0.62.0
-
-Browsing a snapshot stopped re-reading whole trees to answer questions it had
-already answered. Deciding a folder has changed needs one difference; deciding it
-has not needs everything under it read, and on an SD card that was seconds per
-folder. A difference is now recorded where it was found — one path, re-checked
-with a single stat, which answers that folder and every folder above it — and
-kept between runs. The reverse holds too: a walk that finishes without finding
-anything has already read every folder below it, and now says so. What macOS
-already remembers is harvested first, and `change_detection.ignore` names the
-paths not worth reading at all. Clicking a folder blanks the window immediately
-rather than eight seconds later, and the trail across the top no longer offers
-folders outside the volume being browsed. The status bar along the bottom is now
-always there, saying what the window is doing even when there is nothing to count.
 
 ## Design decisions
 
