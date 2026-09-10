@@ -164,3 +164,24 @@ describe("breadcrumbs on a volume that is not the startup disk", () => {
     expect(crumbs).toEqual([{ label: "sd", path: "/Volumes/sd" }]);
   });
 });
+
+// Twenty-four hours, whatever locale the machine is set to.
+//
+// A snapshot IS a 2026-09-10-151202 — that is its name on the disk and what the
+// command line prints — and the window rendered the same instant as "3:12 PM".
+// Reading a row against `snapshotter list`, or against the log, meant
+// translating between two clocks for nothing, and at three in the morning an
+// "AM" is one glance away from being read as the afternoon it is not.
+describe("timestamps", () => {
+  it("uses a 24-hour clock", () => {
+    const afternoon = stamp(new Date(2026, 8, 10, 15, 12, 2));
+    expect(afternoon).toMatch(/15[:.]12/);
+    expect(afternoon).not.toMatch(/\b[AP]M\b/i);
+  });
+
+  it("keeps the small hours unambiguous", () => {
+    const early = stamp(new Date(2026, 8, 10, 3, 5, 0));
+    expect(early).toMatch(/03[:.]05/);
+    expect(early).not.toMatch(/\b[AP]M\b/i);
+  });
+});

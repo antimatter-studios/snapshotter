@@ -33,7 +33,7 @@ export function age(when: string | Date, t: TFunction): string {
 const minutesPerHour = 60;
 const hoursPerDay = 24;
 
-/** Renders a timestamp as a short local date and time. */
+/** Renders a timestamp as a short local date and time, on a 24-hour clock. */
 export function stamp(when: string | Date): string {
   const date = new Date(when);
   if (Number.isNaN(date.getTime())) return "—";
@@ -42,6 +42,16 @@ export function stamp(when: string | Date): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    // Twenty-four hours, whatever the locale would have chosen.
+    //
+    // Everything else here already speaks it. A snapshot IS a
+    // 2026-09-10-151202, that is the name it has on the disk and the name the
+    // command line prints, and the window was rendering the same instant as
+    // "10 Sep, 03:12 PM". Reading a row against `snapshotter list`, or against
+    // the log, meant translating between two clocks for no reason — and at
+    // three in the morning an "AM" is one glance away from being read as the
+    // afternoon it is not.
+    hour12: false,
   });
 }
 
