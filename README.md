@@ -354,6 +354,12 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.67.0
+
+The schedule's time of day is yours to set, beside how often — every hour on
+offer, midnight included. It had been fixed at 08:00 since times of day replaced
+the interval that drifted with every login.
+
 ### v0.66.0
 
 The schedule now fires at a fixed time of day, anchored at 08:00, rather than at
@@ -422,13 +428,6 @@ written to every mounted APFS volume at once, so answering "what is on the SD
 card" used to mean leaving this application and reading diskutil — where it is
 easy to miss which snapshot is holding a container open, because that is a
 different line from the one saying it is purgeable.
-
-### v0.62.2
-
-Every disk that was not the startup disk carried a note above its snapshots saying
-that browsing what is inside them was the startup disk's alone. That stopped being
-true when snapshots on any volume became browsable, and the note stayed —
-contradicting what the application had just done. It is gone.
 
 ## Design decisions
 
