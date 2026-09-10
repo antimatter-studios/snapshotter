@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"snapshotter/internal/audit"
 )
 
 // Mode decides what happens when something already exists at the destination.
@@ -99,13 +101,29 @@ func resolveDestination(target string, opt Options) (dest, backedUp string, err 
 	switch opt.Mode {
 	case Replace:
 		backup := uniquePath(target + ".bak-" + tag)
-		if err := os.Rename(target, backup); err != nil {
+		err := os.Rename(target, backup)
+		// The one place this application modifies a file somebody is still using.
+		// Nothing is deleted — the original is moved aside, not removed — but the
+		// path they had is no longer the file they had, and that belongs in the
+		// record beside the snapshot deletions for the same reason: afterwards,
+		// somebody needs to be able to find out what happened without guessing.
+		audit.Note(fmt.Sprintf("replaced %s, previous contents kept at %s%s", target, backup, failure(err)))
+		if err != nil {
 			return "", "", fmt.Errorf("restore: moving the existing %s aside: %w", target, err)
 		}
 		return target, backup, nil
 	default:
 		return uniquePath(target + ".restored-" + tag), "", nil
 	}
+}
+
+// failure words an error for the audit record, or nothing at all when there was
+// none, so a line reads as a sentence either way.
+func failure(err error) string {
+	if err == nil {
+		return ""
+	}
+	return " — FAILED: " + err.Error()
 }
 
 // uniquePath appends a counter until the path is free, so a second restore of

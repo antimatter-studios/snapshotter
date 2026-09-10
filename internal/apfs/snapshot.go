@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"snapshotter/internal/audit"
 	"sort"
 	"strings"
 	"time"
@@ -152,6 +153,12 @@ func Delete(ctx context.Context, r Runner, stamp string) error {
 		return fmt.Errorf("apfs: refusing to delete %q: not a snapshot date", stamp)
 	}
 	out, err := r.Run(ctx, "tmutil", "deletelocalsnapshots", stamp)
+	// Recorded here rather than by the caller, because callers are added and a
+	// record kept at each call site is one a new call site silently omits. This
+	// removes the date from EVERY volume holding it, which is why the record says
+	// so: reading it later, "one snapshot" and "every disk's copy of a date" are
+	// very different losses.
+	audit.Deleted(stamp, "every disk holding that date", "tmutil deletelocalsnapshots", err)
 	if err != nil {
 		return fmt.Errorf("apfs: deleting snapshot %s: %w: %s", stamp, err, strings.TrimSpace(out))
 	}
