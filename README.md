@@ -354,6 +354,14 @@ at the same time.
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.66.0
+
+The schedule now fires at a fixed time of day, anchored at 08:00, rather than at
+an interval counted from whenever you last logged in — which meant a daily
+snapshot wandered from 06:17 to 13:37 to 20:43 on a real machine. A Mac that was
+off at eight takes one when it starts instead. Times are shown on a 24-hour
+clock, matching the snapshot names and the log.
+
 ### v0.65.1
 
 The Home screen counted only the startup disk, so a machine with a snapshot on an
@@ -421,16 +429,6 @@ Every disk that was not the startup disk carried a note above its snapshots sayi
 that browsing what is inside them was the startup disk's alone. That stopped being
 true when snapshots on any volume became browsable, and the note stayed —
 contradicting what the application had just done. It is gone.
-
-### v0.62.1
-
-The status bar's two halves say different things: the left says what is happening,
-the right says how far it has got. They change independently, because reading a
-folder, asking the event log and walking the disk are three stages of one wait and
-only the last of them has a number — and the bar appeared for that one alone,
-which left the first two looking like nothing happening. Where there is no number
-it moves rather than fills, because a bar at an invented percentage would be a
-claim about progress nobody is measuring.
 
 ## Design decisions
 

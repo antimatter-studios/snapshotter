@@ -7,6 +7,41 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.66.0 — 2026-09-10
+
+**The schedule fires at a time of day now, not an interval counted from when you
+logged in.**
+
+A schedule is a promise about when, and the one this replaces could not keep it.
+`StartInterval` counts from whenever launchd loaded the job, so every login,
+upgrade and reinstall restarted the clock. On the machine that reported it, a
+daily schedule ran at 06:17, then 13:37, then 20:43 — the last because somebody
+logged in at 20:42 — and nothing was wrong with the machine. A Mac logged into
+daily never reached the interval at all.
+
+The times are anchored at 08:00: early enough that a day's work is protected
+before it starts, late enough that a Mac switched on for the working day is
+usually awake. Every interval on offer divides the day evenly, so each becomes a
+list of wall-clock times counted out from that hour — six-hourly is 02:00, 08:00,
+14:00 and 20:00, with the anchor always among them. A Mac that was off at eight
+gets its snapshot when it starts instead, and that costs nothing now, because the
+run asks whether the period already holds one and does nothing when it does.
+
+An interval that cannot be said in whole hours keeps the old trigger. A
+ninety-minute schedule has no fixed set of times, and both alternatives are worse
+than a little drift: rounding it to hourly doubles the snapshot rate, and falling
+back to daily removes most of the protection.
+
+Schedules already installed are migrated. The plist is only ever rewritten by an
+explicit install, so without that this would have reached nobody who already had
+one.
+
+**Times are shown on a 24-hour clock.** A snapshot IS a 2026-09-10-151202 — the
+name it has on the disk, what the command line prints, what the log records — and
+the window rendered the same instant as "10 Sep, 03:12 PM". At three in the
+morning an "AM" is also one glance away from being read as the afternoon it is
+not.
+
 ## v0.65.1 — 2026-09-10
 
 **The Home screen said there were no snapshots while the sidebar was showing
