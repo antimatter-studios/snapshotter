@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -63,7 +64,13 @@ func TestInstallWritesAPlistLaunchdCanRead(t *testing.T) {
 	plist := string(data)
 	for _, want := range []string{
 		"<string>" + Label + "</string>",
-		"<integer>21600</integer>",
+		// Times of day, not a period counted from load. Six-hourly anchored at
+		// eight is 08:00, 14:00, 20:00 and 02:00.
+		"<key>StartCalendarInterval</key>",
+		"<integer>8</integer>",
+		"<integer>14</integer>",
+		"<integer>20</integer>",
+		"<integer>2</integer>",
 		"<key>" + retentionEnv + "</key>",
 		"<string>336</string>",
 		"--take-snapshot",
@@ -433,5 +440,89 @@ func TestThePlistSaysWhichApplicationItBelongsTo(t *testing.T) {
 	if BundleID != "com.christhomas.snapshotter" {
 		t.Errorf("the bundle identifier moved to %q; the Full Disk Access grant "+
 			"and the cask's uninstall stanza are both keyed on the old one", BundleID)
+	}
+}
+
+// A schedule is a promise about when, and StartInterval could not keep it.
+//
+// It counts from whenever launchd loaded the job, so every login, upgrade and
+// reinstall restarted the clock. On the machine that reported this, a daily
+// schedule ran at 06:17, then 13:37, then 20:43 — the last because somebody
+// logged in at 20:42 — and nothing was wrong with the machine. Times of day
+// cannot do that.
+func TestTheScheduleFiresAtTimesOfDayRatherThanFromLoad(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		interval time.Duration
+		atHour   int
+		want     []int
+	}{
+		{"daily lands on the hour asked for", 24 * time.Hour, 8, []int{8}},
+		{"twice a day", 12 * time.Hour, 8, []int{8, 20}},
+		{"six-hourly counts out from the anchor", 6 * time.Hour, 8, []int{8, 14, 20, 2}},
+		{"three-hourly", 3 * time.Hour, 8, []int{8, 11, 14, 17, 20, 23, 2, 5}},
+		{"an unset hour is the default, not midnight", 24 * time.Hour, 0, []int{DefaultAtHour}},
+		{"an impossible hour is the default", 24 * time.Hour, 99, []int{DefaultAtHour}},
+		// Nothing in the interface can choose these, but a hand-edited plist can.
+		{"an interval that does not divide the day keeps StartInterval", 5 * time.Hour, 8, nil},
+		{"a sub-hour interval keeps StartInterval", 90 * time.Minute, 8, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			trigger := triggerXML(Config{Interval: tc.interval, AtHour: tc.atHour})
+			got := calendarHours(trigger)
+
+			if tc.want == nil {
+				// Times of day cannot say this interval, so the plist keeps the key
+				// that can. Rounding it would change the snapshot rate silently.
+				if len(got) != 0 || !strings.Contains(trigger, "StartInterval") {
+					t.Fatalf("want StartInterval for %s, got %q", tc.interval, trigger)
+				}
+				return
+			}
+
+			want := append([]int(nil), tc.want...)
+			sort.Ints(want)
+			if len(got) != len(want) {
+				t.Fatalf("got %v, want %v", got, want)
+			}
+			for i := range got {
+				if got[i] != want[i] {
+					t.Fatalf("got %v, want %v", got, want)
+				}
+			}
+			// And a schedule that CAN be said in times of day must not also carry
+			// the key that drifts.
+			if strings.Contains(trigger, "<key>StartInterval</key>") {
+				t.Error("the times still carry StartInterval")
+			}
+		})
+	}
+}
+
+// The migration, without which the fix reaches nobody who already has a
+// schedule: the plist is only rewritten by an explicit install, and Restore
+// reinstalls only what is missing.
+func TestAnOldPlistIsRecognisedAsDrifting(t *testing.T) {
+	old := "<key>StartInterval</key>\n<integer>86400</integer>"
+	if SchedulesByTheClock(old) {
+		t.Error("a StartInterval plist was taken for one that fires by the clock, so it would never be migrated")
+	}
+
+	a := newAgent(t, &fakeRunner{})
+	if err := a.Install(context.Background(), Config{Interval: 24 * time.Hour, Retention: 14 * 24 * time.Hour, AtHour: 8}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(a.plistPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !SchedulesByTheClock(string(data)) {
+		t.Error("a freshly installed plist does not fire by the clock")
+	}
+
+	// And it reads back as what was asked for, so the settings screen shows what
+	// launchd will actually do.
+	if cfg := parseConfig(string(data)); cfg.AtHour != 8 || cfg.Interval != 24*time.Hour {
+		t.Errorf("read back as %dh at %02d:00, want 24h at 08:00", int(cfg.Interval.Hours()), cfg.AtHour)
 	}
 }

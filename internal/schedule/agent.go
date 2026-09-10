@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,6 +56,20 @@ type Config struct {
 	// flat window Retention describes, which is what every schedule installed
 	// before tiering existed carries — so a zero value here changes nothing.
 	Policy Policy `json:"policy"`
+	// AtHour is the hour of the day the schedule is anchored to, 0-23.
+	//
+	// A schedule is a promise about when, and the one this replaced could not
+	// keep it. StartInterval counts from whenever launchd loaded the job, so
+	// every login, upgrade and reinstall restarted the clock: a machine logged
+	// into daily never reached the interval at all, and the time of day wandered
+	// to wherever the last login happened to be. Somebody who asked for a daily
+	// snapshot got one at 06:17, then 13:37, then 20:43, and nothing was wrong
+	// with the machine.
+	//
+	// Fixed times of day cannot drift. Every interval this application offers —
+	// 1, 3, 6, 12 and 24 hours — divides the day evenly, so each becomes a list
+	// of wall-clock times counted out from this hour.
+	AtHour int `json:"atHour"`
 }
 
 // DefaultConfig is six-hourly snapshots kept for a fortnight.
@@ -67,7 +83,7 @@ type Config struct {
 // the one-click fix in Health installs, and a retention default that changes
 // under someone is a retention default that deletes something they expected to
 // find.
-var DefaultConfig = Config{Interval: 6 * time.Hour, Retention: 14 * 24 * time.Hour}
+var DefaultConfig = Config{Interval: 6 * time.Hour, Retention: 14 * 24 * time.Hour, AtHour: DefaultAtHour}
 
 // EffectivePolicy is the policy this schedule actually applies: the one it
 // carries, or the equivalent flat window if it carries none.
@@ -108,6 +124,10 @@ type Status struct {
 	// application can stop working, so it is read back rather than assumed.
 	Program        string `json:"program"`
 	ProgramMissing bool   `json:"programMissing"`
+	// DriftsWithLogin marks a plist that fires at an interval counted from when
+	// launchd loaded it, rather than at times of day. Those schedules move every
+	// time somebody logs in, so they are reinstalled rather than left alone.
+	DriftsWithLogin bool `json:"driftsWithLogin"`
 	// Conflicts names other LaunchAgents that also take local snapshots.
 	Conflicts []string `json:"conflicts"`
 }
@@ -142,6 +162,10 @@ func (a *Agent) Status(ctx context.Context) (Status, error) {
 	if err == nil {
 		st.Installed = true
 		st.Config = parseConfig(string(data))
+		// Only where times of day could have expressed it. A ninety-minute
+		// schedule legitimately keeps StartInterval, and calling that "drifting"
+		// would have Restore reinstall it on every single launch, for ever.
+		st.DriftsWithLogin = !SchedulesByTheClock(string(data)) && expressibleAsTimes(st.Config.Interval)
 		if program, ok := elementAfterKey(string(data), "ProgramArguments", "string"); ok {
 			st.Program = program
 			if _, statErr := os.Stat(program); statErr != nil && os.IsNotExist(statErr) {
@@ -296,11 +320,16 @@ func (a *Agent) render(cfg Config) (string, error) {
 	<array>
 %s	</array>
 
-	<!-- launchd fires a missed interval when the machine wakes, so a Mac that
-	     slept through one still gets its snapshot. -->
-	<key>StartInterval</key>
-	<integer>%d</integer>
+	<!-- When it fires. Wall-clock times where the interval can be said in them,
+	     because StartInterval counts from whenever launchd loaded the job and so
+	     wandered with every login. launchd runs a time missed while the Mac was
+	     asleep once it wakes. -->
+%s
 
+	<!-- And once at load, for a Mac that was off when its time came round. That
+	     costs nothing now: the run asks whether the period already holds a
+	     snapshot and does nothing when it does, so a login no longer produces one
+	     nobody asked for. -->
 	<key>RunAtLoad</key>
 	<true/>
 
@@ -326,7 +355,7 @@ func (a *Agent) render(cfg Config) (string, error) {
 	<string>%s</string>
 </dict>
 </plist>
-`, Label, BundleID, argXML.String(), int(cfg.Interval.Seconds()),
+`, Label, BundleID, argXML.String(), triggerXML(cfg),
 		retentionEnv, hoursUp(policy.Horizon()), policyEnv, policyText,
 		logPath, logPath), nil
 }
@@ -382,7 +411,20 @@ func PolicyFromEnv() (Policy, error) {
 // what launchd will actually do rather than what was last requested.
 func parseConfig(plist string) Config {
 	cfg := DefaultConfig
-	if seconds, ok := intAfterKey(plist, "StartInterval"); ok && seconds > 0 {
+	cfg.AtHour = DefaultAtHour
+
+	// Times of day first, because that is what this writes now. An older plist
+	// carries StartInterval instead and is read the way it was written, so the
+	// settings screen shows what launchd will actually do rather than what this
+	// build would have installed.
+	if hours := calendarHours(plist); len(hours) > 0 {
+		cfg.AtHour = hours[0]
+		if len(hours) > 1 {
+			cfg.Interval = time.Duration(hours[1]-hours[0]) * time.Hour
+		} else {
+			cfg.Interval = 24 * time.Hour
+		}
+	} else if seconds, ok := intAfterKey(plist, "StartInterval"); ok && seconds > 0 {
 		cfg.Interval = time.Duration(seconds) * time.Second
 	}
 	if raw, ok := elementAfterKey(plist, policyEnv, "string"); ok {
@@ -446,4 +488,118 @@ func escape(s string) (string, error) {
 		return "", fmt.Errorf("schedule: escaping %q: %w", s, err)
 	}
 	return buf.String(), nil
+}
+
+// DefaultAtHour is when a schedule lands unless it is told otherwise.
+//
+// Eight in the morning: early enough that a day's work is protected before it
+// starts, late enough that a Mac switched on for the working day is usually
+// awake to take it. A machine that was off gets it at login instead, from
+// RunAtLoad — which is the "or the nearest time after" half of the promise.
+const DefaultAtHour = 8
+
+// triggerXML writes the key that decides when the schedule fires.
+//
+// Wall-clock times where the interval can be said in them, because StartInterval
+// counts from whenever launchd loaded the job: every login, upgrade and
+// reinstall restarted the clock, so a daily schedule ran at 06:17, then 13:37,
+// then 20:43 on the machine that reported it, and nothing was wrong with the
+// machine.
+//
+// StartInterval remains for the intervals times of day cannot express. A
+// ninety-minute schedule has no fixed set of hours, and the alternatives are
+// both worse than a little drift: rounding it to hourly silently doubles the
+// snapshot rate, and falling back to daily silently removes most of somebody's
+// protection. Nothing in the interface can pick one, but a hand-edited plist
+// can, and it should keep doing what it says.
+func triggerXML(cfg Config) string {
+	if !expressibleAsTimes(cfg.Interval) {
+		return fmt.Sprintf("\t<key>StartInterval</key>\n\t<integer>%d</integer>", int(cfg.Interval.Seconds()))
+	}
+
+	// Zero means "not chosen", not midnight.
+	//
+	// Nothing in the interface can pick an hour yet, so every Config built
+	// without thinking about it arrives here as zero — and a schedule that
+	// silently landed at midnight would be one nobody asked for, on a Mac most
+	// likely asleep. When a picker exists this needs a sentinel that can express
+	// midnight; until then the safe reading is the default.
+	hour := cfg.AtHour
+	if hour <= 0 || hour > 23 {
+		hour = DefaultAtHour
+	}
+	step := int(cfg.Interval.Hours())
+
+	var b strings.Builder
+	b.WriteString("\t<key>StartCalendarInterval</key>\n\t<array>\n")
+	for h := 0; h < 24; h += step {
+		// Counted out from the anchor and wrapped, so the anchor is always one of
+		// the times: six-hourly at eight is 02:00, 08:00, 14:00, 20:00 and not
+		// 00:00, 06:00, 12:00, 18:00 with eight missing entirely.
+		at := (hour + h) % 24
+		b.WriteString("\t\t<dict>\n")
+		fmt.Fprintf(&b, "\t\t\t<key>Hour</key>\n\t\t\t<integer>%d</integer>\n", at)
+		b.WriteString("\t\t\t<key>Minute</key>\n\t\t\t<integer>0</integer>\n")
+		b.WriteString("\t\t</dict>\n")
+	}
+	b.WriteString("\t</array>")
+	return b.String()
+}
+
+// expressibleAsTimes reports whether an interval is a whole number of hours that
+// divides the day, and so can be written as a fixed set of times.
+//
+// Whole hours as well as dividing: ninety minutes truncated to one hour and
+// silently became an hourly schedule, which is twice what was asked for.
+func expressibleAsTimes(interval time.Duration) bool {
+	if interval < time.Hour || interval > 24*time.Hour || interval%time.Hour != 0 {
+		return false
+	}
+	return 24%int(interval.Hours()) == 0
+}
+
+// calendarHours reads back the hours a StartCalendarInterval array names, in
+// ascending order.
+//
+// Deliberately small: it wants the hours and nothing else, because the minute is
+// always zero and everything else about the schedule is carried in the
+// environment beside it. A plist this cannot parse reads as no times at all,
+// which sends parseConfig to the StartInterval it was written with.
+func calendarHours(plist string) []int {
+	start := strings.Index(plist, "<key>StartCalendarInterval</key>")
+	if start < 0 {
+		return nil
+	}
+	end := strings.Index(plist[start:], "</array>")
+	if end < 0 {
+		return nil
+	}
+	block := plist[start : start+end]
+
+	var hours []int
+	for _, part := range strings.Split(block, "<key>Hour</key>")[1:] {
+		open := strings.Index(part, "<integer>")
+		close := strings.Index(part, "</integer>")
+		if open < 0 || close < open {
+			continue
+		}
+		h, err := strconv.Atoi(strings.TrimSpace(part[open+len("<integer>") : close]))
+		if err != nil || h < 0 || h > 23 {
+			continue
+		}
+		hours = append(hours, h)
+	}
+	sort.Ints(hours)
+	return hours
+}
+
+// SchedulesByTheClock reports whether an installed plist fires at times of day
+// rather than at an interval counted from load.
+//
+// It is how an existing installation gets migrated. The plist is only ever
+// rewritten by an explicit install, and Restore reinstalls only what is MISSING
+// — so without this, everybody who already has a schedule keeps the drifting one
+// for ever and the fix reaches nobody, including the person who reported it.
+func SchedulesByTheClock(plist string) bool {
+	return len(calendarHours(plist)) > 0
 }
