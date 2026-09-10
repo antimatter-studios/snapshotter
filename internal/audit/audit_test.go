@@ -21,9 +21,12 @@ import (
 // reads. Restored by t.Setenv when the test ends.
 func at(t *testing.T) string {
 	t.Helper()
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	return filepath.Join(home, "Library", "Logs", "snapshotter-audit.log")
+	// Explicit, because Path writes nowhere under `go test` — which is the point
+	// of the guard, and means the record's own tests have to say where to write.
+	path := filepath.Join(t.TempDir(), "snapshotter-audit.log")
+	To(path)
+	t.Cleanup(func() { To("") })
+	return path
 }
 
 func read(t *testing.T, path string) string {
@@ -129,8 +132,28 @@ func TestConcurrentRecordsDoNotInterleave(t *testing.T) {
 // that will not take the line is a worse reason to leave a snapshot undeleted
 // than it is to lose the line.
 func TestAnUnwritableRecordIsSurvivable(t *testing.T) {
-	t.Setenv("HOME", "/dev/null/nowhere")
+	To("/dev/null/nowhere/audit.log")
+	t.Cleanup(func() { To("") })
 	Deleted("2026-09-09-061633", "disk3s1", "unwritable", nil)
 	Note("also unwritable")
 	// Reaching here without a panic is the assertion.
+}
+
+// A test run must not write to the real record.
+//
+// This is a fault already made, not a hypothetical. The suite exercises
+// apfs.Delete against fake runners, every one of those calls reached the audit
+// writer, and a real machine's log acquired 767 deletions that never happened —
+// of snapshots that had not existed for weeks. It was discovered while using
+// that same log to work out what had removed somebody's snapshots, which is
+// exactly when it does the most damage: a record that reports imaginary
+// deletions is worse than no record, because its only purpose is to be believed.
+func TestATestRunNeverWritesToTheRealRecord(t *testing.T) {
+	To("")
+	if got := Path(); got != "" {
+		t.Fatalf("under go test the record resolves to %q, so a test run writes to it", got)
+	}
+	// And writing is a no-op rather than a panic or a file somewhere unexpected.
+	Deleted("2026-09-09-130736", "disk8s1", "a fake runner in a test", nil)
+	Note("also from a test")
 }

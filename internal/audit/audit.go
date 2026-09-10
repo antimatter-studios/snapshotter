@@ -26,15 +26,43 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 )
+
+// to is an explicit destination, which only a test sets. See Path.
+var to string
+
+// To sends the record somewhere else, and is for tests of the record itself.
+//
+// Everything else gets Path, and a test binary that has not called this writes
+// nowhere at all.
+func To(path string) { to = path }
 
 // Path is the file, under the user's own log directory beside the two the
 // launchd agents write. A fixed name rather than a configured one: this is the
 // record somebody reaches for when they distrust the application, and a location
 // that could be moved by a setting is a location that can be moved out of the
 // way.
+//
+// Empty under `go test`, so a test run cannot write to it. This is not caution,
+// it is a fault already made: the suite exercises apfs.Delete against fake
+// runners, every one of those calls reached here, and a real machine's audit log
+// acquired 767 deletions that never happened — of snapshots that had not existed
+// for weeks. A record that reports imaginary deletions is worse than no record,
+// because the whole point of it is to be believed when somebody is trying to
+// find out what removed their data.
+//
+// Guarded here rather than in each test, for the same reason the record is
+// written at the deletion rather than at each call site: anything a caller has
+// to remember is something a new caller will not.
 func Path() string {
+	if to != "" {
+		return to
+	}
+	if testing.Testing() {
+		return ""
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
