@@ -56,7 +56,8 @@ type Config struct {
 	// flat window Retention describes, which is what every schedule installed
 	// before tiering existed carries — so a zero value here changes nothing.
 	Policy Policy `json:"policy"`
-	// AtHour is the hour of the day the schedule is anchored to, 0-23.
+	// AtHour is the hour of the day the schedule is anchored to, 0-23, and
+	// negative where nobody has chosen — see NoHourChosen.
 	//
 	// A schedule is a promise about when, and the one this replaced could not
 	// keep it. StartInterval counts from whenever launchd loaded the job, so
@@ -498,6 +499,10 @@ func escape(s string) (string, error) {
 // RunAtLoad — which is the "or the nearest time after" half of the promise.
 const DefaultAtHour = 8
 
+// NoHourChosen is the AtHour of a schedule nobody has given a time to. Not zero,
+// because zero is midnight and somebody is entitled to ask for it.
+const NoHourChosen = -1
+
 // triggerXML writes the key that decides when the schedule fires.
 //
 // Wall-clock times where the interval can be said in them, because StartInterval
@@ -517,15 +522,14 @@ func triggerXML(cfg Config) string {
 		return fmt.Sprintf("\t<key>StartInterval</key>\n\t<integer>%d</integer>", int(cfg.Interval.Seconds()))
 	}
 
-	// Zero means "not chosen", not midnight.
+	// Negative means "not chosen"; zero means midnight.
 	//
-	// Nothing in the interface can pick an hour yet, so every Config built
-	// without thinking about it arrives here as zero — and a schedule that
-	// silently landed at midnight would be one nobody asked for, on a Mac most
-	// likely asleep. When a picker exists this needs a sentinel that can express
-	// midnight; until then the safe reading is the default.
+	// They used to be the same value, which was safe only while nothing could
+	// pick an hour. Now that somebody can, the first person to choose midnight
+	// would have silently got eight in the morning — so "no opinion" has a value
+	// of its own and every hour of the day means itself.
 	hour := cfg.AtHour
-	if hour <= 0 || hour > 23 {
+	if hour < 0 || hour > 23 {
 		hour = DefaultAtHour
 	}
 	step := int(cfg.Interval.Hours())

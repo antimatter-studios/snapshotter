@@ -52,7 +52,9 @@ func TestInstallWritesAPlistLaunchdCanRead(t *testing.T) {
 	r := &fakeRunner{}
 	a := newAgent(t, r)
 
-	cfg := Config{Interval: 6 * time.Hour, Retention: 14 * 24 * time.Hour}
+	// NoHourChosen, not zero: zero is midnight now, and this asserts the times
+	// an unconfigured schedule lands on.
+	cfg := Config{Interval: 6 * time.Hour, Retention: 14 * 24 * time.Hour, AtHour: NoHourChosen}
 	if err := a.Install(context.Background(), cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -461,8 +463,11 @@ func TestTheScheduleFiresAtTimesOfDayRatherThanFromLoad(t *testing.T) {
 		{"twice a day", 12 * time.Hour, 8, []int{8, 20}},
 		{"six-hourly counts out from the anchor", 6 * time.Hour, 8, []int{8, 14, 20, 2}},
 		{"three-hourly", 3 * time.Hour, 8, []int{8, 11, 14, 17, 20, 23, 2, 5}},
-		{"an unset hour is the default, not midnight", 24 * time.Hour, 0, []int{DefaultAtHour}},
+		{"an unset hour takes the default", 24 * time.Hour, NoHourChosen, []int{DefaultAtHour}},
+		// Midnight is a real answer now, and must not be read as "no opinion".
+		{"midnight is honoured rather than defaulted", 24 * time.Hour, 0, []int{0}},
 		{"an impossible hour is the default", 24 * time.Hour, 99, []int{DefaultAtHour}},
+		{"six-hourly from midnight", 6 * time.Hour, 0, []int{0, 6, 12, 18}},
 		// Nothing in the interface can choose these, but a hand-edited plist can.
 		{"an interval that does not divide the day keeps StartInterval", 5 * time.Hour, 8, nil},
 		{"a sub-hour interval keeps StartInterval", 90 * time.Minute, 8, nil},

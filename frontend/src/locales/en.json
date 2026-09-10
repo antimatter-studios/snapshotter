@@ -151,6 +151,7 @@
   "nav.homeSub": "This Mac's health",
   "nav.search": "Search",
   "nav.snapshots": "Snapshots",
+  "schedule.atWhatTime": "At what time",
   "schedule.automatic": "Automatic snapshots",
   "schedule.cannotRecreate": "A snapshot cannot be recreated: it records a state of the disk that has passed. Anything outside the policy is deleted on the next scheduled run, and macOS may reclaim more than that under disk pressure — so these figures are upper bounds, not reservations.",
   "schedule.conflict": "Another scheduled task is also taking snapshots: {{tasks}}. Two of them will double the snapshot rate and apply two different retention windows to the same set. Remove one.",

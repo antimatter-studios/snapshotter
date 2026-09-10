@@ -38,6 +38,10 @@ const view = {
   intervalHours: 3,
   retentionDays: 14,
   policyId: "flat",
+  // The hour the installed schedule fires at. Negative where it fires at an
+  // interval counted from load and so names none, which is every schedule
+  // installed before v0.66.0.
+  atHour: 8,
   policySummary: "Everything for 14 days.",
   reachDays: 14,
   retained: 113,
@@ -52,8 +56,8 @@ const policies = [
   { id: "tiered-daily-weekly", name: "Tiered — daily, then weekly", summary: "One every 3 hours for 14 days, then one a day out to 8 weeks.", tiers: [], retained: 175, reachDays: 182 },
 ] as never;
 
-function stub() {
-  vi.spyOn(ScheduleAPI, "Status").mockResolvedValue(view as never);
+function stub(over: Record<string, unknown> = {}) {
+  vi.spyOn(ScheduleAPI, "Status").mockResolvedValue({ ...view, ...over } as never);
   vi.spyOn(ScheduleAPI, "Policies").mockResolvedValue(policies);
   vi.spyOn(ScheduleAPI, "Log").mockResolvedValue("" as never);
   // The screen reads these on load. Without them the real binding is called,
@@ -119,7 +123,7 @@ describe("choosing what is kept", () => {
 
   it("sends the chosen policy, interval and retention to be installed", async () => {
     stub();
-    const install = vi.spyOn(ScheduleAPI, "InstallPolicy").mockResolvedValue(view as never);
+    const install = vi.spyOn(ScheduleAPI, "InstallAt").mockResolvedValue(view as never);
     render(<Schedule onStatus={() => {}} />);
 
     const group = await screen.findByRole("radiogroup");
@@ -596,7 +600,7 @@ describe("the numbers a profile uses", () => {
 
   it("still installs both numbers along with the shape", async () => {
     stub();
-    const installed = vi.spyOn(ScheduleAPI, "InstallPolicy").mockResolvedValue(view as never);
+    const installed = vi.spyOn(ScheduleAPI, "InstallAt").mockResolvedValue(view as never);
 
     render(<Schedule onStatus={() => {}} />);
     const tiered = (await screen.findAllByRole("radio")).find(
@@ -622,5 +626,60 @@ describe("the numbers a profile uses", () => {
     // This paragraph had a catalogue entry all along and nothing called it — the
     // English was written into the markup.
     expect(await screen.findByText(/only takes local snapshots on its own/i)).toBeTruthy();
+  });
+});
+
+// A schedule is a promise about when, and until this existed the answer was an
+// hour somebody else picked. The plumbing landed with the fixed-time trigger;
+// this is the part that lets the person whose Mac it is choose.
+describe("the time of day", () => {
+  it("sends the chosen hour to be installed", async () => {
+    stub();
+    const install = vi.spyOn(ScheduleAPI, "InstallAt").mockResolvedValue(view as never);
+    render(<Schedule onStatus={() => {}} />);
+
+    const picker = await screen.findByLabelText(/at what time/i);
+    await userEvent.selectOptions(picker, "17");
+    await userEvent.click(screen.getByRole("button", { name: /install|update/i }));
+
+    await waitFor(() => expect(install).toHaveBeenCalled());
+    const atHour = install.mock.calls[0][3];
+    expect(atHour).toBe(17);
+  });
+
+  // Midnight is a real answer, and the value that used to mean "nobody chose".
+  // If it were still read that way the first person to pick it would silently
+  // get eight in the morning.
+  it("can choose midnight", async () => {
+    stub();
+    const install = vi.spyOn(ScheduleAPI, "InstallAt").mockResolvedValue(view as never);
+    render(<Schedule onStatus={() => {}} />);
+
+    await userEvent.selectOptions(await screen.findByLabelText(/at what time/i), "0");
+    await userEvent.click(screen.getByRole("button", { name: /install|update/i }));
+
+    await waitFor(() => expect(install).toHaveBeenCalled());
+    expect(install.mock.calls[0][3]).toBe(0);
+  });
+
+  // Every schedule installed before v0.66.0 fires at an interval counted from
+  // load and names no hour, which arrives as a negative. Showing that as an hour
+  // would be showing a time the schedule does not keep.
+  it("shows the hour the installed schedule actually fires at", async () => {
+    stub({ atHour: 17 });
+    render(<Schedule onStatus={() => {}} />);
+
+    const picker = (await screen.findByLabelText(/at what time/i)) as HTMLSelectElement;
+    await waitFor(() => expect(picker.value).toBe("17"));
+  });
+
+  it("shows the default rather than a nonsense hour for a schedule that names none", async () => {
+    stub({ atHour: -1 });
+    render(<Schedule onStatus={() => {}} />);
+
+    const picker = (await screen.findByLabelText(/at what time/i)) as HTMLSelectElement;
+    // Settled, so this is the value after Status arrived rather than before it.
+    await waitFor(() => expect(screen.getByRole("button", { name: /install|update/i })).toBeTruthy());
+    expect(picker.value).toBe("8");
   });
 });

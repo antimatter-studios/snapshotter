@@ -7,6 +7,11 @@ import { useTranslation } from "react-i18next";
 // Keys rather than text: these are module-level, where no translation is in
 // scope, and holding the key defers the lookup to the render that shows it —
 // which is also what makes the list re-read when the language changes.
+// Every hour of the day. A time of day is a personal thing — before work, after
+// the school run, the middle of the night on a machine that never sleeps — and
+// there is no reason to offer a shortlist.
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
 const INTERVALS = [
   { hours: 1, key: "schedule.everyHour" },
   { hours: 3, key: "schedule.every3" },
@@ -44,6 +49,9 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
   const { t } = useTranslation();
   const [view, setView] = useState<ScheduleView | null>(null);
   const [interval, setInterval] = useState(6);
+  // The hour the schedule is anchored to. Eight until the installed schedule
+  // says otherwise, which is the same default the plist writer uses.
+  const [atHour, setAtHour] = useState(8);
   const [retention, setRetention] = useState(14);
   const [policy, setPolicy] = useState(FLAT);
   const [options, setOptions] = useState<PolicyOption[]>([]);
@@ -140,6 +148,10 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
       setView(status);
       if (status.installed) {
         setInterval(status.intervalHours);
+        // Negative means the installed schedule fires at an interval counted from
+        // load and names no hour, which is every schedule installed before this
+        // existed. Leave the default showing rather than a nonsense hour.
+        if (status.atHour >= 0) setAtHour(status.atHour);
         setPolicy(status.policyId);
         // Only a flat window's reach is the flat window: a tiered policy's is
         // its horizon, which is not one of the choices in this select and would
@@ -212,7 +224,7 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
 
   const install = () =>
     run(async () => {
-      setView(await ScheduleAPI.InstallPolicy(interval, retention, policy));
+      setView(await ScheduleAPI.InstallAt(interval, retention, policy, atHour));
     }, t("schedule.installed"));
 
   const uninstall = () =>
@@ -289,6 +301,21 @@ export function Schedule({ onStatus }: { onStatus: (text: string) => void }) {
               {INTERVALS.map((i) => (
                 <option key={i.hours} value={i.hours}>
                   {t(i.key)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* The time of day, beside how often. Only meaningful where the
+              interval divides the day — a ninety-minute schedule has no fixed
+              set of times and keeps firing at an interval instead — and every
+              interval on offer here does. */}
+          <label>
+            {t("schedule.atWhatTime")}
+            <select value={atHour} onChange={(e) => setAtHour(Number(e.target.value))}>
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {String(h).padStart(2, "0")}:00
                 </option>
               ))}
             </select>
