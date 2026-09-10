@@ -385,7 +385,15 @@ func (s *ScheduleService) Restore(ctx context.Context) (Restored, error) {
 	if cfg.Schedule.Enabled {
 		if st, err := s.Agent.Status(ctx); err != nil {
 			failures = append(failures, fmt.Errorf("reading the schedule's state: %w", err))
-		} else if !st.Installed {
+		} else if !st.Installed || st.DriftsWithLogin {
+			// Reinstalled when it is missing, and ALSO when it fires at an interval
+			// counted from load rather than at times of day.
+			//
+			// Without the second, the fix reaches nobody who already has a
+			// schedule: the plist is only ever rewritten by an explicit install,
+			// and this is the only thing that installs on anybody's behalf. An
+			// upgrade would leave every existing machine with the schedule that
+			// moves every time its owner logs in.
 			if _, err := s.InstallPolicy(ctx, cfg.Schedule.IntervalHours, cfg.Schedule.RetentionDays, cfg.Schedule.Policy); err != nil {
 				failures = append(failures, fmt.Errorf("putting the schedule back: %w", err))
 			} else {
