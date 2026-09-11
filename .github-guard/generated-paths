@@ -1,0 +1,6 @@
+# Paths holding machine output, read by github-guard's generated-normalise
+# guard: it strips trailing whitespace there and never blocks, so regenerating
+# does not force a --no-verify that would switch off every other guard.
+#
+# `wails3 generate bindings` emits trailing spaces in its doc comments.
+frontend/bindings
