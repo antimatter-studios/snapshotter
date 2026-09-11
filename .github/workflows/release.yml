@@ -391,21 +391,17 @@ jobs:
           DMG: ${{ steps.dmg.outputs.dmg }}
         run: shasum -a 256 "$DMG" | tee SHA256SUMS
 
+      # The changelog is the single source of truth for what a release contains,
+      # and this is the same extraction the pre-push guard uses to refuse a tag
+      # whose version is undocumented. It used to be called out of an in-tree
+      # copy of that guard, which is why this repository carried a directory of
+      # hooks it no longer ran; the action reaches the one implementation
+      # without a copy, and fails the step when the section is missing.
       - name: Release notes
         id: notes
-        env:
-          TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          # The changelog is the single source of truth for what a release
-          # contains — the same script the pre-push guard uses to refuse a tag
-          # whose version is undocumented.
-          if ! .githooks/pre-push.d/git-changelog.sh notes "$TAG" > "$RUNNER_TEMP/notes.md"; then
-            echo "::error::CHANGELOG.md has no section for $TAG"
-            exit 1
-          fi
-          echo "path=$RUNNER_TEMP/notes.md" >> "$GITHUB_OUTPUT"
-          cat "$RUNNER_TEMP/notes.md"
+        uses: antimatter-studios/agent-skills/.github/actions/changelog-notes@aeb2cad74a6cb6e358ecfc2736b88a926caed07d
+        with:
+          tag: ${{ steps.version.outputs.tag }}
 
       - name: Publish
         env:
@@ -416,7 +412,7 @@ jobs:
           set -euo pipefail
           gh release create "$TAG" \
             --title "Snapshotter $TAG" \
-            --notes-file "${{ steps.notes.outputs.path }}" \
+            --notes-file "${{ steps.notes.outputs.file }}" \
             "$DMG" SHA256SUMS
           echo "Published $TAG"
           echo "Now sync the tap: run tap-sync in antimatter-studios/homebrew-tap"
