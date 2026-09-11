@@ -282,22 +282,37 @@ guards are tested without invoking `tmutil`.
 Git hooks come from
 [github-guard](https://github.com/antimatter-studios/agent-skills): squash-only
 merges, a protected default branch, no merge commits, plus `gofmt` and `go vet` on
-commit and `go test` on push. A fresh clone needs one command to activate them:
+commit and `go test` on push. A fresh clone needs one command to install them:
 
 ```sh
-git config core.hooksPath .githooks
+~/.claude/skills/github-guard/install.sh .
 ```
+
+They land in `.git/hooks`, outside the working tree, so checking out a branch
+cannot rewrite the hook that is about to run. That is also why they are not
+tracked here and every clone installs its own.
 
 The Go guards skip themselves when `frontend/dist` has not been built, because
 `frontend/embed.go` embeds it — otherwise a fresh checkout could not commit at all. Build
 the frontend once (`wails3 task build`) and they engage.
 
-One project-local guard exists for an irritation rather than a risk:
-`wails3 generate bindings` emits trailing whitespace in its doc comments, which
-the whitespace guard rightly blocks. `generated-normalise` strips it from
-`frontend/bindings/` only and never blocks, so regenerating bindings does not
-tempt anyone into `--no-verify` — a flag that would switch off every other guard
-at the same time.
+`go test` on push ships disarmed, since running a whole suite on every push is
+a per-project decision; this project wants it, so arm it once per clone:
+
+```sh
+chmod +x .git/hooks/pre-push.d/go-test.sh
+```
+
+Two guards this project wrote are now part of github-guard itself, so they
+come with the rest: `generated-normalise`, which strips the trailing
+whitespace `wails3 generate bindings` emits from a declared generated path (so
+regenerating bindings does not tempt anyone into `--no-verify`, a flag that
+switches off every other guard at the same time), and the `go-*` guards above.
+`generated-normalise` reads its path from this clone's config:
+
+```sh
+git config --add github-guard.generated-path frontend/bindings
+```
 
 ## Known limits
 
