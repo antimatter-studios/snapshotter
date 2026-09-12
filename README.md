@@ -369,6 +369,15 @@ git config --add github-guard.generated-path frontend/bindings
 
 Most recent releases; the full history lives in [CHANGELOG.md](CHANGELOG.md).
 
+### v0.68.0
+
+The window used to watch every write on the machine for as long as it ran, to
+keep warm a cache that is only read while somebody is browsing — 22.5 hours of
+CPU across two days on the machine that reported it. It now watches only while a
+folder listing is being looked at, and the two lookups underneath it no longer
+scan everything they hold. How all of this works is written down in
+docs/CHANGE-DETECTION.md.
+
 ### v0.67.0
 
 The schedule's time of day is yours to set, beside how often — every hour on
@@ -434,15 +443,6 @@ started with, and through Homebrew's link that is not the bundle it lives in.
 to the front. The Home button in the sidebar was a line of plain text that read as
 a heading rather than as somewhere to go; it is a proper destination now, with a
 mark, a name and a line saying what is on the other side.
-
-### v0.63.0
-
-`snapshotter list` answers for every disk rather than the startup one alone,
-grouped by volume with each disk's name and mount point. Local snapshots are
-written to every mounted APFS volume at once, so answering "what is on the SD
-card" used to mean leaving this application and reading diskutil — where it is
-easy to miss which snapshot is holding a container open, because that is a
-different line from the one saying it is purgeable.
 
 ## Design decisions
 

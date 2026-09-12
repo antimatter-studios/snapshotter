@@ -7,6 +7,48 @@ summarized in the README; the full history lives here.
 
 Nothing yet.
 
+## v0.68.0 — 2026-09-12
+
+**The window watched every write on the machine, for as long as it ran.**
+
+Reported from a real machine: 21-54% of a core at rest, 143% while disk images
+were being built, and 22.5 hours of CPU across two days.
+
+The filesystem watch is recursive over the home directory and every volume
+holding snapshots, and asks for every kind of event. What it keeps honest is the
+folder-verdict cache, which is read in exactly one situation — somebody looking
+at a folder listing inside a snapshot. Those two facts were never connected: the
+watch started when the window opened and ran with a context nothing ever
+cancelled, so an application sitting in the menu bar watched everything, always.
+
+It now starts the first time a verdict is wanted and stops once nothing has asked
+for two minutes, and says so both ways in the log. Stopping is safe because of
+what a verdict is: it is trusted without being re-checked, which only holds while
+the filesystem was watched without interruption between the answer and its use —
+so every start forgets the verdicts, a gap being a period nobody can account for.
+Recorded DIFFERENCES survive deliberately, because they are re-checked with a
+stat before they are believed.
+
+Two things underneath it were doing far more work than they needed to. Forgetting
+a path used to scan every cached entry, asking of each whether it was that path
+or an ancestor of it — where that set is the path's own ancestor chain, which a
+map can be asked for directly. And asking "is a difference known under this
+folder" scanned every recorded difference, though the database half has always
+answered it with an index; the in-memory half now has the same shape.
+
+Measured against twenty seconds of the same filesystem churn: 30.8 seconds of CPU
+before, 0.72 while browsing after, and nothing at all when nobody is.
+
+**Folder verdicts were never invalidated in the headless build.** The watch was
+started from the window's launch event, which that build never fires, so every
+interface change checked through `task server` was being checked against a cache
+nothing was keeping honest. Found while measuring the above, not by reading.
+
+**How change detection works is written down.** docs/CHANGE-DETECTION.md and the
+diagram beside it record the tiers a folder's verdict is looked for in, why a
+single file can settle a whole folder, and why a recorded difference outlives the
+process while a recorded sameness never can.
+
 ## v0.67.0 — 2026-09-10
 
 **You choose what time of day the schedule runs.**
