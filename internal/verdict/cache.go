@@ -303,24 +303,32 @@ func (c *Cache) Touched(livePath string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	path := filepath.Clean(livePath)
-	for _, byPath := range c.entries {
-		for known := range byPath {
-			if known == path || isAncestor(known, path) {
-				delete(byPath, known)
-			}
+	// The path and each of its ancestors, computed rather than searched for.
+	//
+	// This used to scan every cached entry on every event, asking of each whether
+	// it was the path or an ancestor of it — O(everything known) per filesystem
+	// event, under this lock. The watcher feeding it is recursive over a home
+	// directory, so a build writing a disk image delivers events by the thousand
+	// per second and each one swept the whole cache. On the machine that found
+	// it, the window sat at half a core for two days.
+	//
+	// The set is the same set: "known is the path, or an ancestor of the path" is
+	// exactly the path's ancestor chain, and a map can be asked for those
+	// directly. Depth instead of size, and a directory is rarely twenty deep.
+	for path := filepath.Clean(livePath); ; path = filepath.Dir(path) {
+		for _, byPath := range c.entries {
+			delete(byPath, path)
 		}
-	}
-	// The recorded changes too, and for the opposite reason: a verdict is
-	// forgotten because something beneath it moved, and a recorded change is
-	// forgotten because that path itself moved. Keeping a stale one would send
-	// every future check to a file that has been put back, which costs a stat and
-	// proves nothing.
-	for _, known := range c.changed {
-		for w := range known {
-			if w == path || isAncestor(w, path) {
-				delete(known, w)
-			}
+		// The recorded changes too, and for the opposite reason: a verdict is
+		// forgotten because something beneath it moved, and a recorded change is
+		// forgotten because that path itself moved. Keeping a stale one would send
+		// every future check to a file that has been put back, which costs a stat
+		// and proves nothing.
+		for _, known := range c.changed {
+			delete(known, path)
+		}
+		if parent := filepath.Dir(path); parent == path {
+			break
 		}
 	}
 }
