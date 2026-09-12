@@ -1,0 +1,335 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "How a Folder Is Judged Changed",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "cheap-first",
+        "label": "The cheap answers",
+        "focus": [
+          "row",
+          "ignore",
+          "cached",
+          "known",
+          "answer"
+        ],
+        "note": "Every tier before the walk is a lookup. Reaching the disk is the last resort, not the first move."
+      },
+      {
+        "id": "one-stat",
+        "label": "One stat instead of a tree",
+        "focus": [
+          "known",
+          "persisted",
+          "confirm",
+          "walk"
+        ],
+        "note": "A changed verdict rests on a single file, so re-checking that file re-establishes it for every folder above it."
+      },
+      {
+        "id": "staying-honest",
+        "label": "Keeping answers honest",
+        "focus": [
+          "row",
+          "watcher",
+          "touched",
+          "cached"
+        ],
+        "note": "A snapshot is immutable, so only the live disk can invalidate an answer — and the watch runs only while somebody is browsing."
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "The listing"
+        },
+        "backend": {
+          "label": "Decides"
+        },
+        "database": {
+          "label": "Remembers"
+        },
+        "messagebus": {
+          "label": "Keeps it honest"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "listing",
+      "label": "The listing"
+    },
+    {
+      "id": "memory",
+      "label": "Answered from memory"
+    },
+    {
+      "id": "disk",
+      "label": "Answered from the disk"
+    },
+    {
+      "id": "watch",
+      "label": "Keeping answers honest",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "free",
+      "label": "Free",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "lookups",
+      "label": "Lookups",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "reading",
+      "label": "Reading the disk",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "tiers",
+      "label": "Cheapest answer that is still true",
+      "lane": "memory",
+      "fromCol": 1,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "demand",
+      "label": "Runs only while browsing",
+      "lane": "watch",
+      "fromCol": 1,
+      "toCol": 2,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "row",
+    "ignore",
+    "cached",
+    "known",
+    "confirm",
+    "walk"
+  ],
+  "nodes": [
+    {
+      "id": "row",
+      "lane": "listing",
+      "col": 0,
+      "type": "frontend",
+      "label": "Folder row",
+      "sublabel": "twice per listing",
+      "width": 150
+    },
+    {
+      "id": "answer",
+      "lane": "listing",
+      "col": 5,
+      "type": "backend",
+      "label": "Verdict",
+      "sublabel": "same / changed / ignored",
+      "width": 150
+    },
+    {
+      "id": "ignore",
+      "lane": "memory",
+      "col": 1,
+      "type": "backend",
+      "label": "Ignore list",
+      "sublabel": "string match",
+      "tag": "reads nothing",
+      "width": 150
+    },
+    {
+      "id": "cached",
+      "lane": "memory",
+      "col": 2,
+      "type": "database",
+      "label": "Verdict cache",
+      "sublabel": "answered last time",
+      "width": 150
+    },
+    {
+      "id": "known",
+      "lane": "memory",
+      "col": 3,
+      "type": "database",
+      "label": "Changed-path index",
+      "sublabel": "by parent directory",
+      "tag": "one lookup",
+      "width": 150
+    },
+    {
+      "id": "persisted",
+      "lane": "disk",
+      "col": 3,
+      "type": "database",
+      "label": "change_detection",
+      "sublabel": "SQLite, across runs",
+      "width": 150
+    },
+    {
+      "id": "confirm",
+      "lane": "disk",
+      "col": 4,
+      "type": "backend",
+      "label": "Re-check one file",
+      "sublabel": "a single stat",
+      "tag": "not a tree",
+      "width": 150
+    },
+    {
+      "id": "walk",
+      "lane": "disk",
+      "col": 5,
+      "type": "backend",
+      "label": "Walk the tree",
+      "sublabel": "stops at first difference",
+      "width": 150
+    },
+    {
+      "id": "watcher",
+      "lane": "watch",
+      "col": 1,
+      "type": "messagebus",
+      "label": "FSEvents watch",
+      "sublabel": "on demand only",
+      "width": 150
+    },
+    {
+      "id": "touched",
+      "lane": "watch",
+      "col": 2,
+      "type": "messagebus",
+      "label": "Touched(path)",
+      "sublabel": "forgets path + parents",
+      "width": 150
+    }
+  ],
+  "edges": [
+    {
+      "id": "row-ignore",
+      "from": "row",
+      "to": "ignore",
+      "variant": "default"
+    },
+    {
+      "id": "ignore-cached",
+      "from": "ignore",
+      "to": "cached",
+      "label": "not ignored",
+      "variant": "default"
+    },
+    {
+      "id": "cached-known",
+      "from": "cached",
+      "to": "known",
+      "label": "nothing held",
+      "variant": "default"
+    },
+    {
+      "id": "known-confirm",
+      "from": "known",
+      "to": "confirm",
+      "label": "a difference is known",
+      "variant": "emphasis"
+    },
+    {
+      "id": "known-persisted",
+      "from": "known",
+      "to": "persisted",
+      "label": "nothing in memory",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "persisted-confirm",
+      "from": "persisted",
+      "to": "confirm",
+      "variant": "dashed"
+    },
+    {
+      "id": "confirm-answer",
+      "from": "confirm",
+      "to": "answer",
+      "label": "still differs",
+      "variant": "emphasis",
+      "role": "return"
+    },
+    {
+      "id": "confirm-walk",
+      "from": "confirm",
+      "to": "walk",
+      "label": "nothing known, or put back",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "walk-answer",
+      "from": "walk",
+      "to": "answer",
+      "variant": "default"
+    },
+    {
+      "id": "row-watcher",
+      "from": "row",
+      "to": "watcher",
+      "label": "browsing starts the watch",
+      "variant": "dashed"
+    },
+    {
+      "id": "watcher-touched",
+      "from": "watcher",
+      "to": "touched",
+      "variant": "default"
+    },
+    {
+      "id": "touched-cached",
+      "from": "touched",
+      "to": "cached",
+      "label": "forget what moved",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Why the order is this order",
+      "items": [
+        "Free checks run before any cache",
+        "One stat confirms; sameness needs a walk"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Why one file settles it",
+      "items": [
+        "A walk stops at the first difference",
+        "If that file differs, so does everything above"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "What makes caching safe",
+      "items": [
+        "Only the live disk can invalidate an answer",
+        "Differences persist; sameness never does"
+      ]
+    }
+  ]
+}

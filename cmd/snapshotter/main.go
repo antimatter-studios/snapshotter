@@ -383,6 +383,17 @@ func buildDeps(s setup, runner apfs.Runner) services.Deps {
 		mountsOn = nil
 	}
 
+	// Built before Deps rather than after, and deliberately.
+	//
+	// Deps is passed BY VALUE into every service, so a supervisor attached to it
+	// later reaches nothing: the browse service would hold a nil one, never ask
+	// for the watch, and serve verdicts that nothing was keeping honest. The nil
+	// case is legitimate — the command line asks once and exits — so that failure
+	// is silent, which is exactly why the ordering is structural here instead of
+	// being a line somebody has to keep in the right place.
+	verdicts := verdict.New()
+	watching := verdict.NewWatching(nil, verdicts.Unwatched, verdict.DefaultIdle)
+
 	return services.Deps{
 		Runner:   runner,
 		Mounts:   mounts,
@@ -419,7 +430,8 @@ func buildDeps(s setup, runner apfs.Runner) services.Deps {
 		// different, and the folder still differs. A recorded SAMENESS would be a
 		// claim about everything that happened while this application was not
 		// running, which nothing can keep, so it is never written.
-		Verdicts: verdict.New(),
+		Verdicts: verdicts,
+		Watching: watching,
 		Space:    s.space,
 	}
 }
@@ -451,6 +463,22 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 	scenarioName := s.scenario
 
 	deps := buildDeps(s, runner)
+
+	// What to watch, registered before anything can ask for it.
+	//
+	// WHEN is the supervisor's business: it starts this the first time a verdict
+	// is wanted and stops it once the questions do. This used to run from the
+	// window's ApplicationStarted event with a context nothing ever cancelled —
+	// so an application sitting in the menu bar watched every write on the machine
+	// for as long as it ran. Measured on the machine that reported it: 22.5 hours
+	// of CPU across two days, while disk images were being built and nobody was
+	// browsing anything at all.
+	//
+	// Registered here rather than from that event, because saying what to watch
+	// does not need a window to have launched — and in the headless build that
+	// event never fires at all, so the watch could not start however much
+	// somebody browsed.
+	deps.Watching.Watch(func(ctx context.Context) { watchEveryVolume(ctx, deps) })
 	// Recorded differences, kept between runs. Closed when the window is, and the
 	// application runs without it if it will not open.
 	if store := openChangeTable(); store != nil {
@@ -578,9 +606,6 @@ func runWindow(p paths, runner apfs.Runner, sim *scenario.Scenario) error {
 		// on another volume can be browsed, so a verdict about one of its folders
 		// can go stale — and watching only home meant it stayed stale until the
 		// window was reopened, which reads as a comparison that is simply wrong.
-		if deps.Verdicts != nil {
-			go watchEveryVolume(context.Background(), deps)
-		}
 	})
 	return app.Run()
 }
