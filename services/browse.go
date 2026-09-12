@@ -363,6 +363,15 @@ func (b *BrowseService) DirectoryStatus(device, snapshotName, livePath string) (
 
 // directoryStatus answers for one folder. knownOnly stops it before the walk.
 func (b *BrowseService) directoryStatus(device, snapshotName, livePath string, knownOnly bool) (FolderVerdict, error) {
+	// Somebody is browsing, which is the only situation the verdict cache is read
+	// in and therefore the only situation worth watching the filesystem for. The
+	// watch starts here and stops itself once the questions do.
+	//
+	// Before the ignore check rather than after: a listing of nothing but ignored
+	// folders is still browsing, and the next folder somebody opens will want a
+	// warm cache.
+	b.Watching.Wanted()
+
 	ignore := b.changeIgnore()
 
 	// The whole point of the list, and the only part of it that is free: a folder

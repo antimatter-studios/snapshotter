@@ -96,6 +96,11 @@ type Deps struct {
 	// simply means every answer is computed afresh, which is what the command
 	// line does.
 	Verdicts *verdict.Cache
+	// Watching runs the filesystem watch that keeps Verdicts honest, and runs it
+	// only while somebody is browsing. Nil where nothing watches — the command
+	// line asks once and exits, so it computes every answer afresh and is right
+	// to.
+	Watching *verdict.Watching
 	// Changes is the change_detection table, kept between runs.
 	//
 	// Only differences live in it, and none of them is ever believed without

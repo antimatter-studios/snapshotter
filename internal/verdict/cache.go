@@ -104,12 +104,27 @@ type Cache struct {
 	// "is there a known difference anywhere under this folder", which is what lets
 	// a folder nobody has asked about before be answered without a walk.
 	changed map[string]map[string]bool
+	// under indexes the changed paths by every directory above them, holding the
+	// shallowest change known beneath each, per snapshot.
+	//
+	// ChangedPathUnder used to scan the whole changed set per folder, asking of
+	// each path whether it sat beneath the folder — O(differences) on the read
+	// path, once per row of a listing and twice per listing. The persisted half
+	// of this cache never did that: change_detection carries a generated parent
+	// column with an index on (snapshot, parent), so SQLite answers the same
+	// question with a lookup. This is that index, in memory.
+	//
+	// The shallowest rather than a set, for the reason ChangedPathUnder wanted it:
+	// a change close to the folder asked about is the one most likely still to be
+	// there, and re-checking it reads fewer directories on the way.
+	under map[string]map[string]string
 }
 
 func New() *Cache {
 	return &Cache{
 		entries: map[string]map[string]Answer{},
 		changed: map[string]map[string]bool{},
+		under:   map[string]map[string]string{},
 	}
 }
 
@@ -159,6 +174,7 @@ func (c *Cache) UnderRules(fingerprint string) {
 	c.rules = fingerprint
 	c.entries = map[string]map[string]Answer{}
 	c.changed = map[string]map[string]bool{}
+	c.under = map[string]map[string]string{}
 	if c.kept != nil {
 		// What was recorded under the old settings is not an answer to the new
 		// question either, and it outlives the process, so it has to go too — and
@@ -213,7 +229,9 @@ func (c *Cache) Put(snapshot, livePath string, a Answer) {
 			known = map[string]bool{}
 			c.changed[snapshot] = known
 		}
-		known[filepath.Clean(a.ChangedPath)] = true
+		changedPath := filepath.Clean(a.ChangedPath)
+		known[changedPath] = true
+		c.index(snapshot, changedPath)
 		kept = c.kept
 	}
 	c.mu.Unlock()
@@ -241,17 +259,24 @@ func (c *Cache) ChangedPathUnder(snapshot, folder string) (string, bool) {
 	dir := filepath.Clean(folder)
 
 	c.mu.RLock()
-	var best string
-	for path := range c.changed[snapshot] {
-		if !isAncestor(dir, path) && path != dir {
-			continue
-		}
-		if best == "" || len(path) < len(best) {
-			best = path
-		}
+	best := c.under[snapshot][dir]
+	// The index is a hint; the changed set is the truth.
+	//
+	// Touched removes recorded changes as the disk moves, and reaching into the
+	// index for each would put work back on the hot path this exists to keep
+	// clear — Touched is called once per filesystem event. So a hint is checked
+	// against the set when it is used, which is O(1), and a stale one is dropped
+	// and answered as a miss. A miss costs a walk, which is what would have
+	// happened without the index at all; it is never wrong.
+	if best != "" && !c.changed[snapshot][best] {
+		best = ""
 	}
 	kept := c.kept
 	c.mu.RUnlock()
+
+	if best == "" {
+		c.forgetHint(snapshot, dir)
+	}
 
 	if best != "" {
 		return best, true
@@ -273,6 +298,9 @@ func (c *Cache) ChangedPathUnder(snapshot, folder string) (string, bool) {
 func (c *Cache) ForgetChangedPath(snapshot, path string) {
 	c.mu.Lock()
 	delete(c.changed[snapshot], filepath.Clean(path))
+	// The index points at paths, so dropping one has to reach it too, or a folder
+	// keeps being told about a difference that is no longer recorded.
+	c.unindex(snapshot)
 	kept := c.kept
 	c.mu.Unlock()
 
@@ -303,24 +331,32 @@ func (c *Cache) Touched(livePath string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	path := filepath.Clean(livePath)
-	for _, byPath := range c.entries {
-		for known := range byPath {
-			if known == path || isAncestor(known, path) {
-				delete(byPath, known)
-			}
+	// The path and each of its ancestors, computed rather than searched for.
+	//
+	// This used to scan every cached entry on every event, asking of each whether
+	// it was the path or an ancestor of it — O(everything known) per filesystem
+	// event, under this lock. The watcher feeding it is recursive over a home
+	// directory, so a build writing a disk image delivers events by the thousand
+	// per second and each one swept the whole cache. On the machine that found
+	// it, the window sat at half a core for two days.
+	//
+	// The set is the same set: "known is the path, or an ancestor of the path" is
+	// exactly the path's ancestor chain, and a map can be asked for those
+	// directly. Depth instead of size, and a directory is rarely twenty deep.
+	for path := filepath.Clean(livePath); ; path = filepath.Dir(path) {
+		for _, byPath := range c.entries {
+			delete(byPath, path)
 		}
-	}
-	// The recorded changes too, and for the opposite reason: a verdict is
-	// forgotten because something beneath it moved, and a recorded change is
-	// forgotten because that path itself moved. Keeping a stale one would send
-	// every future check to a file that has been put back, which costs a stat and
-	// proves nothing.
-	for _, known := range c.changed {
-		for w := range known {
-			if w == path || isAncestor(w, path) {
-				delete(known, w)
-			}
+		// The recorded changes too, and for the opposite reason: a verdict is
+		// forgotten because something beneath it moved, and a recorded change is
+		// forgotten because that path itself moved. Keeping a stale one would send
+		// every future check to a file that has been put back, which costs a stat
+		// and proves nothing.
+		for _, known := range c.changed {
+			delete(known, path)
+		}
+		if parent := filepath.Dir(path); parent == path {
+			break
 		}
 	}
 }
@@ -332,6 +368,7 @@ func (c *Cache) Forget(snapshot string) {
 	defer c.mu.Unlock()
 
 	delete(c.entries, snapshot)
+	delete(c.under, snapshot)
 	delete(c.changed, snapshot)
 	kept := c.kept
 	// Deferred out of the lock the same way as the rest: the snapshot is gone and
@@ -366,4 +403,79 @@ func isAncestor(dir, path string) bool {
 		return true
 	}
 	return strings.HasPrefix(path, dir+string(filepath.Separator))
+}
+
+// Unwatched drops every remembered verdict, for when the filesystem has stopped
+// being watched and started again.
+//
+// A verdict is trusted without being re-checked — that is the whole point of it —
+// and it is only safe to trust because the filesystem was being watched
+// continuously between the answer and its use. A gap in that watching is a period
+// nobody can account for, so anything decided before it has to go. This is the
+// same reasoning that keeps verdicts out of the persisted store: an answer that
+// outlived the process would be a claim about a time nothing was looking.
+//
+// Recorded CHANGES survive, and deliberately. They are never believed on sight —
+// ChangedPathUnder hands one back for the caller to re-check with a stat — so a
+// stale one costs a stat and proves nothing, where a stale verdict is simply
+// wrong.
+func (c *Cache) Unwatched() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries = map[string]map[string]Answer{}
+}
+
+// index records a changed path against every directory above it, keeping the
+// shallowest known change under each.
+//
+// Called with the lock held. Depth-many map writes per recorded difference,
+// against a scan of every difference per folder asked about — and folders are
+// asked about far more often than differences are found.
+func (c *Cache) index(snapshot, changedPath string) {
+	byDir, ok := c.under[snapshot]
+	if !ok {
+		byDir = map[string]string{}
+		c.under[snapshot] = byDir
+	}
+	for dir := changedPath; ; dir = filepath.Dir(dir) {
+		// Shallower wins, and an equal one is already there. A deeper change adds
+		// nothing to a directory that already knows about a shallower one: both
+		// answer "something under here differs", and the shallower is cheaper to
+		// re-check.
+		if best, seen := byDir[dir]; !seen || len(changedPath) < len(best) {
+			byDir[dir] = changedPath
+		}
+		if parent := filepath.Dir(dir); parent == dir {
+			return
+		}
+	}
+}
+
+// unindex drops a changed path from the directories it was recorded against.
+//
+// Rebuilt rather than unpicked: a directory may have been pointing at this path
+// while another change sits beneath it, and working out which without looking is
+// the kind of bookkeeping that goes wrong quietly. Forgetting a change is rare —
+// it happens when a re-check finds the file put back — and a listing is not
+// waiting on it.
+func (c *Cache) unindex(snapshot string) {
+	delete(c.under, snapshot)
+	for path := range c.changed[snapshot] {
+		c.index(snapshot, path)
+	}
+}
+
+// forgetHint drops a stale index entry, so the same dead hint is not re-checked
+// on every listing.
+//
+// Only the one directory asked about. A deeper change may still be recorded
+// beneath it, and finding out would mean the scan this index replaced — so the
+// next walk re-records it and Put puts it back, which is the same path a cold
+// cache takes.
+func (c *Cache) forgetHint(snapshot, dir string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if byDir, ok := c.under[snapshot]; ok {
+		delete(byDir, dir)
+	}
 }
