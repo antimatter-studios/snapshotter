@@ -1,0 +1,12 @@
+# .github-guard — declarations github-guard reads (see the github-guard skill:
+# https://github.com/antimatter-studios/agent-skills/blob/main/.claude/skills/github-guard/README.md).
+# git-config format: check with `git config -f .github-guard --list`, and
+# double-quote any value containing # or ;.
+
+# Paths holding machine output, read by github-guard's generated-normalise
+# guard: it strips trailing whitespace there and never blocks, so regenerating
+# does not force a --no-verify that would switch off every other guard.
+#
+# `wails3 generate bindings` emits trailing spaces in its doc comments.
+[paths]
+	generated = frontend/bindings
