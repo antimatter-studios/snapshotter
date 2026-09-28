@@ -26,7 +26,7 @@ jobs:
     steps:
       # Needed only for build/darwin/entitlements.plist, which the final step
       # signs against so that the test signature is the real one.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Present and non-empty
         env:
